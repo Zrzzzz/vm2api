@@ -34,6 +34,25 @@ import { collapseBlockKeywords, foldInterceptRows } from '../../../../protocol/i
 /** settings key: ISO instant before which usage_logs rows may have been pruned. Monotonic. */
 const PRUNED_THROUGH_KEY = 'usage_logs_pruned_through'
 
+const BILLING_STATS_CACHE_TTL_MS = 10_000
+const BILLING_BACKFILL_INTERVAL_MS = 60_000
+
+function billingStatsCacheKey(accountWindows) {
+  if (!Array.isArray(accountWindows) || accountWindows.length === 0) return 'rolling'
+  const normalized = accountWindows
+    .map((win) => ({
+      account_id: win?.account_id || '',
+      vm_id: win?.vm_id || '',
+      reset_5h: win?.reset_5h || null,
+      reset_7d: win?.reset_7d || null,
+      reset_7d_oi: win?.reset_7d_oi || null,
+    }))
+    .sort((a, b) =>
+      `${a.account_id}\0${a.vm_id}`.localeCompare(`${b.account_id}\0${b.vm_id}`, 'en', { sensitivity: 'case' }),
+    )
+  return JSON.stringify(normalized)
+}
+
 // Preserve per-row prompt denominators when aligning account quota windows.
 // Do not re-apply a single Anthropic formula on the mixed SUM (homepage/usage
 // billing). Database-page PromptCacheMetricsPanel still uses input+read+write.
@@ -102,6 +121,7 @@ const SUMMARY_COLUMNS = [
   'session_id',
   'outbound_session_id',
   'reasoning_effort',
+  'inbound_device_id',
   'intercept',
   'vm_owner_user_id',
 ]
@@ -262,8 +282,10 @@ export function summarizeLatency(values) {
 export class UsageLogsRepo {
   constructor(db = getDb()) {
     this.db = db
-    this._insert = "\n      INSERT INTO usage_logs (id, request_id, created_at, log_mode, method, path, protocol, model, stream, status, duration_ms, api_key_kind, api_key_id, vm_id, account_id, workspace, input_tokens, output_tokens, error_code, error_message, user_agent, ip_address, api_key_presented, has_tools, via, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, requested_model, upstream_model, model_mismatch, first_token_ms, stop_reason, attempt_count, final_state, final_account_id, input_cost, output_cost, cache_read_cost, cache_creation_cost, web_search_requests, web_search_cost, total_cost, pricing_model, price_source, price_version, user_id, group_id, actual_cost, rate_multiplier, service_tier, speed, long_context, session_id, outbound_session_id, reasoning_effort, intercept, vm_owner_user_id)\n      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59)\n    "
-    this._insertIfAbsent = "INSERT INTO usage_logs (id, request_id, created_at, log_mode, method, path, protocol, model, stream, status, duration_ms, api_key_kind, api_key_id, vm_id, account_id, workspace, input_tokens, output_tokens, error_code, error_message, user_agent, ip_address, api_key_presented, has_tools, via, cache_read_tokens, cache_creation_tokens, cache_creation_5m_tokens, cache_creation_1h_tokens, requested_model, upstream_model, model_mismatch, first_token_ms, stop_reason, attempt_count, final_state, final_account_id, input_cost, output_cost, cache_read_cost, cache_creation_cost, web_search_requests, web_search_cost, total_cost, pricing_model, price_source, price_version, user_id, group_id, actual_cost, rate_multiplier, service_tier, speed, long_context, session_id, outbound_session_id, reasoning_effort, intercept, vm_owner_user_id)\n      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59) ON CONFLICT DO NOTHING"
+    this._billingStatsCache = new Map()
+    this._billingBackfillAt = 0
+    this._insert = `INSERT INTO usage_logs (${SUMMARY_COLUMNS.join(', ')}) VALUES (${SUMMARY_COLUMNS.map((_, i) => '$' + (i + 1)).join(', ')})`
+    this._insertIfAbsent = this._insert + ' ON CONFLICT DO NOTHING'
     this._insertDebug = "\n      INSERT INTO request_log_debug (request_id, ts, record_json) VALUES ($1, $2, $3)\n      ON CONFLICT(request_id) DO UPDATE SET ts = excluded.ts, record_json = excluded.record_json\n    "
     this._insertDebugIfAbsent = "INSERT INTO request_log_debug (request_id, ts, record_json) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING"
     this._getDebug = "SELECT record_json FROM request_log_debug WHERE request_id = $1"
@@ -937,17 +959,48 @@ export class UsageLogsRepo {
   }
 
   /** Official-standard totals: all-time + Shanghai calendar today + per account. */
-  async billingStats({ accountWindows = null, now = Date.now() } = {}) {
-    try {
-      await this.backfillMissingCosts()
-    } catch {}
+  async billingStats(opts = {}) {
+    const { accountWindows = null, now = Date.now() } = opts
+    const cacheable = !Object.hasOwn(opts, 'now')
+    const cacheNow = Date.now()
+    const key = billingStatsCacheKey(accountWindows)
+    const cached = cacheable ? this._billingStatsCache.get(key) : null
+    if (cached && cached.expires_at > cacheNow) return cached.value
+
+    // Historical cost repair is maintenance, not part of rendering a panel.
+    // Limit it independently so several panel endpoints cannot repeat the same
+    // synchronous scan in a single refresh.
+    if (cacheNow - this._billingBackfillAt >= BILLING_BACKFILL_INTERVAL_MS) {
+      this._billingBackfillAt = cacheNow
+      try {
+        await this.backfillMissingCosts()
+      } catch {}
+    }
+
+    const value = await this._computeBillingStats({ accountWindows, now })
+    if (this._billingStatsCache.size > 32) {
+      for (const [cacheKey, entry] of this._billingStatsCache) {
+        if (entry.expires_at <= cacheNow) this._billingStatsCache.delete(cacheKey)
+      }
+    }
+    // Start the TTL after the expensive synchronous aggregation completes. On
+    // large databases the computation itself can exceed the TTL; anchoring the
+    // expiry at cache lookup time would make a freshly computed entry already
+    // stale and every refresh would scan the table again.
+    if (cacheable) this._billingStatsCache.set(key, { value, expires_at: Date.now() + BILLING_STATS_CACHE_TTL_MS })
+    return value
+  }
+
+  async _computeBillingStats({ accountWindows = null, now = Date.now() } = {}) {
     const todayStart = shanghaiDayStartIso()
-    const total = (await this._costSelect('', []))
-    const today = (await this._costSelect('WHERE created_at >= $1', [todayStart]))
     const fiveHStart = new Date(now - WINDOW_5H_MS).toISOString()
     const sevenDStart = new Date(now - WINDOW_7D_MS).toISOString()
     const accountsTotal = (await this.costByAccount())
     const accountsToday = (await this.costByAccount({ since: todayStart }))
+    const totalBucket = sumCostBuckets(accountsTotal)
+    const todayBucket = sumCostBuckets(accountsToday)
+    const total = { ...totalBucket, ...cacheHitStats(totalBucket) }
+    const today = { ...todayBucket, ...cacheHitStats(todayBucket) }
     const keyOf = (a) => a.account_id + '\0' + (a.vm_id || '')
     const todayById = new Map(accountsToday.map((a) => [keyOf(a), a]))
     const aligned = Array.isArray(accountWindows) && accountWindows.length > 0

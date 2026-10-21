@@ -3,6 +3,7 @@
  */
 import { isCodexVm } from '../vm/vm-kind.mjs'
 import { normalizeOpenAIQuotaPolicy } from '../pool/openai-quota-policy.mjs'
+import { normalizeCodexModelMappings, validateCodexModelMappingsPatch } from './codex-model-mapping.mjs'
 
 export { isCodexVm, normalizeVmKind } from '../vm/vm-kind.mjs'
 
@@ -76,7 +77,7 @@ function validateEnabledToggle(raw, path, code) {
 }
 
 /** PUT /api/panel/routing strict checks. Loaded files still go through normalize. */
-export function validateInferenceWebsocketPatch(body = {}) {
+export async function validateInferenceWebsocketPatch(body = {}) {
   if (!asObject(body)) return
   if (Object.prototype.hasOwnProperty.call(body, 'websocket')) {
     validateEnabledToggle(body.websocket, 'websocket', 'invalid_websocket')
@@ -102,6 +103,9 @@ export function validateInferenceWebsocketPatch(body = {}) {
   }
   if (Object.prototype.hasOwnProperty.call(codex, 'analytics')) {
     validateEnabledToggle(codex.analytics, 'codex.analytics', 'invalid_codex_analytics')
+  }
+  if (Object.prototype.hasOwnProperty.call(codex, 'model_mappings')) {
+    await validateCodexModelMappingsPatch(codex.model_mappings)
   }
 }
 
@@ -144,6 +148,7 @@ export function normalizeCodexRouting(raw = {}) {
     },
     clients,
     quota: normalizeOpenAIQuotaPolicy(src.quota),
+    model_mappings: normalizeCodexModelMappings(src.model_mappings),
   }
 }
 

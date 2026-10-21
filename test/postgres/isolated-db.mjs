@@ -7,5 +7,6 @@ export async function createTestDatabase() {
  await admin.query(`CREATE SCHEMA ${schema}`);await admin.close()
  const db=new PostgresDatabase(postgresConfig({...process.env,PGSCHEMA:schema}))
  await db.initializeBaseline(fs.readFileSync(new URL('../../src/lib/db/postgres-migrations/001_baseline.sql',import.meta.url),'utf8'))
+ await db.applyMigration('002',fs.readFileSync(new URL('../../src/lib/db/postgres-migrations/002_upstream_207.sql',import.meta.url),'utf8'))
  return db
 }

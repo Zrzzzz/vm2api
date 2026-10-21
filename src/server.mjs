@@ -895,6 +895,7 @@ async function syncNodeLocalEgress() {
 const clusterManager = new ClusterManager({
   repo: new ClusterNodesRepo(),
   dataDir,
+  gateBin: process.env.KIN_CLUSTER_GATE_BIN || path.join(cfg.paths.project, 'bin', 'kin-slot-gate'),
   listen: { host: cfg.host, port: cfg.port },
   vmsOnNode: (nodeId) => listVms(cfg.paths.project).filter((vm) => vm.node_id === nodeId),
   assertNodeEditable: (nodeId) => {
@@ -920,7 +921,7 @@ localEgressCluster = clusterManager
 bindPlacement({ manager: clusterManager, projectRoot: cfg.paths.project })
 await startNodeEgressSocks({ clientFor: (nodeId) => clusterManager.client(nodeId) })
 await clusterManager.start()
-clusterManager.restoreSlotRelays()
+await clusterManager.restoreSlotRelays()
 await syncNodeLocalEgress()
 if ((await proxyPool.snapshot()).config.ipv6_enabled !== true) {
   const exits = await syncIpv6ProxyEgress(cfg.paths.project, proxyPool)
@@ -929,7 +930,7 @@ if ((await proxyPool.snapshot()).config.ipv6_enabled !== true) {
   }
 }
 const clusterRoutes = createClusterRoutes({ manager: clusterManager, json, readBody, ok: panel.ok })
-const slotShell = createSlotShell({ projectRoot: cfg.paths.project })
+const slotShell = createSlotShell({ projectRoot: cfg.paths.project, importOauth: commitImportedOauth })
 for (const vm of listVms(cfg.paths.project)) {
   if (isCodexVm(vm)) continue
   try {
@@ -1279,7 +1280,7 @@ async function shutdown(signal) {
     stopAllRustKernels()
   } catch {}
   try {
-    clusterManager.stop()
+    await clusterManager.stop()
   } catch {}
   try {
     await new Promise(resolve => server.close(resolve))

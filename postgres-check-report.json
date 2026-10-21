@@ -61,15 +61,9 @@
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
-    "line": 830,
+    "line": 845,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
-  },
-  {
-    "file": "src/lib/admin/panel-api.mjs",
-    "line": 968,
-    "code": 2353,
-    "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ transport?: (exec: any, op: any, opts?: {}) => Promise<{ ok: boolean; status: any; body: any; headers: any; via: string; }>; now?: () => number; }'."
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
@@ -79,153 +73,195 @@
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
-    "line": 1030,
+    "line": 998,
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ transport?: (exec: any, op: any, opts?: {}) => Promise<{ ok: boolean; status: any; body: any; headers: any; via: string; }>; now?: () => number; }'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "line": 1045,
     "code": 2339,
     "message": "Property 'cfg' does not exist on type '{ force?: boolean; usageCache?: null; hop?: boolean; fableProbe?: ({ exec, timeoutMs, identity, models, }?: { timeoutMs?: number; identity?: any; models?: readonly string[]; }) => Promise<{ tier: string; fable: any; }>; routingConfig?: {}; }'."
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
-    "line": 1031,
+    "line": 1046,
     "code": 2339,
     "message": "Property 'accountQuota' does not exist on type '{ force?: boolean; usageCache?: null; hop?: boolean; fableProbe?: ({ exec, timeoutMs, identity, models, }?: { timeoutMs?: number; identity?: any; models?: readonly string[]; }) => Promise<{ tier: string; fable: any; }>; routingConfig?: {}; }'."
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
-    "line": 1032,
+    "line": 1047,
     "code": 2339,
     "message": "Property 'id' does not exist on type '{ force?: boolean; usageCache?: null; hop?: boolean; fableProbe?: ({ exec, timeoutMs, identity, models, }?: { timeoutMs?: number; identity?: any; models?: readonly string[]; }) => Promise<{ tier: string; fable: any; }>; routingConfig?: {}; }'."
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
-    "line": 1283,
+    "line": 1298,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'cfg' does not exist in type '{ force?: boolean; usageCache?: any; hop?: boolean; fableProbe?: ({ exec, timeoutMs, identity, models, }?: { timeoutMs?: number; identity?: any; models?: readonly string[]; }) => Promise<{ tier: string; fable: any; }>; routingConfig?: {}; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
-    "line": 644,
+    "line": 573,
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'routing' does not exist in type '{ recreate?: boolean; refreshFn?: (vm: any, projectRoot: any, { routing, recreate, startFn }?: { recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; }) => Promise<any>; }'."
+  },
+  {
+    "file": "src/lib/admin/panel-routes.mjs",
+    "line": 737,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'cfg' does not exist in type '{ force?: boolean; usageCache?: any; hop?: boolean; fableProbe?: ({ exec, timeoutMs, identity, models, }?: { timeoutMs?: number; identity?: any; models?: readonly string[]; }) => Promise<{ tier: string; fable: any; }>; routingConfig?: {}; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
-    "line": 1149,
+    "line": 1253,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'cfg' does not exist in type '{ force?: boolean; usageCache?: any; hop?: boolean; fableProbe?: ({ exec, timeoutMs, identity, models, }?: { timeoutMs?: number; identity?: any; models?: readonly string[]; }) => Promise<{ tier: string; fable: any; }>; routingConfig?: {}; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
-    "line": 1338,
+    "line": 1442,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ confirm?: boolean; arch?: Architecture; dockerBin?: string; sock?: string; execFileImpl?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
-    "line": 1613,
+    "line": 1743,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'cfg' does not exist in type '{ proxy_url?: string; headers?: {}; forward?: ({ cfg, method, url, headers, body, proxyUrl, signal, timeoutMs, }?: { method?: string; headers?: {}; proxyUrl?: string; timeoutMs?: number; }) => Promise<any>; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
-    "line": 1696,
+    "line": 1826,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'cfg' does not exist in type '{ proxy_url?: string; headers?: {}; forward?: ({ cfg, method, url, headers, body, proxyUrl, signal, timeoutMs, }?: { method?: string; headers?: {}; proxyUrl?: string; timeoutMs?: number; }) => Promise<any>; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
-    "line": 2870,
+    "line": 3011,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'cfg' does not exist in type '{ force?: boolean; usageCache?: any; hop?: boolean; fableProbe?: ({ exec, timeoutMs, identity, models, }?: { timeoutMs?: number; identity?: any; models?: readonly string[]; }) => Promise<{ tier: string; fable: any; }>; routingConfig?: {}; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
-    "line": 4772,
+    "line": 5067,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ runOauth?: (exec: any, op: any, { body, headers, force, timeoutMs, runDocker }?: { force?: boolean; timeoutMs?: number; runDocker?: (argv: any, { stdin, timeoutMs, env }?: { stdin?: string; timeoutMs?: number; }) => Promise<any>; }) => Promise<{ ok: boolean; status: any; body: any; headers: any; via: string; }>; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/release.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/release.mjs",
     "line": 432,
     "code": 2339,
     "message": "Property 'projectRoot' does not exist on type '{ confirm?: boolean; arch?: Architecture; dockerBin?: string; sock?: string; execFileImpl?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/release.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/release.mjs",
     "line": 433,
     "code": 2339,
     "message": "Property 'currentVersion' does not exist on type '{ confirm?: boolean; arch?: Architecture; dockerBin?: string; sock?: string; execFileImpl?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/release.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/release.mjs",
     "line": 435,
     "code": 2339,
     "message": "Property 'version' does not exist on type '{ confirm?: boolean; arch?: Architecture; dockerBin?: string; sock?: string; execFileImpl?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/release.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/release.mjs",
     "line": 439,
     "code": 2339,
     "message": "Property 'containerized' does not exist on type '{ confirm?: boolean; arch?: Architecture; dockerBin?: string; sock?: string; execFileImpl?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/release.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/release.mjs",
     "line": 440,
     "code": 2339,
     "message": "Property 'hostname' does not exist on type '{ confirm?: boolean; arch?: Architecture; dockerBin?: string; sock?: string; execFileImpl?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/release.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/release.mjs",
     "line": 441,
     "code": 2339,
     "message": "Property 'env' does not exist on type '{ confirm?: boolean; arch?: Architecture; dockerBin?: string; sock?: string; execFileImpl?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/release.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/release.mjs",
     "line": 443,
     "code": 2339,
     "message": "Property 'fetchImpl' does not exist on type '{ confirm?: boolean; arch?: Architecture; dockerBin?: string; sock?: string; execFileImpl?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/release.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/release.mjs",
     "line": 444,
     "code": 2339,
     "message": "Property 'now' does not exist on type '{ confirm?: boolean; arch?: Architecture; dockerBin?: string; sock?: string; execFileImpl?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/node-egress-socks.mjs",
+    "file": "src/lib/cluster/cluster-manager.mjs",
+    "line": 286,
+    "code": 2524,
+    "message": "'await' expressions cannot be used in a parameter initializer."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/node-egress-socks.mjs",
     "line": 102,
     "code": 2339,
     "message": "Property 'host' does not exist on type '{ openChannel: (nodeId: string, host: string, port: number) => Promise<Duplex>; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/claude-reset-credits.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/remote-slot.mjs",
+    "line": 830,
+    "code": 2339,
+    "message": "Property 'routing' does not exist on type '{ recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; }'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/remote-slot.mjs",
+    "line": 893,
+    "code": 2339,
+    "message": "Property 'routing' does not exist on type '{ recreate?: boolean; refreshFn?: (vm: any, projectRoot: any, { routing, recreate, startFn }?: { recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; }) => Promise<any>; }'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/remote-slot.mjs",
+    "line": 919,
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'routing' does not exist in type '{ recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; }'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/claude-reset-credits.mjs",
     "line": 470,
     "code": 2339,
     "message": "Property 'projectRoot' does not exist on type '{ transport?: (exec: any, op: any, opts?: {}) => Promise<{ ok: boolean; status: any; body: any; headers: any; via: string; }>; now?: () => number; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/claude-reset-credits.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/claude-reset-credits.mjs",
     "line": 471,
     "code": 2339,
     "message": "Property 'vmId' does not exist on type '{ transport?: (exec: any, op: any, opts?: {}) => Promise<{ ok: boolean; status: any; body: any; headers: any; via: string; }>; now?: () => number; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/claude-reset-credits.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/claude-reset-credits.mjs",
     "line": 485,
     "code": 2339,
     "message": "Property 'projectRoot' does not exist on type '{ transport?: (exec: any, op: any, opts?: {}) => Promise<{ ok: boolean; status: any; body: any; headers: any; via: string; }>; now?: () => number; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/claude-reset-credits.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/claude-reset-credits.mjs",
     "line": 486,
     "code": 2339,
     "message": "Property 'vmId' does not exist on type '{ transport?: (exec: any, op: any, opts?: {}) => Promise<{ ok: boolean; status: any; body: any; headers: any; via: string; }>; now?: () => number; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/claude-reset-credits.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/claude-reset-credits.mjs",
     "line": 487,
     "code": 2339,
     "message": "Property 'idempotencyKey' does not exist on type '{ transport?: (exec: any, op: any, opts?: {}) => Promise<{ ok: boolean; status: any; body: any; headers: any; via: string; }>; now?: () => number; }'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/protocol/codex-model-mapping.mjs",
+    "line": 109,
+    "code": 1064,
+    "message": "The return type of an async function or method must be the global Promise<T> type. Did you mean to write 'Promise<{ ok: true; body: any; mapped?: boolean; requestedModel?: string; upstreamModel?: string; } | { ok: false; code: string; message: string; }>'?"
   },
   {
     "file": "src/lib/protocol/user-count-tokens.mjs",
@@ -276,76 +312,118 @@
     "message": "Object literal may only specify known properties, and 'accountQuota' does not exist in type '{ probe?: (opts?: {}) => Promise<{ ok: boolean; source: string; error: string; probed_at: string; } | { five_hour: { utilization: number; utilization_pct: number; resets_at: any; status: any; }; seven_day: { ...; }; ... 13 more ...; error?: undefined; } | { ...; }>; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/go-worker-client.mjs",
-    "line": 1164,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/go-worker-client.mjs",
+    "line": 1222,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ force?: boolean; timeoutMs?: number; runDocker?: (argv: any, { stdin, timeoutMs, env }?: { stdin?: string; timeoutMs?: number; }) => Promise<any>; }'."
   },
   {
     "file": "src/lib/transport/kernel-watchdog.mjs",
-    "line": 150,
+    "line": 152,
     "code": 2339,
     "message": "Property 'listTargets' does not exist on type '{ config?: {}; getRouting?: null; ensure?: (exec: any, { timeoutMs, runDockerExec, force }?: { timeoutMs?: number; runDockerExec?: (args: any, { timeoutMs, env }?: { timeoutMs?: number; }) => Promise<any>; force?: boolean; }) => Promise<any>; ... 8 more ...; now?: () => number; }'."
   },
   {
     "file": "src/lib/transport/kernel-watchdog.mjs",
-    "line": 152,
+    "line": 154,
     "code": 2339,
     "message": "Property 'homeDirFor' does not exist on type '{ config?: {}; getRouting?: null; ensure?: (exec: any, { timeoutMs, runDockerExec, force }?: { timeoutMs?: number; runDockerExec?: (args: any, { timeoutMs, env }?: { timeoutMs?: number; }) => Promise<any>; force?: boolean; }) => Promise<any>; ... 8 more ...; now?: () => number; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/slot-oauth.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/slot-oauth.mjs",
     "line": 94,
     "code": 2339,
     "message": "Property 'body' does not exist on type '{ force?: boolean; timeoutMs?: number; runDocker?: (argv: any, { stdin, timeoutMs, env }?: { stdin?: string; timeoutMs?: number; }) => Promise<any>; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/slot-oauth.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/slot-oauth.mjs",
     "line": 94,
     "code": 2339,
     "message": "Property 'headers' does not exist on type '{ force?: boolean; timeoutMs?: number; runDocker?: (argv: any, { stdin, timeoutMs, env }?: { stdin?: string; timeoutMs?: number; }) => Promise<any>; }'."
   },
   {
     "file": "src/lib/vm/cli-node-guard.mjs",
-    "line": 71,
+    "line": 72,
     "code": 2339,
     "message": "Property 'listTargets' does not exist on type '{ liveTokens?: () => any[]; exec?: (connect: any, id: any, cmd: any, { user }?: {}) => Promise<void>; intervalMs?: number; logger?: Console; }'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/guest-identity.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/fleet-update.mjs",
+    "line": 61,
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/fleet-update.mjs",
+    "line": 121,
+    "code": 2339,
+    "message": "Property 'telemetryFn' does not exist on type '{ action?: string; routing?: {}; reloadFn?: (vm: any, projectRoot: any, opts?: {}) => Promise<any>; collectFn?: (projectRoot: any, vm: any, { callGet, timeoutMs }?: { callGet?: (exec: any, _requestPath: any, { timeoutMs, run }?: { ...; }) => Promise<...>; }) => Promise<...>; healthFn?: (exec: any, opts?: {}) => Prom...'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/fleet-update.mjs",
+    "line": 122,
+    "code": 2339,
+    "message": "Property 'telemetryEnabled' does not exist on type '{ action?: string; routing?: {}; reloadFn?: (vm: any, projectRoot: any, opts?: {}) => Promise<any>; collectFn?: (projectRoot: any, vm: any, { callGet, timeoutMs }?: { callGet?: (exec: any, _requestPath: any, { timeoutMs, run }?: { ...; }) => Promise<...>; }) => Promise<...>; healthFn?: (exec: any, opts?: {}) => Prom...'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/fleet-update.mjs",
+    "line": 208,
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'telemetryFn' does not exist in type '{ action?: string; routing?: {}; reloadFn?: (vm: any, projectRoot: any, opts?: {}) => Promise<any>; collectFn?: (projectRoot: any, vm: any, { callGet, timeoutMs }?: { callGet?: (exec: any, _requestPath: any, { timeoutMs, run }?: { ...; }) => Promise<...>; }) => Promise<...>; healthFn?: (exec: any, opts?: {}) => Prom...'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/guest-identity.mjs",
     "line": 151,
     "code": 2339,
     "message": "Property 'timeoutMs' does not exist on type '{ callGet?: (exec: any, _requestPath: any, { timeoutMs, run }?: { timeoutMs?: number; run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<...>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/slot-process-status.mjs",
-    "line": 39,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-process-status.mjs",
+    "line": 40,
     "code": 2339,
     "message": "Property 'projectRoot' does not exist on type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/slot-process-status.mjs",
-    "line": 39,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-process-status.mjs",
+    "line": 40,
     "code": 2339,
     "message": "Property 'vm' does not exist on type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/slot-process-status.mjs",
-    "line": 78,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-process-status.mjs",
+    "line": 81,
     "code": 2339,
     "message": "Property 'projectRoot' does not exist on type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/slot-process-status.mjs",
-    "line": 78,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-process-status.mjs",
+    "line": 81,
     "code": 2339,
     "message": "Property 'vm' does not exist on type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/slot-process-status.mjs",
-    "line": 79,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-process-status.mjs",
+    "line": 82,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-process-status.mjs",
+    "line": 111,
+    "code": 2339,
+    "message": "Property 'projectRoot' does not exist on type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-process-status.mjs",
+    "line": 111,
+    "code": 2339,
+    "message": "Property 'vm' does not exist on type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-process-status.mjs",
+    "line": 111,
+    "code": 2339,
+    "message": "Property 'enabled' does not exist on type '{ run?: { (file: string): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, args: readonly string[]): PromiseWithChild<{ stdout: string; stderr: string; }>; (file: string, options: ExecFileOptionsWithBufferEncoding): PromiseWithChild<...>; (file: string, args: readonly string[], options: ExecFile...'."
   },
   {
     "file": "src/server.mjs",
@@ -367,7 +445,7 @@
   },
   {
     "file": "src/server.mjs",
-    "line": 942,
+    "line": 943,
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'listTargets' does not exist in type '{ liveTokens?: () => any[]; exec?: (connect: any, id: any, cmd: any, { user }?: {}) => Promise<void>; intervalMs?: number; logger?: Console; }'."
   }

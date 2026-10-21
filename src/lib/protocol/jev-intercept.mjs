@@ -789,10 +789,10 @@ export function publicJevConfig(cfg) {
   }
 }
 
-export function readJevConfig(readSetting) {
+export async function readJevConfig(readSetting) {
   if (typeof readSetting !== 'function') return defaultJevConfig()
   try {
-    return normalizeJevConfig(readSetting(JEV_SETTING, null))
+    return normalizeJevConfig(await readSetting(JEV_SETTING, null))
   } catch {
     return defaultJevConfig()
   }

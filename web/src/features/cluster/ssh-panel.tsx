@@ -13,6 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { StatusMark } from '@/components/status-mark'
 import { WsTerminal } from '@/components/ws-terminal'
+import { DirectLinkConfig } from '@/features/cluster/direct-link-config'
 import { DockerTab } from '@/features/cluster/docker-tab'
 import {
   LINK_STATE_TEXT,
@@ -136,14 +137,16 @@ function LinkTab({
     ['经由', jump ? `${jump.label} · ${jump.host}` : '直连'],
     ['认证', node.auth_type === 'key' ? '私钥' : '密码'],
     ['固定指纹', `${node.host_key_alg} ${node.host_key_sha256}`],
-    [
-      'Docker',
-      node.health
-        ? node.health.docker.ok
-          ? '可用'
-          : node.health.docker.error || '不可用'
-        : '—',
-    ],
+    node.platform === 'darwin'
+      ? ['运行方式', 'macOS 原生（槽位是 launchd 服务，不用 Docker）']
+      : [
+          'Docker',
+          node.health
+            ? node.health.docker.ok
+              ? '可用'
+              : node.health.docker.error || '不可用'
+            : '—',
+        ],
   ]
 
   return (
@@ -175,6 +178,8 @@ function LinkTab({
         vmCount={vmCount}
         dependentCount={nodes.filter((n) => n.jump_node_id === node.id).length}
       />
+
+      <DirectLinkConfig key={node.id} node={node} />
 
       <div className='space-y-1.5'>
         <div className='text-xs font-medium'>本机 Docker 桥</div>

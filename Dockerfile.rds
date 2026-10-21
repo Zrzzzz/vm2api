@@ -1,4 +1,4 @@
-FROM ghcr.io/dofastted/vm2api:v1.3.194
+FROM ghcr.io/dofastted/vm2api:v1.3.207
 USER root
 RUN apt-get update \
  && apt-get install -y --no-install-recommends curl ca-certificates \

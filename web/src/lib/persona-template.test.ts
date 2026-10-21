@@ -8,6 +8,7 @@ import {
   PREVIEW_CALLER_SYSTEM,
   agentStandingVar,
   applyPersonaEnvVars,
+  dropLegacyAutoScope,
   overlayDisabledByPersona,
   personaInjectFromPreset,
   presetSeed,
@@ -53,6 +54,9 @@ describe('persona template contract', () => {
 describe('agent standing + system preview', () => {
   const vars = {
     identity: 'ID',
+    identity_cli: 'ID',
+    reporting: 'REPORTING',
+    dynamic_boundary: 'BOUNDARY',
     agent_official: 'AGENT',
     env_official: 'ENV',
     caller_agent: '',
@@ -221,16 +225,18 @@ describe('agent standing + system preview', () => {
     )
     expect(fullOn.map((block) => block.id)).toEqual([
       'identity',
+      'reporting',
       'agent_official',
+      'dynamic_boundary',
       'env_official',
     ])
-    expect(fullOn[1]).toMatchObject({
+    expect(fullOn[2]).toMatchObject({
       text: 'AGENT',
       placeholder: false,
       ttl: '1h',
       scope: '',
     })
-    expect(fullOn[2]).toMatchObject({
+    expect(fullOn[4]).toMatchObject({
       text: 'ENV',
       placeholder: false,
       ttl: '1h',
@@ -247,9 +253,16 @@ describe('agent standing + system preview', () => {
     )
     expect(fullOff.map((block) => block.id)).toEqual([
       'identity',
+      'reporting',
       'agent_official',
+      'dynamic_boundary',
     ])
-    expect(fullOff.some((block) => block.placeholder)).toBe(false)
+    expect(
+      fullOff.find((block) => block.id === 'agent_official')
+    ).toMatchObject({
+      placeholder: false,
+    })
+    expect(fullOff.some((block) => block.id === 'env_official')).toBe(false)
 
     expect(
       previewSystemBlocks(
@@ -478,5 +491,39 @@ describe('agent standing + system preview', () => {
     expect(
       'persona_hide_presets' in setPersonaHide(off, 'zero', true, zero, {})
     ).toBe(false)
+  })
+})
+
+describe('legacy global cache scope', () => {
+  const legacy = { type: 'ephemeral', ttl: '1h', scope: 'global' }
+  it('preview drops the old default scope from saved built-in agent blocks only', () => {
+    const saved = DEFAULT_PERSONA_TEMPLATES.official_full.map((block) =>
+      block.id === 'agent_official'
+        ? { ...block, cache_control: legacy }
+        : { ...block }
+    )
+    const blocks = previewSystemBlocks(
+      dropLegacyAutoScope('official_full', saved),
+      { agent_official: 'AGENT', env_official: 'ENV' }
+    )
+    expect(blocks.some((block) => block.scope)).toBe(false)
+    expect(blocks.find((block) => block.id === 'agent_official')?.ttl).toBe(
+      '1h'
+    )
+  })
+  it('keeps custom presets and other explicit scopes', () => {
+    const custom = [
+      { id: 'agent', type: 'text', text: 'x', cache_control: legacy },
+    ]
+    expect(dropLegacyAutoScope('custom', custom)).toEqual(custom)
+    const explicit = [
+      {
+        id: 'agent_official',
+        type: 'text',
+        text: 'x',
+        cache_control: { type: 'ephemeral', ttl: '5m', scope: 'global' },
+      },
+    ]
+    expect(dropLegacyAutoScope('official_full', explicit)).toEqual(explicit)
   })
 })

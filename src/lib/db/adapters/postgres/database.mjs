@@ -135,18 +135,20 @@ export class PostgresDatabase {
       pool_idle:pool.numFree(),pool_waiting:pool.numPendingAcquires()}
   }
 
-  async initializeBaseline(sql) {
+  async initializeBaseline(sql) { return (await this.applyMigration('001', sql)) }
+
+  async applyMigration(version, sql) {
     const checksum = crypto.createHash('sha256').update(sql).digest('hex')
     await this.transaction(async () => {
       await this.query("SELECT pg_advisory_xact_lock(hashtextextended(current_database() || ':' || current_schema(), 0))")
       await this.query('CREATE TABLE IF NOT EXISTS postgres_schema_migrations (version text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())')
-      const { rows } = await this.query('SELECT checksum FROM postgres_schema_migrations WHERE version=$1', ['001'])
+      const { rows } = await this.query('SELECT checksum FROM postgres_schema_migrations WHERE version=$1', [version])
       if (rows.length) {
-        if (rows[0].checksum !== checksum) throw new Error('PostgreSQL baseline checksum mismatch')
+        if (rows[0].checksum !== checksum) throw new Error('PostgreSQL migration checksum mismatch: ' + version)
         return
       }
       await this.query(sql)
-      await this.query('INSERT INTO postgres_schema_migrations (version, checksum) VALUES ($1,$2)', ['001', checksum])
+      await this.query('INSERT INTO postgres_schema_migrations (version, checksum) VALUES ($1,$2)', [version, checksum])
     })
   }
 

@@ -30,8 +30,8 @@ function nextUpdatedAt(expectedUpdatedAt) {
 export class ClusterNodesRepo {
   constructor(db = getDb()) {
     this.db = db
-    this._list = "SELECT id, label, host, port, username, auth_type, host_key_alg, host_key_sha256, jump_node_id, created_at, updated_at FROM cluster_nodes ORDER BY created_at, id"
-    this._get = "SELECT id, label, host, port, username, auth_type, host_key_alg, host_key_sha256, jump_node_id, created_at, updated_at FROM cluster_nodes WHERE id = $1"
+    this._list = "SELECT id, label, host, port, username, auth_type, host_key_alg, host_key_sha256, jump_node_id, platform, created_at, updated_at FROM cluster_nodes ORDER BY created_at, id"
+    this._get = "SELECT id, label, host, port, username, auth_type, host_key_alg, host_key_sha256, jump_node_id, platform, created_at, updated_at FROM cluster_nodes WHERE id = $1"
     this._secrets = "SELECT password, private_key, passphrase FROM cluster_nodes WHERE id = $1"
     this._findEndpoint = "SELECT id FROM cluster_nodes WHERE host = $1 AND port = $2 AND username = $3"
     this._dependents = "SELECT id FROM cluster_nodes WHERE jump_node_id = $1"
@@ -92,4 +92,21 @@ export class ClusterNodesRepo {
   async remove(id) {
     return (await this.db.query(this._remove, [id])).rowCount > 0
   }
+
+  async platform(id) { return (await this.db.table('cluster_nodes').where({id}).first('platform'))?.platform ?? null }
+  async setPlatform(id, platform) { return (await this.db.table('cluster_nodes').where({id}).update({platform})) > 0 }
+  async directLinks() {
+    const rows = await this.db.table('cluster_node_direct_links').select('node_id','address','port')
+    return new Map(rows.map(row => [row.node_id, {address:row.address,port:row.port}]))
+  }
+  async getDirectLink(id) {
+    const row = await this.db.table('cluster_node_direct_links').where({node_id:id}).first()
+    return row ? {address:row.address,port:row.port,token:maybeDecrypt(row.token),certSha256:row.cert_sha256 || null} : null
+  }
+  async setDirectLink(id, {address,port,token}, now = new Date().toISOString()) {
+    const row = {node_id:id,address,port,token:maybeEncrypt(token),updated_at:now}
+    await this.db.table('cluster_node_direct_links').insert(row).onConflict('node_id').merge(['address','port','token','updated_at'])
+  }
+  async setDirectLinkCert(id, certSha256) { await this.db.table('cluster_node_direct_links').where({node_id:id}).update({cert_sha256:certSha256}) }
+  async clearDirectLink(id) { return (await this.db.table('cluster_node_direct_links').where({node_id:id}).delete()) > 0 }
 }

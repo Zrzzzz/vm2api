@@ -13,7 +13,7 @@ function name(n){if(n.name)return n.name.getText();if(ts.isVariableDeclaration(n
 function key(f){const names=[];for(let n=f;n;n=n.parent)if(ts.isFunctionLike(n)||ts.isClassDeclaration(n))names.unshift(name(n));return f.getSourceFile().fileName+'#'+names.join('.')}
 const oldAsync=new Set(),marked=new Set()
 for(const file of roots){
- let text;try{text=cp.execFileSync('git',['show','HEAD:'+path.relative(process.cwd(),file)],{encoding:'utf8',stdio:['ignore','pipe','ignore']})}catch{continue}
+ let text;try{text=cp.execFileSync('git',['show',(process.env.ASYNC_BASE_REF || 'HEAD')+':'+path.relative(process.cwd(),file)],{encoding:'utf8',stdio:['ignore','pipe','ignore']})}catch{continue}
  const sf=ts.createSourceFile(file,text,ts.ScriptTarget.Latest,true,ts.ScriptKind.JS)
  walk(sf,n=>{if(ts.isFunctionLike(n)&&isAsync(n))oldAsync.add(key(n))})
 }

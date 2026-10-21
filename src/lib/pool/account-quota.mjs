@@ -750,20 +750,24 @@ export class AccountQuota {
   }
 
   /** sub2api 7d_oi: Fable-only window. Does not unschedulable the account. */
-  async fableWindowLimited(accountId) {
+  async fableWindowLimited(accountId, now = Date.now()) {
     return await this.db.withEntityLock('account', accountId, async () => {
-    const acc = (await this.repo.get(accountId))
-    const status = String(acc?.unified?.['7d_oi']?.status || '').toLowerCase()
-    return status === 'rejected' || status === 'rate_limited'
-      })
+    const oi = (await this.repo.get(accountId))?.unified?.['7d_oi']
+    if (!oi) return false
+    const status = String(oi.status || '').toLowerCase()
+    if (status !== 'rejected' && status !== 'rate_limited') return false
+    const resetMs = parseResetMs(oi.reset)
+    if (Number.isFinite(resetMs) && resetMs <= now) return false
+    return true
+    })
   }
 
   async fableWindowResetAt(accountId) {
     return await this.db.withEntityLock('account', accountId, async () => {
     const reset = (await this.repo.get(accountId))?.unified?.['7d_oi']?.reset
     if (!reset) return null
-    const parsed = Date.parse(reset)
-    return Number.isFinite(parsed) ? parsed : null
+    const ms = parseResetMs(reset)
+    return Number.isFinite(ms) ? ms : null
       })
   }
 
@@ -779,6 +783,7 @@ export class AccountQuota {
       utilization_7d: headerWindowOrEmpty(u, '7d').utilization ?? officialWindow(u, '7d').utilization,
       utilization_7d_oi: u['7d_oi']?.utilization ?? u.fable?.utilization,
       status_7d_oi: u['7d_oi']?.status,
+      reset_7d_oi: u['7d_oi']?.reset,
     })
       })
   }
@@ -789,8 +794,8 @@ export class AccountQuota {
     const key = kind === 'fable' ? '7d_oi' : '7d'
     const reset = acc?.unified?.[key]?.reset
     if (!reset) return null
-    const parsed = Date.parse(reset)
-    return Number.isFinite(parsed) ? parsed : null
+    const ms = parseResetMs(reset)
+    return Number.isFinite(ms) ? ms : null
       })
   }
 
@@ -927,7 +932,10 @@ export class AccountQuota {
       }
     } else {
       acc.unified = next
-      if (wiped.changed) acc.unified.headers = wiped.headers
+      if (wiped.changed) {
+        if (wiped.headers) acc.unified.headers = wiped.headers
+        if (wiped.oi != null) acc.unified['7d_oi'] = wiped.oi
+      }
       if (changed) {
         writeOfficialWindow(acc, '5h', n5)
         writeOfficialWindow(acc, '7d', n7)

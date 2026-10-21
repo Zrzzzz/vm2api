@@ -194,7 +194,7 @@ export function applyMigrations(db, { migrationsDir } = {}) {
   const files = fs.existsSync(dir)
     ? fs
         .readdirSync(dir)
-        .filter((f) => /^\d+.*\.sql$/.test(f))
+        .filter((f) => /^\d+.*\.sql$/.test(f) && parseInt(f, 10) <= 38)
         .sort()
     : []
 

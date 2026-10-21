@@ -40,3 +40,20 @@ node scripts/check-postgres-regressions.mjs
 原有单元测试中使用同步 SQLite fixture 的部分尚需按异步数据库契约迁移，不能声称旧测试全集已经通过。类型回归检查与原始 HEAD 比较，原仓库并非零类型诊断。
 
 生产验收必须另行完成：完整备份恢复、最终数据核对、候选实例检查、切换后的真实推理及正文持久化。模拟上游响应不等于真实模型验证。
+
+## v1.3.207 升级
+
+上游标签 v1.3.207 合入 PostgreSQL 定制版本。001 基线及其校验和保持不变；002_upstream_207 通过事务和迁移锁增加节点直连表、节点平台和入站设备字段。已应用迁移的内容变化会明确失败。
+
+备份沿用 PostgreSQL custom-format dump，压缩和哈希操作移到独立 worker，worker 数据库连接池上限为 2。请求完成日志仍通过 trackWrite 登记，关停等待写入结束。节点平台在加载节点时读取到内存，保证同步的槽位运行环境选择不会收到 Promise。
+
+验证命令（PostgreSQL 测试使用独立本地测试库）：
+
+```sh
+node --test test/postgres/*.test.mjs
+CHECK_BASE_REF=v1.3.207 node scripts/check-postgres-regressions.mjs
+pnpm -C web build
+cd worker && go test -race ./internal/config ./internal/telemetry ./internal/slotgate
+```
+
+生产升级前须保留原镜像、Compose、配置/槽位/二进制快照及数据库备份，在独立恢复库验证迁移前后原字段内容一致。更新后通过保留身份模式同步 kernel/CLI，并刷新遥测 worker；真实非流式、流式响应及 RDS 日志写入是验收条件。

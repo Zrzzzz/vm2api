@@ -23,6 +23,7 @@ test(`PostgreSQL gateway authenticates and persists ${mode} inference`,async()=>
  const rejected=await fetch(gw.baseUrl+'/api/panel/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'admin',password:'wrong-password'})});assert.equal(rejected.status,401);
  const unauthorized=await fetch(gw.baseUrl+'/api/panel/database/metrics');assert.equal(unauthorized.status,401);
  const login=await fetch(gw.baseUrl+'/api/panel/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'admin',password:'testpass'})});assert.equal(login.status,200,await login.text());
+ const noKey=await fetch(gw.baseUrl+'/v1/messages',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:20,messages:[{role:'user',content:'unauthorized'}]})});assert.equal(noKey.status,401,await noKey.text());
  const inference=await api(gw,'POST','/v1/messages',{body:{model:'claude-sonnet-4-6',max_tokens:20,messages:[{role:'user',content:'hello'}]}});if(mode==='unavailable'){assert.equal(inference.status,503,inference.text);assert.match(inference.text,/rust kernel is not available/)}
  else {assert.equal(inference.status,200,inference.text);assert.match(inference.text,/pong/);
  const stream=await api(gw,'POST','/v1/messages',{body:{model:'claude-sonnet-4-6',stream:true,max_tokens:20,messages:[{role:'user',content:'stream hello'}]}});assert.equal(stream.status,200,stream.text);assert.match(stream.text,/message_stop/)}

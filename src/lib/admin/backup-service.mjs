@@ -2,6 +2,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { Worker } from 'node:worker_threads'
 import { spawnSync } from 'node:child_process'
 import { getDb, closeDatabase, openDatabase } from '../db/database.mjs'
 import { adapter } from '../db/adapters/index.mjs'
@@ -139,118 +140,75 @@ export class BackupService {
     this._running = true
     const id = 'bak_' + crypto.randomBytes(6).toString('hex')
     const createdAt = new Date().toISOString()
-    let tmp = null
     try {
-      fs.mkdirSync(this.backupDir, { recursive: true, mode: 0o700 })
-      try {
-        fs.chmodSync(this.backupDir, 0o700)
-      } catch {}
-      tmp = this._mkdtemp('kin-backup-')
-
-      // 1. online-consistent DB snapshot (WAL-safe)
-      const dbSnap = path.join(tmp, 'db', 'database.dump')
-      await adapter.backup.dumpPostgres(dbSnap)
-      const dbBytes = fs.statSync(dbSnap).size
-
-      // 2. vm files + config files
-      const includes = { db: true, vms: 0, config: 0 }
-      const sha256s = { 'db/database.dump': sha256File(dbSnap) }
-      const vmsDir = this.projectRoot ? path.join(this.projectRoot, 'vms') : null
-      if (vmsDir && fs.existsSync(vmsDir)) {
-        const outVms = path.join(tmp, 'vms')
-        fs.mkdirSync(outVms, { recursive: true })
-        for (const f of fs.readdirSync(vmsDir)) {
-          if (!/\.json$/.test(f)) continue
-          const src = path.join(vmsDir, f)
-          try {
-            if (!fs.statSync(src).isFile()) continue
-            fs.copyFileSync(src, path.join(outVms, f))
-            fs.chmodSync(path.join(outVms, f), 0o600)
-            sha256s[`vms/${f}`] = sha256File(src)
-            includes.vms += 1
-          } catch {}
-        }
-      }
-      if (this.configDir && fs.existsSync(this.configDir)) {
-        const outCfg = path.join(tmp, 'config')
-        fs.mkdirSync(outCfg, { recursive: true })
-        for (const f of fs.readdirSync(this.configDir)) {
-          if (!/\.json$/.test(f)) continue
-          const src = path.join(this.configDir, f)
-          try {
-            if (!fs.statSync(src).isFile()) continue
-            fs.copyFileSync(src, path.join(outCfg, f))
-            sha256s[`config/${f}`] = sha256File(src)
-            includes.config += 1
-          } catch {}
-        }
-      }
-
-      // 3. manifest
-      const manifest = {
-        version: 2,
-        engine: 'postgresql',
-        tool: 'kin-gateway',
-        created_at: createdAt,
-        kind,
-        includes,
-        sha256s,
-      }
-      fs.writeFileSync(path.join(tmp, 'manifest.json'), JSON.stringify(manifest, null, 2))
-
-      // The archive format is mandatory; failures are reported to the caller.
-      if (!tarAvailable()) throw new Error('tar is required for PostgreSQL backups')
-      const fileName = `kin-backup-${stamp(new Date(createdAt))}.tar.gz`
-      const filePath = path.join(this.backupDir, fileName)
-      const noteOut = note
-      const archived = spawnSync('tar', ['-czf', filePath, '-C', tmp, '.'], { stdio: 'pipe' })
-      if (archived.status !== 0) throw new Error('Backup archive creation failed')
-      try {
-        fs.chmodSync(filePath, 0o600)
-      } catch {}
-
-      const rec = (await this._repo().insert({
+      return await this._runBackupWorker({
         id,
-        created_at: createdAt,
+        createdAt,
         kind,
-        status: 'ok',
-        file_path: filePath,
-        file_name: fileName,
-        size_bytes: fs.statSync(filePath).size,
-        sha256: sha256File(filePath),
-        db_bytes: dbBytes,
-        includes,
-        error: null,
-        note: noteOut,
-      }))
-      await this.applyRetention()
-      return rec
+        note,
+        retention: (await this.getSchedule()).retention,
+      })
     } catch (e) {
+      // The worker records its own failure; this covers the cases where it never
+      // got that far (module error, OOM, kill) so the panel still shows the job.
       try {
-        await this._repo().insert({
-          id,
-          created_at: createdAt,
-          kind,
-          status: 'failed',
-          file_path: null,
-          file_name: null,
-          size_bytes: null,
-          sha256: null,
-          db_bytes: null,
-          includes: null,
-          error: String(e.message || e).slice(0, 500),
-          note,
-        })
+        if (!(await this._repo().get(id))) {
+          await this._repo().insert({
+            id,
+            created_at: createdAt,
+            kind,
+            status: 'failed',
+            file_path: null,
+            file_name: null,
+            size_bytes: null,
+            sha256: null,
+            db_bytes: null,
+            includes: null,
+            error: String(e.message || e).slice(0, 500),
+            note,
+          })
+        }
       } catch {}
       throw e
     } finally {
       this._running = false
-      if (tmp) {
-        try {
-          fs.rmSync(tmp, { recursive: true, force: true })
-        } catch {}
-      }
     }
+  }
+
+  _runBackupWorker(job) {
+    return new Promise((resolve, reject) => {
+      const worker = new Worker(new URL('./backup-worker.mjs', import.meta.url), {
+        workerData: {
+          dataDir: this.dataDir,
+          ctx: {
+            projectRoot: this.projectRoot,
+            configDir: this.configDir,
+            backupDir: this.backupDir,
+            tmpDir: this.tmpDir,
+          },
+          job,
+        },
+      })
+      let settled = false
+      const finish = (fn, arg) => {
+        if (settled) return
+        settled = true
+        fn(arg)
+      }
+      worker.once('message', (msg) => {
+        if (msg && msg.ok) return finish(resolve, msg.rec)
+        finish(
+          reject,
+          Object.assign(new Error((msg && msg.error && msg.error.message) || 'backup failed'), {
+            code: (msg && msg.error && msg.error.code) || 'backup_failed',
+          }),
+        )
+      })
+      worker.once('error', (e) => finish(reject, e))
+      worker.once('exit', (code) => {
+        if (code !== 0) finish(reject, new Error(`backup worker exited with code ${code}`))
+      })
+    })
   }
 
   // ---------- retention ----------

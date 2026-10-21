@@ -216,9 +216,9 @@ export async function blockCountTokensBeforeHop(req, inbound, deps = {}) {
   let jev
   try {
     const settings = deps.settings || new SettingsRepo()
-    jev = readJevConfig(async (key, fallback) => (await settings.get(key, fallback)))
+    jev = (await readJevConfig(async (key, fallback) => (await settings.get(key, fallback))))
   } catch {
-    jev = readJevConfig()
+    jev = (await readJevConfig())
   }
   const decision = await runProtocolIntercept({
     inbound,

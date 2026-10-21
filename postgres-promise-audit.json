@@ -1,355 +1,385 @@
 [
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/vm-file.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/vm-file.mjs",
     "line": 174,
     "call": "Promise.resolve",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/price-catalog.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/price-catalog.mjs",
     "line": 404,
     "call": "Promise.resolve()\n    .then(() => syncModelsDev())\n    .catch(() => {})\n    .finally",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/db/database.mjs",
-    "line": 24,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/db/database.mjs",
+    "line": 25,
     "call": "createDatabase(options).then(db => { database = db; return db }).finally",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/ssh-link.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/ssh-link.mjs",
     "line": 237,
     "call": "this._connect",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/ssh-link.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/ssh-link.mjs",
     "line": 245,
     "call": "this._connect",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/ssh-link.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/ssh-link.mjs",
     "line": 324,
     "call": "this._connect",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/remote-fs.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/remote-fs.mjs",
     "line": 36,
     "call": "pending.catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/rust-kernel-supervisor.mjs",
-    "line": 370,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/egress.mjs",
+    "line": 774,
+    "call": "Promise.resolve",
+    "consumer": "BinaryExpression"
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/rust-kernel-supervisor.mjs",
+    "line": 379,
     "call": "tryKernelReload",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/rust-kernel-supervisor.mjs",
-    "line": 429,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/rust-kernel-supervisor.mjs",
+    "line": 438,
     "call": "done.then",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/rust-kernel-supervisor.mjs",
-    "line": 430,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/rust-kernel-supervisor.mjs",
+    "line": 439,
     "call": "tryKernelReload",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/rust-kernel-supervisor.mjs",
-    "line": 450,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/rust-kernel-supervisor.mjs",
+    "line": 459,
     "call": "tryKernelReload",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/placement.mjs",
-    "line": 135,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/remote-slot-files.mjs",
+    "line": 224,
     "call": "Promise.resolve",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/remote-slot-files.mjs",
-    "line": 152,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/placement.mjs",
+    "line": 166,
     "call": "Promise.resolve",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/node-egress-socks.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/node-egress-socks.mjs",
     "line": 110,
     "call": "serve(socket).catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/go-worker-client.mjs",
-    "line": 37,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/go-worker-client.mjs",
+    "line": 41,
     "call": "Promise.resolve",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/go-worker-client.mjs",
-    "line": 143,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/go-worker-client.mjs",
+    "line": 147,
     "call": "workerRequest(exec, {\n      method: 'POST',\n      requestPath: '/internal/v1/cancel',\n      body: { request_id: requestId },\n      timeoutMs: 3000,\n    })\n      .then((res) => res.resume())\n      .catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/credential-refresh-monitor.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/credential-refresh-monitor.mjs",
     "line": 111,
     "call": "(async () => {\n      const started = nowFn()\n      const due = (await listDue())\n      const items = []\n      if (due.length && typeof opts.refreshOne === 'function') {\n        await mapPool(due, config.concurrency, async (vm) => {\n          try {\n            const result = await opts.refreshOne(vm, config)\n            items.push({\n              vm_id: vm.id,\n              schedulable: vm.schedulable !== false,\n              ok: !!result?.ok,\n              refresh_class: result?.refresh_class || (result?.ok ? 'already_fresh' : 'failed'),\n            })\n          } catch (error) {\n            items.push({\n              vm_id: vm.id,\n              schedulable: vm.schedulable !== false,\n              ok: false,\n              refresh_class: 'retryable',\n              error: String(error?.message || error).slice(0, 200),\n            })\n          }\n        })\n      }\n      lastRun = {\n        at: new Date(nowFn()).toISOString(),\n        duration_ms: nowFn() - started,\n        due: due.length,\n        items,\n      }\n      return lastRun\n    })().finally",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/credential-refresh-monitor.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/credential-refresh-monitor.mjs",
     "line": 160,
     "call": "runOnce().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/credential-refresh-monitor.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/credential-refresh-monitor.mjs",
     "line": 165,
     "call": "runOnce().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/catalog-monitor.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/catalog-monitor.mjs",
     "line": 119,
     "call": "modelsDev().then",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/health-probe.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/health-probe.mjs",
     "line": 769,
     "call": "(async () => {\n      const started = nowFn()\n      lastRunAt = started\n      await probePlatform('anthropic', config.real, started)\n      if (config.real.openai_model) {\n        await probePlatform('openai', { ...config.real, model: config.real.openai_model }, started)\n      } else {\n        snapshots.openai = null\n      }\n      return getSnapshot('anthropic')\n    })().finally",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/health-probe.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/health-probe.mjs",
     "line": 796,
     "call": "runRealProbe().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/health-probe.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/health-probe.mjs",
     "line": 801,
     "call": "runRealProbe().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/notify.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/notify.mjs",
     "line": 873,
     "call": "(async () => {\n      const started = nowFn()\n      lastRunAt = started\n      let deliveryError = null\n      let delivered = false\n      const next = typeof opts.snapshot === 'function' ? await opts.snapshot() : null\n      const prev = snapshot\n      snapshot = next\n      const events = detectPoolNotifyEvents(prev, next, config)\n      if (digest || (config.events.digest && (!prev || allowed('digest', started)))) {\n        events.push({ type: 'digest', title: EVENT_TITLES.digest })\n      }\n      lastEvents = events\n      const dispatched = []\n      const canSend = send && config.enabled && (typeof opts.send === 'function' || notifyChannelsReady(config).any)\n      if (canSend) {\n        for (const event of events) {\n          if (!force && !digest && !allowed(event.type, started)) continue\n          const message = formatNotifyMessage(event, next, config, opts.baseUrl)\n          const sendFn = opts.send || ((msg) => dispatchNotify(config, msg))\n          try {\n            const result = await sendFn(message, event)\n            lastSent.set(event.type, started)\n            const failedChannels = Array.isArray(result?.results)\n              ? result.results.filter((row) => row?.ok === false)\n              : []\n            if (result?.ok === false || failedChannels.length) {\n              deliveryError = String(\n                failedChannels.map((row) => row.error || 'notify_delivery_failed').join('; ') ||\n                  result?.error ||\n                  'notify_delivery_failed',\n              ).slice(0, 180)\n            } else {\n              delivered = true\n            }\n            dispatched.push({ type: event.type, ok: result?.ok !== false, result })\n          } catch (err) {\n            deliveryError = String(err?.message || err).slice(0, 180)\n            dispatched.push({ type: event.type, ok: false, error: deliveryError })\n          }\n        }\n      }\n      // A quiet/cooldown-suppressed check is not proof of delivery recovery.\n      // Any failure in this batch takes precedence over successful events.\n      if (deliveryError !== null) lastError = deliveryError\n      else if (delivered) lastError = null\n      return { snapshot: next, events, dispatched, prev }\n    })().finally",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/notify.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/notify.mjs",
     "line": 937,
     "call": "runOnce().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/notify.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/notify.mjs",
     "line": 942,
     "call": "runOnce().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/claude-reset-credits.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/claude-reset-credits.mjs",
     "line": 236,
     "call": "Promise.resolve",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/proxy-pool.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/proxy-pool.mjs",
     "line": 1378,
     "call": "this.probeAll({ onlyEnabled: true }).catch",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/proxy-pool.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/proxy-pool.mjs",
     "line": 1380,
     "call": "this.probeAll({ onlyEnabled: true }).catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/usage-probe-monitor.mjs",
-    "line": 240,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/usage-probe-monitor.mjs",
+    "line": 242,
     "call": "Promise.resolve",
     "consumer": "CallExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/usage-probe-monitor.mjs",
-    "line": 277,
-    "call": "(async () => {\n      const started = nowFn()\n      const targets = (await listTargets())\n      const items = []\n      const due = []\n      const staleMs = config.stale_sec * 1000\n      for (const vm of targets) {\n        const account = typeof opts.accountForVm === 'function' ? opts.accountForVm(vm) : null\n        if (typeof opts.reconcile === 'function') {\n          try {\n            opts.reconcile(vm, account)\n          } catch {}\n        }\n        let active = false\n        if (typeof opts.isActive === 'function') {\n          try {\n            active = !!opts.isActive(vm, account)\n          } catch {}\n        }\n        const decision = isUsageProbeDue(account || {}, { now: nowFn(), staleMs, active })\n        if (!decision.due || typeof opts.probeOne !== 'function') {\n          items.push({\n            vm_id: vm.id,\n            ok: true,\n            reason: 'reconcile_extra',\n            source: null,\n          })\n          continue\n        }\n        const nextProbeAt = resetProbeAt(account, vm, config, nowFn())\n        if (nextProbeAt != null && nextProbeAt > nowFn()) {\n          items.push({\n            vm_id: vm.id,\n            ok: true,\n            reason: 'reset_probe_delay',\n            source: null,\n            next_probe_at: new Date(nextProbeAt).toISOString(),\n          })\n          continue\n        }\n        due.push({ vm, reason: decision.reason })\n      }\n      items.push(...(await Promise.all(due.map(({ vm, reason }) => probeVm(vm, reason)))))\n      lastRun = {\n        at: new Date(nowFn()).toISOString(),\n        duration_ms: nowFn() - started,\n        due: due.length,\n        items,\n      }\n      return lastRun\n    })().finally",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/usage-probe-monitor.mjs",
+    "line": 279,
+    "call": "(async () => {\n      const started = nowFn()\n      const targets = (await listTargets())\n      const items = []\n      const due = []\n      const staleMs = config.stale_sec * 1000\n      for (const vm of targets) {\n        const account = typeof opts.accountForVm === 'function' ? (await opts.accountForVm(vm)) : null\n        if (typeof opts.reconcile === 'function') {\n          try {\n            await opts.reconcile(vm, account)\n          } catch {}\n        }\n        let active = false\n        if (typeof opts.isActive === 'function') {\n          try {\n            active = !!(await opts.isActive(vm, account))\n          } catch {}\n        }\n        const decision = isUsageProbeDue(account || {}, { now: nowFn(), staleMs, active })\n        if (!decision.due || typeof opts.probeOne !== 'function') {\n          items.push({\n            vm_id: vm.id,\n            ok: true,\n            reason: 'reconcile_extra',\n            source: null,\n          })\n          continue\n        }\n        const nextProbeAt = resetProbeAt(account, vm, config, nowFn())\n        if (nextProbeAt != null && nextProbeAt > nowFn()) {\n          items.push({\n            vm_id: vm.id,\n            ok: true,\n            reason: 'reset_probe_delay',\n            source: null,\n            next_probe_at: new Date(nextProbeAt).toISOString(),\n          })\n          continue\n        }\n        due.push({ vm, reason: decision.reason })\n      }\n      items.push(...(await Promise.all(due.map(({ vm, reason }) => probeVm(vm, reason)))))\n      lastRun = {\n        at: new Date(nowFn()).toISOString(),\n        duration_ms: nowFn() - started,\n        due: due.length,\n        items,\n      }\n      return lastRun\n    })().finally",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/usage-probe-monitor.mjs",
-    "line": 344,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/usage-probe-monitor.mjs",
+    "line": 346,
     "call": "runOnce().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/oauth/usage-probe-monitor.mjs",
-    "line": 349,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/oauth/usage-probe-monitor.mjs",
+    "line": 351,
     "call": "runOnce().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/pool/failover-runner.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/request-log.mjs",
+    "line": 628,
+    "call": "task.then",
+    "consumer": "ExpressionStatement"
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/pool/failover-runner.mjs",
     "line": 541,
     "call": "Promise.resolve",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/admin/routing-runtime.mjs",
-    "line": 678,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/admin/routing-runtime.mjs",
+    "line": 716,
     "call": "Promise.resolve(ctx.probeUsageOne(vmId)).catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/cluster-manager.mjs",
-    "line": 141,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/direct-link.mjs",
+    "line": 110,
+    "call": "ready.catch",
+    "consumer": "ExpressionStatement"
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/cluster-manager.mjs",
+    "line": 159,
     "call": "this._checkHealth",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/cluster-manager.mjs",
-    "line": 166,
-    "call": "Promise.resolve(this._checkHealth(node.id))\n          .catch(() => {})\n          .finally",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/cluster-manager.mjs",
+    "line": 185,
+    "call": "Promise.resolve(this.remoteHost(node.id))\n          .catch(() => {})\n          .then(() => this._checkHealth(node.id))\n          .catch(() => {})\n          .finally",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/cluster-manager.mjs",
-    "line": 182,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/cluster-manager.mjs",
+    "line": 190,
+    "call": "this._ensureGate(node.id).catch",
+    "consumer": "ExpressionStatement"
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/cluster-manager.mjs",
+    "line": 204,
     "call": "bridge.start().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/cluster-manager.mjs",
-    "line": 478,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/cluster-manager.mjs",
+    "line": 646,
     "call": "Promise.resolve",
     "consumer": "CallExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/cluster-manager.mjs",
-    "line": 557,
-    "call": "pending.catch",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/cluster-manager.mjs",
+    "line": 735,
+    "call": "pending.then",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/cluster-manager.mjs",
-    "line": 589,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/cluster-manager.mjs",
+    "line": 813,
     "call": "Promise.all",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/cluster/cluster-manager.mjs",
-    "line": 686,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/cluster/cluster-manager.mjs",
+    "line": 910,
     "call": "collectLocalStatus({\n        listen: this.listen,\n        containerName: this.containerName,\n        observer: (await this._natObserver()),\n      })\n        .then((status) => {\n          this._local = status\n          this._localAt = Date.now()\n          return status\n        })\n        .finally",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/protocol/handle-codex.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/protocol/handle-codex.mjs",
     "line": 1043,
     "call": "(async () => {\n      const tok = await refresh({ refreshToken: now.refresh, proxyUrl, fetchImpl })\n      if (!tok?.ok || !tok.access_token) return ''\n      await upsertCodexAccount(projectRoot, vm.id, {\n        access_token: tok.access_token,\n        refresh_token: tok.refresh_token || now.refresh,\n        id_token: tok.id_token || now.first.id_token,\n        expires_at: tok.expires_at || now.first.expires_at,\n      })\n      return tok.access_token\n    })().finally",
     "consumer": "BinaryExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/protocol/responses-ws.mjs",
-    "line": 592,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/protocol/responses-ws.mjs",
+    "line": 702,
     "call": "pump().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/kernel-watchdog.mjs",
-    "line": 181,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/kernel-watchdog.mjs",
+    "line": 183,
     "call": "Promise.resolve()\n      .then(() => healBridges(vms))\n      .catch((error) => console.warn(`[kernel-watchdog] bridge heal failed: ${error?.message || error}`))\n      .finally",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/kernel-watchdog.mjs",
-    "line": 302,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/kernel-watchdog.mjs",
+    "line": 304,
     "call": "healTelemetry",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/kernel-watchdog.mjs",
-    "line": 329,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/kernel-watchdog.mjs",
+    "line": 331,
     "call": "tick",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/transport/kernel-watchdog.mjs",
-    "line": 330,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/transport/kernel-watchdog.mjs",
+    "line": 332,
     "call": "tick",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/cli-node-guard.mjs",
-    "line": 108,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/cli-node-guard.mjs",
+    "line": 112,
     "call": "tick",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/cli-node-guard.mjs",
-    "line": 109,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/cli-node-guard.mjs",
+    "line": 113,
     "call": "tick",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/slot-shell.mjs",
-    "line": 314,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-shell.mjs",
+    "line": 142,
+    "call": "(async () => {\n      try {\n        const adopted = await adopt(seen)\n        if (!adopted?.imported || !adopted.refresh || adopted.refresh === seen) {\n          return { imported: false, refresh: seen }\n        }\n        seen = adopted.refresh\n        onImported?.(adopted)\n        return adopted\n      } catch (err) {\n        onError?.(err, report)\n        return { imported: false, refresh: seen, error: err }\n      } finally {\n        pending = null\n      }\n    })",
+    "consumer": "BinaryExpression"
+  },
+  {
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-shell.mjs",
+    "line": 486,
     "call": "resizeExec(connect, session.execId, { cols, rows }).catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/slot-shell.mjs",
-    "line": 346,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-shell.mjs",
+    "line": 518,
     "call": "reap().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/lib/vm/slot-shell.mjs",
-    "line": 374,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/lib/vm/slot-shell.mjs",
+    "line": 548,
     "call": "reap().catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/server.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/server.mjs",
     "line": 384,
     "call": "ensureProxyEgress",
     "consumer": "VoidExpression"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/server.mjs",
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/server.mjs",
     "line": 508,
     "call": "dispatchNotify(routingConfig.notify, {\n      title,\n      text: `【KIN】${title}\\n\\n${reason}\\n已停止调度该槽；内核恢复健康后自动恢复调度。`,\n      subject: `KIN · ${title}`,\n    }).catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/server.mjs",
-    "line": 915,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/server.mjs",
+    "line": 916,
     "call": "proxyPool.probeLocalNode(nodeId).catch",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/server.mjs",
-    "line": 923,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/server.mjs",
+    "line": 924,
     "call": "clusterManager.restoreSlotRelays",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/server.mjs",
-    "line": 1282,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/server.mjs",
+    "line": 1283,
     "call": "clusterManager.stop",
     "consumer": "ExpressionStatement"
   },
   {
-    "file": "/Users/zrzz/vps/vm2api-rds/src/server.mjs",
-    "line": 1320,
+    "file": "/Users/zrzz/vps/vm2api-rds-upgrade/src/server.mjs",
+    "line": 1323,
     "call": "reviveDownSlots({ vms: listVms(cfg.paths.project), powerOn: bootSlot, watchdog: kernelWatchdog }).catch",
     "consumer": "ExpressionStatement"
   }
