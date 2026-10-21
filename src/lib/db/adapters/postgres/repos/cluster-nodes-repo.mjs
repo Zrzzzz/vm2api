@@ -36,8 +36,8 @@ export class ClusterNodesRepo {
     this._findEndpoint = "SELECT id FROM cluster_nodes WHERE host = $1 AND port = $2 AND username = $3"
     this._dependents = "SELECT id FROM cluster_nodes WHERE jump_node_id = $1"
     this._insert = "\n      INSERT INTO cluster_nodes (id, label, host, port, username, auth_type, password, private_key, passphrase,\n        host_key_alg, host_key_sha256, jump_node_id, created_at, updated_at)\n      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)\n    "
-    this._update = "\n      UPDATE cluster_nodes SET label = $1, host = $2, port = $3, username = $4, auth_type = $5,\n        password = $6, private_key = $7, passphrase = $8, updated_at = $9\n      WHERE id = $10 AND updated_at = $11\n      RETURNING id, label, host, port, username, auth_type, host_key_alg, host_key_sha256, jump_node_id, created_at, updated_at\n    "
-    this._updateLabel = "\n      UPDATE cluster_nodes SET label = $1, updated_at = $2\n      WHERE id = $3 AND updated_at = $4\n      RETURNING id, label, host, port, username, auth_type, host_key_alg, host_key_sha256, jump_node_id, created_at, updated_at\n    "
+    this._update = "\n      UPDATE cluster_nodes SET label = $1, host = $2, port = $3, username = $4, auth_type = $5,\n        password = $6, private_key = $7, passphrase = $8, updated_at = $9\n      WHERE id = $10 AND updated_at = $11\n      RETURNING id, label, host, port, username, auth_type, host_key_alg, host_key_sha256, jump_node_id, platform, created_at, updated_at\n    "
+    this._updateLabel = "\n      UPDATE cluster_nodes SET label = $1, updated_at = $2\n      WHERE id = $3 AND updated_at = $4\n      RETURNING id, label, host, port, username, auth_type, host_key_alg, host_key_sha256, jump_node_id, platform, created_at, updated_at\n    "
     this._remove = "DELETE FROM cluster_nodes WHERE id = $1"
   }
 
