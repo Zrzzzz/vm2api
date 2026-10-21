@@ -96,14 +96,14 @@ function runChecked(argv, timeout) {
  * Read an existing computer. Create it once when the directory has no identity.
  * The binary's vm-id pick is stable, so a second call must not run it again.
  */
-export function ensureSlotComputer(projectRoot, vm) {
+export async function ensureSlotComputer(projectRoot, vm) {
   if (!projectRoot || !vm?.id) throw new Error('projectRoot and vm id required')
   const kvm = isKvmRuntime(vm)
   const dir = fingerprintDir(projectRoot, vm.id)
   const ready = kvm ? linuxComputer(dir) : containerComputer(dir)
   if (ready) return { ...ready, created: false }
   if (kvm && fs.existsSync(dir)) {
-    repairKvmFingerprintUuid(dir)
+    await repairKvmFingerprintUuid(dir)
     const repaired = linuxComputer(dir)
     if (repaired) return { ...repaired, created: false }
   }
@@ -126,7 +126,7 @@ export function ensureSlotComputer(projectRoot, vm) {
     failed.code = 'computer_create_failed'
     throw failed
   }
-  if (kvm) repairKvmFingerprintUuid(dir)
+  if (kvm) await repairKvmFingerprintUuid(dir)
   const written = kvm ? linuxComputer(dir) : containerComputer(dir)
   if (!written) {
     fs.rmSync(dir, { recursive: true, force: true })
@@ -138,8 +138,8 @@ export function ensureSlotComputer(projectRoot, vm) {
 }
 
 /** Control-plane device_id plus the computer hostname and machine-id. */
-export function assignComputerFingerprint(projectRoot, vm, { taken, now } = {}) {
-  const computer = ensureSlotComputer(projectRoot, vm)
+export async function assignComputerFingerprint(projectRoot, vm, { taken, now } = {}) {
+  const computer = (await ensureSlotComputer(projectRoot, vm))
   if (taken?.hostname?.has(computer.hostname) || taken?.guest_machine_id?.has(computer.guest_machine_id)) {
     throw new Error('workstation fingerprint collision')
   }
@@ -152,7 +152,7 @@ export function assignComputerFingerprint(projectRoot, vm, { taken, now } = {}) 
 }
 
 /** Point the slot record at the computer. Does not touch device_id. */
-export function rememberComputer(projectRoot, vm, computer) {
+export async function rememberComputer(projectRoot, vm, computer) {
   if (!computer?.hostname || !vm?.id) return false
   const fp = vm.fingerprint && typeof vm.fingerprint === 'object' ? vm.fingerprint : {}
   const same =
@@ -175,6 +175,6 @@ export function rememberComputer(projectRoot, vm, computer) {
     guest_machine_id: computer.guest_machine_id,
   }
   disk.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, disk, { mode: 0o600 })
+  await atomicWriteJson(vmPath, disk, { mode: 0o600 })
   return true
 }

@@ -166,11 +166,8 @@ export function setVmWriteHook(fn) {
   vmWriteHook = typeof fn === 'function' ? fn : null
 }
 
-function notifyVmWrite(filePath) {
-  if (!vmWriteHook) return
-  try {
-    vmWriteHook(filePath)
-  } catch {}
+async function notifyVmWrite(filePath) {
+  if (vmWriteHook) await vmWriteHook(filePath)
 }
 
 export function withVmLock(key, fn) {
@@ -192,7 +189,7 @@ export function withVmLock(key, fn) {
   return run
 }
 
-export function atomicWriteJson(filePath, obj, { mode } = {}) {
+export async function atomicWriteJson(filePath, obj, { mode } = {}) {
   const dir = path.dirname(filePath)
   const tmp = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${crypto.randomBytes(4).toString('hex')}.tmp`)
   const data = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2)
@@ -212,17 +209,17 @@ export function atomicWriteJson(filePath, obj, { mode } = {}) {
     } catch {}
   }
   invalidateReadCache(filePath)
-  notifyVmWrite(filePath)
+  await notifyVmWrite(filePath)
   return true
 }
 
-export function writeJsonIfChanged(filePath, obj, { mode } = {}) {
+export async function writeJsonIfChanged(filePath, obj, { mode } = {}) {
   const data = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2)
   try {
     if (fs.existsSync(filePath) && readFileCached(filePath) === data) {
       return false
     }
   } catch {}
-  atomicWriteJson(filePath, data, { mode })
+  await atomicWriteJson(filePath, data, { mode })
   return true
 }

@@ -79,47 +79,47 @@ export function createRoutingRuntime(ctx) {
     else ctx.failoverRunner = next
   }
 
-  function applyVmConcurrency(id, n, { override = true } = {}) {
+  async function applyVmConcurrency(id, n, { override = true } = {}) {
     const vmPath = path.join(ctx.cfg.paths.project, 'vms', `${id}.json`)
     if (!fs.existsSync(vmPath)) return null
     const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
     const value = Math.max(0, Math.min(256, Number(n) || 0))
     vm.policy = { ...(vm.policy || {}), maxConcurrency: value, concurrencyOverride: override }
     vm.updated_at = new Date().toISOString()
-    atomicWriteJson(vmPath, vm, { mode: 0o600 })
-    if (!isCodexVm(vm)) ctx.accountQuota.setMaxConcurrency(vm.claude?.account_uuid || vm.id, value, { override })
+    await atomicWriteJson(vmPath, vm, { mode: 0o600 })
+    if (!isCodexVm(vm)) await ctx.accountQuota.setMaxConcurrency(vm.claude?.account_uuid || vm.id, value, { override })
     return vm
   }
 
-  function applyVmRpm(id, n, { override = true } = {}) {
+  async function applyVmRpm(id, n, { override = true } = {}) {
     const vmPath = path.join(ctx.cfg.paths.project, 'vms', `${id}.json`)
     if (!fs.existsSync(vmPath)) return null
     const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
     const value = Math.max(0, Math.min(1e6, Number(n) || 0))
     vm.policy = { ...(vm.policy || {}), maxRpm: value, rpmOverride: override }
     vm.updated_at = new Date().toISOString()
-    atomicWriteJson(vmPath, vm, { mode: 0o600 })
-    if (!isCodexVm(vm) && vm.claude) ctx.accountQuota.setMaxRpm(vm.claude.account_uuid || vm.id, value, { override })
+    await atomicWriteJson(vmPath, vm, { mode: 0o600 })
+    if (!isCodexVm(vm) && vm.claude) await ctx.accountQuota.setMaxRpm(vm.claude.account_uuid || vm.id, value, { override })
     return vm
   }
 
-  function applyVmSessionSlots(id, n, { override = true } = {}) {
-    return persistVmSessionSlots(ctx.cfg.paths.project, id, normalizeSessionSlots(n), { override })
+  async function applyVmSessionSlots(id, n, { override = true } = {}) {
+    return (await persistVmSessionSlots(ctx.cfg.paths.project, id, normalizeSessionSlots(n), { override }))
   }
 
-  function applyVmMaxSessions(id, n, { override = true } = {}) {
-    return persistVmMaxSessions(ctx.cfg.paths.project, id, n, { override })
+  async function applyVmMaxSessions(id, n, { override = true } = {}) {
+    return (await persistVmMaxSessions(ctx.cfg.paths.project, id, n, { override }))
   }
 
   /** `override` is already parsed (`parseVmQuotaOverride`); null = follow global quota. */
-  function applyVmQuotaOverride(id, override) {
-    const vm = persistVmQuotaOverride(ctx.cfg.paths.project, id, override)
+  async function applyVmQuotaOverride(id, override) {
+    const vm = (await persistVmQuotaOverride(ctx.cfg.paths.project, id, override))
     if (!vm) return null
     ctx.accountQuota.setVmQuotaOverride(vm.id, vmQuotaOverrideOf(vm))
     return vm
   }
 
-  function applyRoutingSessionSlots(n) {
+  async function applyRoutingSessionSlots(n) {
     const value = normalizeSessionSlots(n)
     const applied = { updated: 0, skipped: 0 }
     for (const vm of listVms(ctx.cfg.paths.project)) {
@@ -129,13 +129,13 @@ export function createRoutingRuntime(ctx) {
         continue
       }
       if (Number(vm.session_slots) === value) continue
-      applyVmSessionSlots(vm.id, value, { override: false })
+      await applyVmSessionSlots(vm.id, value, { override: false })
       applied.updated += 1
     }
     return applied
   }
 
-  function applyRoutingConcurrency(n) {
+  async function applyRoutingConcurrency(n) {
     const v = Math.max(0, Math.min(256, Number(n) || 0))
     const skip = []
     for (const vm of listVms(ctx.cfg.paths.project)) {
@@ -151,22 +151,22 @@ export function createRoutingRuntime(ctx) {
         if (vm.account_uuid) skip.push(vm.account_uuid)
         continue
       }
-      applyVmConcurrency(vm.id, v, { override: false })
+      await applyVmConcurrency(vm.id, v, { override: false })
     }
-    ctx.accountQuota.applyDefaultConcurrency(v, { skipIds: skip })
+    await ctx.accountQuota.applyDefaultConcurrency(v, { skipIds: skip })
     return v
   }
 
-  function vmTierKey(vm) {
+  async function vmTierKey(vm) {
     const stored = String(vm.account_tier || vm.claude?.account_tier || '').toLowerCase()
     if (stored === 'pro' || stored === 'max') return stored
-    const acc = ctx.accountQuota.repo.get(vm.claude?.account_uuid || vm.account_uuid || vm.id)
+    const acc = (await ctx.accountQuota.repo.get(vm.claude?.account_uuid || vm.account_uuid || vm.id))
     const accountTier = accountTierKey(acc)
     if (accountTier !== 'default') return accountTier
     return vm.claude?.has_access || vm.has_token ? 'pro' : accountTier
   }
 
-  function applyRoutingTierConcurrency(tiers) {
+  async function applyRoutingTierConcurrency(tiers) {
     const routingConfig = getRouting()
     const policies = normalizeTiers(tiers, routingConfig.quota, routingConfig.concurrency)
     const skip = []
@@ -186,14 +186,14 @@ export function createRoutingRuntime(ctx) {
         applied.skipped += 1
         continue
       }
-      const key = vmTierKey(vm)
+      const key = (await vmTierKey(vm))
       const next = Number(policies[key]?.max_concurrency ?? 2)
       const cur = Number(storedVm?.policy?.maxConcurrency)
       if (cur === next) continue
-      applyVmConcurrency(vm.id, next, { override: false })
+      await applyVmConcurrency(vm.id, next, { override: false })
       applied[key] += 1
     }
-    ctx.accountQuota.applyTierConcurrency(policies, { skipIds: skip })
+    await ctx.accountQuota.applyTierConcurrency(policies, { skipIds: skip })
     return applied
   }
 
@@ -201,7 +201,7 @@ export function createRoutingRuntime(ctx) {
    * Drop a VM's manual concurrency / RPM / seat-cap pin and take the value the
    * next routing save would push to it, so the slot follows its tier again.
    */
-  function inheritVmScheduling(
+  async function inheritVmScheduling(
     id,
     { concurrency = false, rpm = false, sessionSlots = false, maxSessions = false } = {},
   ) {
@@ -214,31 +214,31 @@ export function createRoutingRuntime(ctx) {
         const policy = normalizeOpenAIQuotaPolicy(routingConfig.codex?.quota)
         const current = getVm(ctx.cfg.paths.project, id)
         if (current) {
-          if (concurrency) applyVmConcurrency(id, policy.max_concurrency, { override: false })
-          if (rpm) applyVmRpm(id, policy.max_rpm, { override: false })
+          if (concurrency) await applyVmConcurrency(id, policy.max_concurrency, { override: false })
+          if (rpm) await applyVmRpm(id, policy.max_rpm, { override: false })
           vm = getVm(ctx.cfg.paths.project, id) || vm
         }
       } else {
         const policy = normalizeTiers(routingConfig.tiers, routingConfig.quota, routingConfig.concurrency)[
-          vmTierKey(listed)
+          (await vmTierKey(listed))
         ]
-        if (concurrency) vm = applyVmConcurrency(id, Number(policy?.max_concurrency ?? 2), { override: false }) || vm
-        if (rpm) vm = applyVmRpm(id, Number(policy?.max_rpm ?? 0), { override: false }) || vm
+        if (concurrency) vm = (await applyVmConcurrency(id, Number(policy?.max_concurrency ?? 2), { override: false })) || vm
+        if (rpm) vm = (await applyVmRpm(id, Number(policy?.max_rpm ?? 0), { override: false })) || vm
       }
     }
     if (listed.codex_kernel && maxSessions) {
       vm =
-        applyVmMaxSessions(id, normalizeOpenAIQuotaPolicy(routingConfig.codex?.quota).max_sessions, {
+        (await applyVmMaxSessions(id, normalizeOpenAIQuotaPolicy(routingConfig.codex?.quota).max_sessions, {
           override: false,
-        }) || vm
+        })) || vm
     }
     if (sessionSlots) {
-      vm = applyVmSessionSlots(id, routingConfig.inference?.session_slots, { override: false }) || vm
+      vm = (await applyVmSessionSlots(id, routingConfig.inference?.session_slots, { override: false })) || vm
     }
     return vm
   }
 
-  function applyRoutingTierRpm(tiers) {
+  async function applyRoutingTierRpm(tiers) {
     const routingConfig = getRouting()
     const policies = normalizeTiers(tiers, routingConfig.quota, routingConfig.concurrency)
     const skip = []
@@ -258,18 +258,18 @@ export function createRoutingRuntime(ctx) {
         applied.skipped += 1
         continue
       }
-      const key = vmTierKey(vm)
+      const key = (await vmTierKey(vm))
       const next = Number(policies[key]?.max_rpm ?? 0)
       const cur = Number(storedVm?.policy?.maxRpm)
       if (cur === next) continue
-      applyVmRpm(vm.id, next, { override: false })
+      await applyVmRpm(vm.id, next, { override: false })
       applied[key] += 1
     }
-    ctx.accountQuota.applyTierRpm(policies, { skipIds: skip })
+    await ctx.accountQuota.applyTierRpm(policies, { skipIds: skip })
     return applied
   }
 
-  function applyRoutingOpenAIQuota(policy = null) {
+  async function applyRoutingOpenAIQuota(policy = null) {
     const next = normalizeOpenAIQuotaPolicy(policy || getRouting().codex?.quota)
     const applied = { concurrency: 0, rpm: 0, sessions: 0, skipped: 0 }
     for (const listed of listVms(ctx.cfg.paths.project, getRouting())) {
@@ -294,7 +294,7 @@ export function createRoutingRuntime(ctx) {
         applied.sessions += 1
       }
       if (Object.keys(patch).length) {
-        atomicWriteJson(
+        await atomicWriteJson(
           path.join(ctx.cfg.paths.project, 'vms', `${listed.id}.json`),
           {
             ...stored,
@@ -306,7 +306,7 @@ export function createRoutingRuntime(ctx) {
       // Re-evaluate only the local soft quota restriction.  This preserves
       // operator disable, credential failures, upstream hard blocks, leases,
       // and the session registry owned by the existing runtime.
-      syncCodexQuotaSchedule(ctx.cfg.paths.project, getVm(ctx.cfg.paths.project, listed.id) || stored, {
+      await syncCodexQuotaSchedule(ctx.cfg.paths.project, getVm(ctx.cfg.paths.project, listed.id) || stored, {
         policy: next,
       })
     }
@@ -404,7 +404,7 @@ export function createRoutingRuntime(ctx) {
     return queued
   }
 
-  function persistRoutingPatch(body = {}) {
+  async function persistRoutingPatch(body = {}) {
     const hasCodexQuota = body?.codex && Object.prototype.hasOwnProperty.call(body.codex, 'quota')
     if (hasCodexQuota) validateOpenAIQuotaPatch(body.codex.quota)
     validateInferenceWebsocketPatch(body)
@@ -474,7 +474,7 @@ export function createRoutingRuntime(ctx) {
     syncTierDefaultsIntoRouting()
     if (body.logging) {
       routingConfig.logging = normalizeLoggingConfig({ ...(routingConfig.logging || {}), ...body.logging })
-      ctx.requestLog.setConfig({
+      await ctx.requestLog.setConfig({
         mode: routingConfig.logging.mode,
         retainDays: routingConfig.logging.retain_days,
         debugRetainDays: routingConfig.logging.debug_retain_days,
@@ -506,14 +506,14 @@ export function createRoutingRuntime(ctx) {
     if (body.failover) ctx.failoverRunner?.reloadConfig?.(routingConfig.failover || {})
     try {
       return {
-        concurrency: applyRoutingTierConcurrency(routingConfig.tiers),
-        rpm: applyRoutingTierRpm(routingConfig.tiers),
+        concurrency: (await applyRoutingTierConcurrency(routingConfig.tiers)),
+        rpm: (await applyRoutingTierRpm(routingConfig.tiers)),
         session_slots:
           body.inference && Object.prototype.hasOwnProperty.call(body.inference, 'session_slots')
-            ? applyRoutingSessionSlots(nextSessionSlots)
+            ? (await applyRoutingSessionSlots(nextSessionSlots))
             : { updated: 0, skipped: 0 },
         openai_quota: hasCodexQuota
-          ? applyRoutingOpenAIQuota(routingConfig.codex.quota)
+          ? (await applyRoutingOpenAIQuota(routingConfig.codex.quota))
           : { concurrency: 0, rpm: 0, sessions: 0, skipped: 0 },
         kernel_persona: kernelPersona,
         kernel_reload: kernelReload,
@@ -534,7 +534,7 @@ export function createRoutingRuntime(ctx) {
     }
   }
 
-  function loadRoutingConfig() {
+  async function loadRoutingConfig() {
     let raw
     try {
       raw = fs.readFileSync(ctx.routingConfigPath, 'utf8')
@@ -552,7 +552,7 @@ export function createRoutingRuntime(ctx) {
       doc.codex = normalizeCodexRouting(doc.codex)
       doc.pool = normalizePoolRouting(doc.pool)
       doc.vm = normalizeVmConfig(doc.vm)
-      if (!hasOpenAIQuota) migrateLegacyOpenAIPolicies(doc)
+      if (!hasOpenAIQuota) await migrateLegacyOpenAIPolicies(doc)
       return doc
     } catch (error) {
       throw new Error(`Routing config '${ctx.routingConfigPath}' has invalid JSON: ${error?.message || error}`, {
@@ -561,7 +561,7 @@ export function createRoutingRuntime(ctx) {
     }
   }
 
-  function migrateLegacyOpenAIPolicies(doc) {
+  async function migrateLegacyOpenAIPolicies(doc) {
     const quota = normalizeOpenAIQuotaPolicy(doc.codex?.quota)
     for (const summary of listVms(ctx.cfg.paths.project)) {
       if (!isCodexVm(summary)) continue
@@ -597,7 +597,7 @@ export function createRoutingRuntime(ctx) {
       preserve('maxRpm', 'rpmOverride', quota.max_rpm)
       preserve('maxSessions', 'sessionsOverride', quota.max_sessions)
       if (vmChanged) {
-        atomicWriteJson(
+        await atomicWriteJson(
           path.join(ctx.cfg.paths.project, 'vms', `${summary.id}.json`),
           {
             ...stored,
@@ -609,7 +609,7 @@ export function createRoutingRuntime(ctx) {
     }
     const canonical = normalizeCodexRouting(doc.codex)
     doc.codex = canonical
-    atomicWriteJson(ctx.routingConfigPath, doc, { mode: 0o600 })
+    await atomicWriteJson(ctx.routingConfigPath, doc, { mode: 0o600 })
   }
 
   function poolSchedulerConfig() {
@@ -622,7 +622,7 @@ export function createRoutingRuntime(ctx) {
     }
   }
 
-  function storedAccountTier({ accountId = null, vmId = null, vm = null } = {}) {
+  async function storedAccountTier({ accountId = null, vmId = null, vm = null } = {}) {
     let tier = vm?.claude?.account_tier || null
     if (!tier && vmId) {
       try {
@@ -631,7 +631,7 @@ export function createRoutingRuntime(ctx) {
     }
     if (!tier && accountId) {
       try {
-        tier = ctx.accountQuota.repo.get(accountId)?.unified?.account_tier || null
+        tier = (await ctx.accountQuota.repo.get(accountId))?.unified?.account_tier || null
       } catch {}
     }
     return String(tier || '').toLowerCase()
@@ -644,7 +644,7 @@ export function createRoutingRuntime(ctx) {
     })
   }
 
-  function initPoolRuntime() {
+  async function initPoolRuntime() {
     const routingConfig = getRouting()
     const runtimeRepo = new AccountRuntimeRepo()
     const attemptsRepo = new RequestAttemptsRepo()
@@ -652,7 +652,7 @@ export function createRoutingRuntime(ctx) {
     setAttemptsRepo(attemptsRepo)
     ctx.accountQuota.attachRuntimeRepo(runtimeRepo)
     try {
-      attemptsRepo.cleanup(routingConfig?.logging?.retain_days || 7)
+      await attemptsRepo.cleanup()
     } catch {}
     const poolScheduler = new PoolScheduler({
       projectRoot: ctx.cfg.paths.project,
@@ -685,37 +685,37 @@ export function createRoutingRuntime(ctx) {
       attemptsRepo,
       rateLimitService,
       config: routingConfig.failover || {},
-      onProxyFailure: (vmId, reason) => {
-        ctx.proxyPool.reportRuntimeFailure(vmId, reason)
+      onProxyFailure: async (vmId, reason) => {
+        await ctx.proxyPool.reportRuntimeFailure(vmId, reason)
       },
-      onFablePlanDenied: ({ selected }) => {
+      onFablePlanDenied: async ({ selected }) => {
         const accountId = selected?.accountId
         if (accountId && selected?.model) {
           try {
-            ctx.accountQuota.markModelUnsupported(accountId, selected.model)
+            await ctx.accountQuota.markModelUnsupported(accountId, selected.model)
           } catch {}
         }
       },
-      onFableSuccess: ({ selected, model }) => {
+      onFableSuccess: async ({ selected, model }) => {
         const accountId = selected?.accountId
         if (accountId) {
           try {
-            ctx.accountQuota.setAccountTier(accountId, 'max')
-            ctx.accountQuota.clearModelUnsupported(accountId, model)
+            await ctx.accountQuota.setAccountTier(accountId, 'max')
+            await ctx.accountQuota.clearModelUnsupported(accountId, model)
           } catch {}
         }
         if (selected?.vmId) {
           try {
-            persistAccountTier(ctx.cfg.paths.project, selected.vmId, 'max')
+            await persistAccountTier(ctx.cfg.paths.project, selected.vmId, 'max')
           } catch {}
         }
       },
-      onCredentialFailure: ({ selected, policy }) => {
+      onCredentialFailure: async ({ selected, policy }) => {
         if (!selected?.vmId) return
         const vmPath = path.join(ctx.cfg.paths.project, 'vms', `${selected.vmId}.json`)
         if (policy?.reason === 'oauth_revoked' || policy?.reason === 'oauth_invalid_grant') {
           try {
-            markVmRefreshError(vmPath, {
+            await markVmRefreshError(vmPath, {
               error: {
                 code: policy.reason === 'oauth_revoked' ? 'oauth_revoked' : 'invalid_grant',
                 message:
@@ -728,7 +728,7 @@ export function createRoutingRuntime(ctx) {
           return
         }
         if (policy?.reason === 'oauth_no_refresh' && shouldMarkMissingRefresh(selected.vm)) {
-          setVmSchedulable(ctx.cfg.paths.project, selected.vmId, false, 'oauth_no_refresh')
+          await setVmSchedulable(ctx.cfg.paths.project, selected.vmId, false, 'oauth_no_refresh')
         }
       },
     })

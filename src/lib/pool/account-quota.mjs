@@ -79,7 +79,12 @@ export class AccountQuota {
     // vm_id → normalized `vm.policy.quota`; vm.json is the source of truth, this is the hot-path copy.
     this.vmQuota = new Map()
     // seed accounts
-    for (const a of accounts || []) this.ensure(a)
+    this.initialAccounts = accounts || []
+  }
+
+  async initialize() {
+    for (const account of this.initialAccounts) await this.ensure(account)
+    this.initialAccounts = []
   }
 
   /** Kept for API compat + post-restore hook (no in-memory cache to refresh). */
@@ -99,14 +104,14 @@ export class AccountQuota {
     this.runtimeRepo = runtimeRepo || null
   }
 
-  _writeSessionWindow(acc) {
+  async _writeSessionWindow(acc) {
     if (!this.runtimeRepo?.updateWindow || !acc) return
     const extra = headerWindow(acc.unified, '5h')
     const w5 = extra.utilization != null || extra.status || extra.reset ? extra : officialWindow(acc.unified, '5h')
     const endIso = w5.reset || null
     const endMs = endIso ? Date.parse(endIso) : NaN
     try {
-      this.runtimeRepo.updateWindow(acc.account_id, {
+      await this.runtimeRepo.updateWindow(acc.account_id, {
         vmId: acc.vm_id || null,
         sessionWindowEnd: Number.isFinite(endMs)
           ? endMs
@@ -119,12 +124,13 @@ export class AccountQuota {
     } catch {}
   }
 
-  ensure(account) {
+  async ensure(account) {
+    return await this.db.withEntityLock('account', account.account_id || account.account_uuid || account.id, async () => {
     const id = account.account_id || account.account_uuid || account.id
     if (!id) return
-    let acc = this.repo.get(id)
+    let acc = (await this.repo.get(id))
     if (!acc) {
-      acc = this.repo.insert({
+      acc = (await this.repo.insert({
         account_id: id,
         vm_id: account.vm_id || null,
         email: account.email || null,
@@ -151,21 +157,23 @@ export class AccountQuota {
         },
         last_blocked: null,
         last_error: null,
-      })
+      }))
     } else if ((account.vm_id && acc.vm_id !== account.vm_id) || (account.type && acc.type !== account.type)) {
       if (account.vm_id) acc.vm_id = account.vm_id
       if (account.type) acc.type = account.type
-      acc = this.repo.save(acc)
+      acc = (await this.repo.save(acc))
     }
     return acc
+      })
   }
 
   /**
    * Update from Anthropic response headers (unified OAuth stats).
    * headers: Headers | plain object (lower-cased keys preferred)
    */
-  ingestHeaders(accountId, headers, usageBody = null, extra = {}) {
-    const acc = this.ensure({ account_id: accountId })
+  async ingestHeaders(accountId, headers, usageBody = null, extra = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.ensure({ account_id: accountId }))
     const h = normalizeHeaders(headers)
     acc.unified.headers = acc.unified.headers || {}
     acc.unified.header_stall = 0
@@ -249,7 +257,7 @@ export class AccountQuota {
     if (countRequest) {
       const view = headerWindowOrEmpty(acc.unified, '5h')
       const view7 = headerWindowOrEmpty(acc.unified, '7d')
-      this.repo.addAllocation(accountId, {
+      await this.repo.addAllocation(accountId, {
         at: new Date().toISOString(),
         source: 'headers',
         util_5h: view.utilization ?? officialWindow(acc.unified, '5h').utilization,
@@ -262,8 +270,8 @@ export class AccountQuota {
       })
     }
 
-    const saved = this.repo.save(acc)
-    this._writeSessionWindow(saved)
+    const saved = (await this.repo.save(acc))
+    await this._writeSessionWindow(saved)
     if (sampled) {
       const observed5 = headerWindowOrEmpty(saved.unified, '5h')
       const observed7 = headerWindowOrEmpty(saved.unified, '7d')
@@ -274,11 +282,13 @@ export class AccountQuota {
       })
     }
     return saved
+      })
   }
 
-  recordLastProbe(accountId, probe = {}) {
+  async recordLastProbe(accountId, probe = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
     if (!accountId) return null
-    const acc = this.ensure({ account_id: accountId })
+    const acc = (await this.ensure({ account_id: accountId }))
     const prev = acc.last_probe || acc.unified?.last_probe || null
     if (isTestProbeSource(probe) && prev?.ok === true && !isTestProbeSource(prev)) {
       return acc
@@ -292,15 +302,17 @@ export class AccountQuota {
       status: probe.status || null,
     }
     acc.unified.last_probe = acc.last_probe
-    return this.repo.save(acc)
+    return (await this.repo.save(acc))
+      })
   }
 
   /**
    * CRS oauth/usage snapshot from the VM UID probe.
    * Fable weekly limit is stored separately and does not unschedulable the account.
    */
-  ingestOAuthUsage(accountId, probe = {}) {
-    const acc = this.ensure({ account_id: accountId })
+  async ingestOAuthUsage(accountId, probe = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.ensure({ account_id: accountId }))
     const nowIso = probe.probed_at || new Date().toISOString()
     if (isOfficialUsageRateLimited(probe)) {
       const retryMs = Number(probe.retry_after_ms)
@@ -320,7 +332,7 @@ export class AccountQuota {
         attempted_at: nowIso,
       }
       acc.unified.last_probe = acc.last_probe
-      return this.repo.save(acc)
+      return (await this.repo.save(acc))
     }
     if (acc.unified) delete acc.unified.usage_rate_limited_until
     const official = probe.interpretations?.official || {}
@@ -431,11 +443,11 @@ export class AccountQuota {
     acc.unified.last_probe = acc.last_probe
     if (usageOk) {
       syncActiveToPassive(acc, nowIso)
-      healOfficialOverwriteExtra(acc, accountId, this.repo)
+      await healOfficialOverwriteExtra(acc, accountId, this.repo)
       clearHeaderExhaustIfOfficialOpen(acc)
     }
-    const saved = this.repo.save(acc)
-    this._writeSessionWindow(saved)
+    const saved = (await this.repo.save(acc))
+    await this._writeSessionWindow(saved)
     if (usageOk) {
       const observed5 = headerWindowOrEmpty(saved.unified, '5h')
       const observed7 = headerWindowOrEmpty(saved.unified, '7d')
@@ -446,17 +458,19 @@ export class AccountQuota {
       })
     }
     if (usageOk && this.headerUnderSafety(saved)) {
-      this.clearQuotaExhaustedCooldown(accountId)
+      await this.clearQuotaExhaustedCooldown(accountId)
     }
     return saved
+      })
   }
 
   /**
    * Official Claude Code stream-json `rate_limit_event`.
    * Live CLI includes `unifiedWindows.*.utilization`; keep status + reset too.
    */
-  ingestCliRateLimit(accountId, rateLimitInfo, usageBody = null, { countRequest = null } = {}) {
-    const acc = this.ensure({ account_id: accountId })
+  async ingestCliRateLimit(accountId, rateLimitInfo, usageBody = null, { countRequest = null } = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.ensure({ account_id: accountId }))
     const infos = Array.isArray(rateLimitInfo) ? rateLimitInfo : rateLimitInfo ? [rateLimitInfo] : []
     for (const info of infos) {
       if (!info || typeof info !== 'object') continue
@@ -491,7 +505,7 @@ export class AccountQuota {
     }
     if (shouldCount) acc.requests += 1
 
-    this.repo.addAllocation(accountId, {
+    await this.repo.addAllocation(accountId, {
       at: new Date().toISOString(),
       source: 'claude_cli',
       util_5h: officialWindow(acc.unified, '5h').utilization,
@@ -503,7 +517,8 @@ export class AccountQuota {
       tokens_out: usageBody?.output_tokens ?? null,
     })
 
-    return this.repo.save(acc)
+    return (await this.repo.save(acc))
+      })
   }
 
   /**
@@ -551,8 +566,9 @@ export class AccountQuota {
     for (const vm of vms || []) this.setVmQuotaOverride(vm?.id, vm?.quota_override || null)
   }
 
-  canAccept(accountId, { tier = null, requestRisk = null, quotaRequest = null } = {}) {
-    const acc = this.ensure({ account_id: accountId })
+  async canAccept(accountId, { tier = null, requestRisk = null, quotaRequest = null } = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.ensure({ account_id: accountId }))
     const policy = this.policyFor(acc, { tier })
     const ratio = Number(policy.limit_5h ?? policy.safety_ratio ?? this.config.safety_ratio ?? 0.85)
     const weeklyRatio = Number(
@@ -576,7 +592,7 @@ export class AccountQuota {
     if (quotaConfig.block_on_5h && headerHardBlocked(acc.unified, '5h')) {
       const h5 = headerWindow(acc.unified, '5h')
       acc.last_blocked = { at: new Date().toISOString(), window: '5h', status: h5.status, source: 'headers' }
-      this.repo.save(acc)
+      await this.repo.save(acc)
       return {
         ok: false,
         reason: 'quota_5h_cli',
@@ -590,7 +606,7 @@ export class AccountQuota {
     if (quotaConfig.block_on_7d && headerHardBlocked(acc.unified, '7d')) {
       const h7 = headerWindow(acc.unified, '7d')
       acc.last_blocked = { at: new Date().toISOString(), window: '7d', status: h7.status, source: 'headers' }
-      this.repo.save(acc)
+      await this.repo.save(acc)
       return {
         ok: false,
         reason: 'quota_7d_cli',
@@ -611,7 +627,7 @@ export class AccountQuota {
 
     if (z5 === GATE_GATED) {
       acc.last_blocked = { at: new Date().toISOString(), window: '5h', utilization: u5, status: w5.status }
-      this.repo.save(acc)
+      await this.repo.save(acc)
       return {
         ok: false,
         reason: 'quota_5h_safety',
@@ -629,7 +645,7 @@ export class AccountQuota {
 
     if (z7 === GATE_GATED) {
       acc.last_blocked = { at: new Date().toISOString(), window: '7d', utilization: u7, status: w7.status }
-      this.repo.save(acc)
+      await this.repo.save(acc)
       return {
         ok: false,
         reason: 'quota_7d_safety',
@@ -709,44 +725,52 @@ export class AccountQuota {
     }
 
     return { ok: true, warn_5h: u5 >= warnRatio, warn_7d: u7 >= Math.min(warnRatio, weeklyRatio) }
+      })
   }
-  tryAcquire(accountId, opts = {}) {
+  async tryAcquire(accountId, opts = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
     if (!opts.skipGate) {
-      const gate = this.canAccept(accountId, opts)
+      const gate = (await this.canAccept(accountId, opts))
       if (!gate.ok) return gate
     }
-    const acc = this.ensure({ account_id: accountId })
+    const acc = (await this.ensure({ account_id: accountId }))
+    const inBand = (await this._drainingNow(accountId, { tier: opts.tier }))
     const inflight = this.inflight.get(accountId) || 0
     const limit = this.limitFor(acc, this.policyFor(acc, { tier: opts.tier }))
     if (inflight >= limit) {
       return { ok: false, reason: 'concurrency_limit', detail: { inflight, max: limit, source: 'quota-reservation' } }
     }
-    const inBand = this._drainingNow(accountId, { tier: opts.tier })
     const stack = this.reservationBand.get(accountId) || []
     stack.push(inBand)
     this.reservationBand.set(accountId, stack)
     this.inflight.set(accountId, inflight + 1)
     this._rpmTouch(accountId)
     return { ok: true }
+      })
   }
 
   /** sub2api 7d_oi: Fable-only window. Does not unschedulable the account. */
-  fableWindowLimited(accountId) {
-    const acc = this.repo.get(accountId)
+  async fableWindowLimited(accountId) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.repo.get(accountId))
     const status = String(acc?.unified?.['7d_oi']?.status || '').toLowerCase()
     return status === 'rejected' || status === 'rate_limited'
+      })
   }
 
-  fableWindowResetAt(accountId) {
-    const reset = this.repo.get(accountId)?.unified?.['7d_oi']?.reset
+  async fableWindowResetAt(accountId) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const reset = (await this.repo.get(accountId))?.unified?.['7d_oi']?.reset
     if (!reset) return null
     const parsed = Date.parse(reset)
     return Number.isFinite(parsed) ? parsed : null
+      })
   }
 
   /** Experimental 50/50 weekly split. Off unless quota.weekly_split.enabled (or the VM override). */
-  weeklySplitOf(accountId) {
-    const acc = this.repo.get(accountId)
+  async weeklySplitOf(accountId) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.repo.get(accountId))
     const cfg = weeklySplitConfig(this.quotaConfigFor(acc))
     const u = acc?.unified || {}
     return computeWeeklySplit({
@@ -756,15 +780,18 @@ export class AccountQuota {
       utilization_7d_oi: u['7d_oi']?.utilization ?? u.fable?.utilization,
       status_7d_oi: u['7d_oi']?.status,
     })
+      })
   }
 
-  weeklySplitResetAt(accountId, kind = 'regular') {
-    const acc = this.repo.get(accountId)
+  async weeklySplitResetAt(accountId, kind = 'regular') {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.repo.get(accountId))
     const key = kind === 'fable' ? '7d_oi' : '7d'
     const reset = acc?.unified?.[key]?.reset
     if (!reset) return null
     const parsed = Date.parse(reset)
     return Number.isFinite(parsed) ? parsed : null
+      })
   }
 
   acquire(accountId) {
@@ -787,22 +814,25 @@ export class AccountQuota {
    * previous percent, so the next large request treats the reading as stale
    * until headers/official usage move.
    */
-  noteBandSettled(accountId) {
+  async noteBandSettled(accountId) {
+    return await this.db.withEntityLock('account', accountId, async () => {
     if (!accountId) return 0
     const stack = this.reservationBand.get(accountId)
     const reservedInBand = Array.isArray(stack) ? stack.some(Boolean) : false
-    if (!reservedInBand && !this._drainingNow(accountId)) return this.staleSettled.get(accountId) || 0
+    if (!reservedInBand && !(await this._drainingNow(accountId))) return this.staleSettled.get(accountId) || 0
     const next = (this.staleSettled.get(accountId) || 0) + 1
     this.staleSettled.set(accountId, next)
     return next
+      })
   }
 
   /**
    * The stricter 5h/7d gate zone for this account (see quota-gate.mjs), with
    * the block switches applied. Used by the seat planner to place new devices.
    */
-  gateZoneOf(accountId, { tier = null } = {}) {
-    const acc = this.repo.get(accountId) || this.ensure({ account_id: accountId })
+  async gateZoneOf(accountId, { tier = null } = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.repo.get(accountId)) || (await this.ensure({ account_id: accountId }))
     const policy = this.policyFor(acc, { tier })
     const quotaConfig = this.quotaConfigFor(acc)
     const gate = quotaGateOf(quotaConfig)
@@ -815,10 +845,13 @@ export class AccountQuota {
     const z5 = quotaConfig.block_on_5h ? gateZone(u5, ratio, gate) : GATE_OPEN
     const z7 = quotaConfig.block_on_7d ? gateZone(u7, weeklyRatio, gate) : GATE_OPEN
     return worstGateZone(z5, z7)
+      })
   }
 
-  _drainingNow(accountId, { tier = null } = {}) {
-    return this.gateZoneOf(accountId, { tier }) === GATE_DRAINING
+  async _drainingNow(accountId, { tier = null } = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    return (await this.gateZoneOf(accountId, { tier })) === GATE_DRAINING
+      })
   }
 
   /** Called only for a draining account: a large cold (or stale-reading large) call is not taken here. */
@@ -853,12 +886,13 @@ export class AccountQuota {
    * Write effective 5h/7d windows back to SQLite when a reset has elapsed
    * or last_used proves a probe-source 100% is leftover from the previous window.
    */
-  persistEffectiveWindows(accountId, { now = Date.now() } = {}) {
+  async persistEffectiveWindows(accountId, { now = Date.now() } = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
     if (!accountId) return null
-    const acc = this.repo.get(accountId)
+    const acc = (await this.repo.get(accountId))
     if (!acc?.unified) return acc || null
     const backoffExpired = expireUsageProbeBackoff(acc, now)
-    const lastUsedAt = this._lastUsedAt(accountId)
+    const lastUsedAt = (await this._lastUsedAt(accountId))
     const next = applyEffectiveWindows(acc.unified, {
       now,
       lastUsedAt,
@@ -885,10 +919,10 @@ export class AccountQuota {
     )
     if (leftover.changed) wiped = leftover
     if (!changed && !wiped.changed) {
-      const healed = healOfficialOverwriteExtra(acc, accountId, this.repo)
+      const healed = (await healOfficialOverwriteExtra(acc, accountId, this.repo))
       if (!healed) {
-        if (backoffExpired) this.repo.save(acc)
-        if (this.headerUnderSafety(acc)) this.clearQuotaExhaustedCooldown(accountId)
+        if (backoffExpired) await this.repo.save(acc)
+        if (this.headerUnderSafety(acc)) await this.clearQuotaExhaustedCooldown(accountId)
         return acc
       }
     } else {
@@ -898,13 +932,14 @@ export class AccountQuota {
         writeOfficialWindow(acc, '5h', n5)
         writeOfficialWindow(acc, '7d', n7)
       }
-      healOfficialOverwriteExtra(acc, accountId, this.repo)
+      await healOfficialOverwriteExtra(acc, accountId, this.repo)
     }
     acc.unified.updated_at = new Date().toISOString()
-    const saved = this.repo.save(acc)
-    this._writeSessionWindow(saved)
-    if (this.headerUnderSafety(saved)) this.clearQuotaExhaustedCooldown(accountId)
+    const saved = (await this.repo.save(acc))
+    await this._writeSessionWindow(saved)
+    if (this.headerUnderSafety(saved)) await this.clearQuotaExhaustedCooldown(accountId)
     return saved
+      })
   }
 
   officialUnderSafety(acc) {
@@ -926,11 +961,12 @@ export class AccountQuota {
     return true
   }
 
-  clearQuotaExhaustedCooldown(accountId) {
+  async clearQuotaExhaustedCooldown(accountId) {
+    return await this.db.withEntityLock('account', accountId, async () => {
     if (!accountId || !this.runtimeRepo) return false
     let state = null
     try {
-      state = this.runtimeRepo.get?.(accountId)
+      state = (await this.runtimeRepo.get?.(accountId))
     } catch {
       return false
     }
@@ -942,7 +978,7 @@ export class AccountQuota {
     if (!quotaCool) return false
     if (!state.cooldown_until && !reason) return false
     try {
-      this.runtimeRepo.upsert?.({
+      await this.runtimeRepo.upsert?.({
         ...state,
         status: 'ready',
         cooldown_until: null,
@@ -956,31 +992,34 @@ export class AccountQuota {
       this.onQuotaCooldownCleared?.(accountId)
     } catch {}
     return true
+      })
   }
 
-  _lastUsedAt(accountId) {
+  async _lastUsedAt(accountId) {
+    return await this.db.withEntityLock('account', accountId, async () => {
     try {
-      const ms = Number(this.runtimeRepo?.get(accountId)?.last_used_at)
+      const ms = Number((await this.runtimeRepo?.get(accountId))?.last_used_at)
       if (Number.isFinite(ms) && ms > 0) return ms
     } catch {}
     try {
-      const row = this.repo.recentAllocations(accountId, 1)?.[0]
+      const row = (await this.repo.recentAllocations(accountId, 1))?.[0]
       if (!row?.at) return null
       const parsed = Date.parse(row.at)
       return Number.isFinite(parsed) ? parsed : null
     } catch {
       return null
     }
+      })
   }
 
-  snapshot() {
+  async snapshot() {
     const def = this.tiers?.default || {}
     return {
       safety_ratio: def.limit_5h ?? def.safety_ratio ?? this.config.safety_ratio,
       weekly_safety_ratio: def.limit_7d ?? def.weekly_safety_ratio ?? this.config.weekly_safety_ratio,
       tiers: this.tiers,
-      accounts: this.repo.list().map((a) => {
-        const lastUsedAt = this._lastUsedAt(a.account_id)
+      accounts: (await Promise.all((await this.repo.list()).map(async (a) => {
+        const lastUsedAt = (await this._lastUsedAt(a.account_id))
         const official = applyEffectiveWindows(a.unified, { lastUsedAt, source: a.unified?.source })
         const listed = listQuotaFromHeaders(a.unified)
         return {
@@ -1004,9 +1043,9 @@ export class AccountQuota {
             '7d': listed.utilization_7d != null || listed.status_7d ? listed['7d'] : official['7d'],
           },
           last_blocked: a.last_blocked,
-          recent_allocations: this.repo.recentAllocations(a.account_id, 5),
+          recent_allocations: (await this.repo.recentAllocations(a.account_id, 5)),
         }
-      }),
+      }))),
     }
   }
 
@@ -1071,25 +1110,28 @@ export class AccountQuota {
     return arr.length
   }
 
-  rebindToVm(accountUuid, vmId, { email = null } = {}) {
+  async rebindToVm(accountUuid, vmId, { email = null } = {}) {
+    return await this.db.withEntityLock('account', accountUuid, async () => {
     if (!accountUuid || !vmId) return null
-    const acc = this.ensure({ account_id: accountUuid, vm_id: vmId, email })
+    const acc = (await this.ensure({ account_id: accountUuid, vm_id: vmId, email }))
     if (!acc) return null
     if (acc.vm_id !== vmId || (email && acc.email !== email)) {
       acc.vm_id = vmId
       if (email) acc.email = email
-      return this.repo.save(acc)
+      return (await this.repo.save(acc))
     }
     return acc
+      })
   }
 
   /**
    * A successful OAuth refresh proves the grant is live.
    * Drop leftover Fable / last_probe revoke strings so the panel resyncs.
    */
-  clearGrantRevokeLeftover(accountId) {
+  async clearGrantRevokeLeftover(accountId) {
+    return await this.db.withEntityLock('account', accountId, async () => {
     if (!accountId) return null
-    const acc = this.repo.get(accountId)
+    const acc = (await this.repo.get(accountId))
     if (!acc) return null
     const revoke = /access token has been revoked|token has been revoked|oauth_revoked/i
     const u = acc.unified || {}
@@ -1113,13 +1155,15 @@ export class AccountQuota {
     if (!changed) return acc
     acc.unified = u
     acc.unified.updated_at = new Date().toISOString()
-    return this.repo.save(acc)
+    return (await this.repo.save(acc))
+      })
   }
 
-  setAccountTier(accountId, tier, { source = null } = {}) {
+  async setAccountTier(accountId, tier, { source = null } = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
     const key = String(tier || '').toLowerCase()
     if (!accountId || (key !== 'pro' && key !== 'max')) return null
-    const acc = this.repo.get(accountId)
+    const acc = (await this.repo.get(accountId))
     if (!acc) return null
     if (acc.unified?.account_tier_source === 'profile' && source !== 'profile' && source !== 'usage') return acc
     if (acc.unified?.account_tier === key && (acc.unified?.account_tier_source || null) === source) return acc
@@ -1127,13 +1171,15 @@ export class AccountQuota {
     acc.unified.account_tier = key
     acc.unified.account_tier_source = source
     acc.unified.updated_at = new Date().toISOString()
-    return this.repo.save(acc)
+    return (await this.repo.save(acc))
+      })
   }
 
-  markModelUnsupported(accountId, model, durationMs = 60 * 60_000) {
-    const key = resolvePolicyModelId(model) || String(model || '').trim()
+  async markModelUnsupported(accountId, model, durationMs = 60 * 60_000) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const key = (await resolvePolicyModelId(model)) || String(model || '').trim()
     if (!accountId || !key) return null
-    const acc = this.repo.get(accountId)
+    const acc = (await this.repo.get(accountId))
     if (!acc) return null
     acc.unified = acc.unified || {}
     acc.unified.model_denied_until = {
@@ -1141,103 +1187,110 @@ export class AccountQuota {
       [key]: Date.now() + durationMs,
     }
     acc.unified.updated_at = new Date().toISOString()
-    return this.repo.save(acc)
+    return (await this.repo.save(acc))
+      })
   }
 
-  clearModelUnsupported(accountId, model) {
-    const key = resolvePolicyModelId(model) || String(model || '').trim()
+  async clearModelUnsupported(accountId, model) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const key = (await resolvePolicyModelId(model)) || String(model || '').trim()
     if (!accountId || !key) return null
-    const acc = this.repo.get(accountId)
+    const acc = (await this.repo.get(accountId))
     if (!acc?.unified?.model_denied_until?.[key]) return acc
     const denied = { ...acc.unified.model_denied_until }
     delete denied[key]
     acc.unified.model_denied_until = denied
     acc.unified.updated_at = new Date().toISOString()
-    return this.repo.save(acc)
+    return (await this.repo.save(acc))
+      })
   }
 
-  setMaxConcurrency(accountId, n, { override = false } = {}) {
-    const acc = this.ensure({ account_id: accountId })
+  async setMaxConcurrency(accountId, n, { override = false } = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.ensure({ account_id: accountId }))
     if (!acc) return null
     acc.max_concurrency = Math.max(0, Math.min(256, Number(n) || 0))
     acc.concurrency_override = override ? 1 : 0
-    return this.repo.save(acc)
+    return (await this.repo.save(acc))
+      })
   }
 
-  setMaxConcurrencyForVm(vmId, n) {
+  async setMaxConcurrencyForVm(vmId, n) {
     const v = Math.max(0, Math.min(256, Number(n) || 0))
     const out = []
-    for (const a of this.repo.list()) {
+    for (const a of (await this.repo.list())) {
       if (a.vm_id === vmId || a.account_id === vmId) {
         a.max_concurrency = v
-        out.push(this.repo.save(a))
+        out.push((await this.repo.save(a)))
       }
     }
-    if (!out.length) out.push(this.setMaxConcurrency(vmId, v))
+    if (!out.length) out.push((await this.setMaxConcurrency(vmId, v)))
     return out
   }
 
-  applyDefaultConcurrency(n, { skipIds } = {}) {
+  async applyDefaultConcurrency(n, { skipIds } = {}) {
     const v = Math.max(0, Math.min(256, Number(n) || 0))
     const skip = new Set(skipIds || [])
     const out = []
-    for (const a of this.repo.list()) {
+    for (const a of (await this.repo.list())) {
       if (skip.has(a.account_id) || skip.has(a.vm_id)) continue
       a.max_concurrency = v
-      out.push(this.repo.save(a))
+      out.push((await this.repo.save(a)))
     }
     return out
   }
 
-  setMaxRpm(accountId, n, { override = false } = {}) {
-    const acc = this.ensure({ account_id: accountId })
+  async setMaxRpm(accountId, n, { override = false } = {}) {
+    return await this.db.withEntityLock('account', accountId, async () => {
+    const acc = (await this.ensure({ account_id: accountId }))
     if (!acc) return null
     acc.max_rpm = Math.max(0, Math.min(1e6, Number(n) || 0))
     acc.rpm_override = override ? 1 : 0
-    return this.repo.save(acc)
+    return (await this.repo.save(acc))
+      })
   }
 
-  setMaxRpmForVm(vmId, n, { override = false } = {}) {
+  async setMaxRpmForVm(vmId, n, { override = false } = {}) {
     const v = Math.max(0, Math.min(1e6, Number(n) || 0))
     const out = []
-    for (const a of this.repo.list()) {
+    for (const a of (await this.repo.list())) {
       if (a.vm_id === vmId || a.account_id === vmId) {
         a.max_rpm = v
         if (override) a.rpm_override = 1
-        out.push(this.repo.save(a))
+        out.push((await this.repo.save(a)))
       }
     }
-    if (!out.length) out.push(this.setMaxRpm(vmId, v, { override }))
+    if (!out.length) out.push((await this.setMaxRpm(vmId, v, { override })))
     return out
   }
 
-  applyTierRpm(tiers, { skipIds } = {}) {
+  async applyTierRpm(tiers, { skipIds } = {}) {
     const policies = normalizeTiers(tiers, this.config, this.concurrency)
     const skip = new Set(skipIds || [])
     const out = []
-    for (const a of this.repo.list()) {
+    for (const a of (await this.repo.list())) {
       if (skip.has(a.account_id) || skip.has(a.vm_id) || a.rpm_override) continue
       const key = accountTierKey(a)
       const v = Math.max(0, Math.min(1e6, Number(policies[key]?.max_rpm) || 0))
       if (Number(a.max_rpm) === v) continue
       a.max_rpm = v
-      out.push(this.repo.save(a))
+      out.push((await this.repo.save(a)))
     }
     return out
   }
 
-  applyTierConcurrency(tiers, { skipIds } = {}) {
+  async applyTierConcurrency(tiers, { skipIds } = {}) {
     const policies = normalizeTiers(tiers, this.config, this.concurrency)
     const skip = new Set(skipIds || [])
     const out = []
-    for (const a of this.repo.list()) {
+    for (const a of (await this.repo.list())) {
       if (skip.has(a.account_id) || skip.has(a.vm_id) || a.concurrency_override) continue
       const key = accountTierKey(a)
       const v = Math.max(0, Math.min(256, Number(policies[key]?.max_concurrency) || 2))
       if (Number(a.max_concurrency) === v) continue
       a.max_concurrency = v
       a.concurrency_override = 0
-      out.push(this.repo.save(a))
+      out.push((await this.repo.save(a)))
     }
     return out
   }
@@ -1363,8 +1416,8 @@ function syncActiveToPassive(acc, sampledAt) {
   acc.unified.headers.sampled_at = sampledAt || new Date().toISOString()
 }
 
-function lastHeaderAllocation(repo, accountId) {
-  const rows = repo?.recentAllocations?.(accountId, 12) || []
+async function lastHeaderAllocation(repo, accountId) {
+  const rows = (await repo?.recentAllocations?.(accountId, 12)) || []
   return rows.find((row) => row?.source === 'headers' && row.util_5h != null) || null
 }
 
@@ -1390,7 +1443,7 @@ function expireUsageProbeBackoff(acc, now = Date.now()) {
 }
 
 /** Undo leftover official 100% that was copied onto a still-open Extra window. */
-function healOfficialOverwriteExtra(acc, accountId, repo) {
+async function healOfficialOverwriteExtra(acc, accountId, repo) {
   if (!acc?.unified?.headers) return false
   const extra = acc.unified.headers['5h']
   const official = officialWindow(acc.unified, '5h')
@@ -1403,7 +1456,7 @@ function healOfficialOverwriteExtra(acc, accountId, repo) {
     const probeMs = Date.parse(probeAt)
     if (Number.isFinite(sampledMs) && Number.isFinite(probeMs) && Math.abs(sampledMs - probeMs) > 5000) return false
   }
-  const last = lastHeaderAllocation(repo, accountId)
+  const last = (await lastHeaderAllocation(repo, accountId))
   const prev = Number(last?.util_5h)
   if (!Number.isFinite(prev) || prev >= 0.95) return false
   writeHeaderWindow(acc, '5h', {

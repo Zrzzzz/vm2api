@@ -118,8 +118,8 @@ export function stripBetaTokens(header, dropSet = REPLAY_DROP_BETAS) {
 }
 
 /** Official: strip unless the matrix / fallback whitelist says pass. Unofficial callers should always strip. */
-export function shouldStripContext1m(model = '') {
-  return !shouldPassContext1mByPolicy(model)
+export async function shouldStripContext1m(model = '') {
+  return !(await shouldPassContext1mByPolicy(model))
 }
 
 export function extractClaudeCodeHeaders(reqHeaders = {}) {
@@ -232,15 +232,15 @@ export function loadStoredHeaders(homeDir) {
   return Object.keys(cleaned).length ? cleaned : null
 }
 
-function applyReplayBetaPolicy(headers, model = '', isOfficial = false, want1m = false) {
+async function applyReplayBetaPolicy(headers, model = '', isOfficial = false, want1m = false) {
   if (!headers || typeof headers !== 'object') return headers
   const beta = headers['anthropic-beta'] || ''
   const optIn1m = want1m === true || hasClaudeCode1mSuffix(model)
   let cleaned
   try {
-    cleaned = applyBetaPolicyToHeader(beta, model, { isOfficial, want1m: optIn1m })
+    cleaned = (await applyBetaPolicyToHeader(beta, model, { isOfficial, want1m: optIn1m }))
   } catch {
-    const drop1m = (!isOfficial && !optIn1m) || !shouldPassContext1mByPolicy(model)
+    const drop1m = (!isOfficial && !optIn1m) || !(await shouldPassContext1mByPolicy(model))
     cleaned = drop1m ? stripBetaTokens(beta) : beta
   }
   if (cleaned === beta) return headers
@@ -278,7 +278,7 @@ function slotDeviceHeaders(identity = {}) {
 }
 
 /** VM characteristics are the only fingerprint. Official inbound may pass protocol betas. */
-export function resolveVmCharacteristicHeaders(identity = {}, reqHeaders = {}, homeDir = '', model = '', opts = {}) {
+export async function resolveVmCharacteristicHeaders(identity = {}, reqHeaders = {}, homeDir = '', model = '', opts = {}) {
   const incoming = extractClaudeCodeHeaders(reqHeaders)
   const official = isOfficialClaudeUa(incoming['user-agent'] || '')
   if (official) storeAccountHeaders(homeDir, reqHeaders)
@@ -294,7 +294,7 @@ export function resolveVmCharacteristicHeaders(identity = {}, reqHeaders = {}, h
       ...device,
       ...conditionalHeaders(incoming),
     }
-    return applyReplayBetaPolicy(base, model, true, want1m)
+    return (await applyReplayBetaPolicy(base, model, true, want1m))
   }
   // Unofficial: ignore inbound protocol / UA. Stored CLI betas fill gaps; VM fingerprint wins.
   const base = {
@@ -303,7 +303,7 @@ export function resolveVmCharacteristicHeaders(identity = {}, reqHeaders = {}, h
     ...device,
     'anthropic-dangerous-direct-browser-access': 'true',
   }
-  return applyReplayBetaPolicy(base, model, false, want1m)
+  return (await applyReplayBetaPolicy(base, model, false, want1m))
 }
 
 /**
@@ -311,15 +311,15 @@ export function resolveVmCharacteristicHeaders(identity = {}, reqHeaders = {}, h
  * VM identity overwrites UA / stainless / session. Stored file keeps protocol only.
  * Official inbound omitted anthropic-beta so probes do not wipe stored CLI betas.
  */
-export function resolveCrsHeaders(reqHeaders = {}, homeDir = '', identity = null, model = '', opts = {}) {
+export async function resolveCrsHeaders(reqHeaders = {}, homeDir = '', identity = null, model = '', opts = {}) {
   const want1m = opts.want1m === true || hasClaudeCode1mSuffix(model)
-  if (identity) return resolveVmCharacteristicHeaders(identity, reqHeaders, homeDir, model, { want1m })
+  if (identity) return (await resolveVmCharacteristicHeaders(identity, reqHeaders, homeDir, model, { want1m }))
   const incoming = extractClaudeCodeHeaders(reqHeaders)
   if (isOfficialClaudeUa(incoming['user-agent'] || '')) {
     storeAccountHeaders(homeDir, reqHeaders)
-    return applyReplayBetaPolicy({ ...DEFAULTS, ...protocolHeadersOnly(incoming) }, model, true, want1m)
+    return (await applyReplayBetaPolicy({ ...DEFAULTS, ...protocolHeadersOnly(incoming) }, model, true, want1m))
   }
   const stored = loadStoredHeaders(homeDir) || {}
   const merged = { ...DEFAULTS, ...stored }
-  return applyReplayBetaPolicy(merged, model, false, want1m)
+  return (await applyReplayBetaPolicy(merged, model, false, want1m))
 }

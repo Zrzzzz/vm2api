@@ -134,7 +134,7 @@ export async function reconcileCliHopRuntime(exec, { runDockerExec = runDocker }
   const root = projectRootFromExec(exec)
   const vmId = exec?.vmId || exec?.vm?.id
   if (root && vmId && exec?.vm?.schedulable !== false && String(exec?.vm?.status || '').toLowerCase() === 'paused') {
-    setVmSchedulable(root, vmId, true)
+    await setVmSchedulable(root, vmId, true)
     actions.push('status_running')
   }
   return { ok: true, actions, reason: 'transparent_egress' }
@@ -546,7 +546,7 @@ async function startRustKernel(exec, { timeoutMs, control, runDockerExec, force 
     const ids = slotUidGidFromHomeDir(exec.homeDir)
     ensureOfficialCredentialLink(exec.homeDir, ids || {})
     try {
-      ensureSlotSubscriptionType(exec.homeDir, exec.vm?.claude?.account_tier || exec.vm?.account_tier)
+      await ensureSlotSubscriptionType(exec.homeDir, exec.vm?.claude?.account_tier || exec.vm?.account_tier)
     } catch {}
   }
   const paths = rustKernelPaths(exec)

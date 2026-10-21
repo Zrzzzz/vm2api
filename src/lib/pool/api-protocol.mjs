@@ -104,7 +104,7 @@ export async function runApiInference({
   const body = isOpenAI
     ? { ...claudeToOpenAIResponsesRequest({ ...canonical, model: picked.upstream_model }), stream: true }
     : { ...canonical, model: picked.upstream_model, stream: true }
-  if (requestContext) Object.assign(body, prepareClassifierBody(body))
+  if (requestContext) Object.assign(body, (await prepareClassifierBody(body)))
   const headers = {
     'content-type': 'application/json',
     accept: 'text/event-stream',

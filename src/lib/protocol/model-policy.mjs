@@ -537,18 +537,18 @@ function heuristicCapabilities(modelId = '') {
   return { ...CAP_46 }
 }
 
-export function loadModelPolicy({ force = false } = {}) {
+export async function loadModelPolicy({ force = false } = {}) {
   if (loaded && !force) return policy
   try {
     const repo = new SettingsRepo()
-    const stored = repo.get(SETTINGS_KEY, null)
+    const stored = (await repo.get(SETTINGS_KEY, null))
     if (stored) {
-      const persisted = persistHaiku55Model(repo, persistOpus55Model(repo, stored))
+      const persisted = (await persistHaiku55Model(repo, (await persistOpus55Model(repo, stored))))
       policy = normalizePolicy(persisted)
       policy.source = policy.source || 'settings'
     } else {
       policy = seedDefaultPolicy()
-      repo.set(SETTINGS_KEY, policy)
+      await repo.set(SETTINGS_KEY, policy)
     }
   } catch {
     policy = seedDefaultPolicy()
@@ -558,7 +558,7 @@ export function loadModelPolicy({ force = false } = {}) {
 }
 
 /** Append Opus 5.5 onto an existing settings row. Does not reset other models. */
-function persistOpus55Model(repo, stored) {
+async function persistOpus55Model(repo, stored) {
   if (!stored || typeof stored !== 'object') return stored
   const seed = seedDefaultPolicy()
   const models = stored.models && typeof stored.models === 'object' ? { ...stored.models } : {}
@@ -580,7 +580,7 @@ function persistOpus55Model(repo, stored) {
   if (!dirty) return stored
   const next = { ...stored, models, aliases }
   try {
-    repo.set(SETTINGS_KEY, next)
+    await repo.set(SETTINGS_KEY, next)
   } catch {
     return next
   }
@@ -588,7 +588,7 @@ function persistOpus55Model(repo, stored) {
 }
 
 /** Append or migrate Haiku 5.5 onto an existing settings row. Does not reset other models. */
-function persistHaiku55Model(repo, stored) {
+async function persistHaiku55Model(repo, stored) {
   if (!stored || typeof stored !== 'object') return stored
   const seed = seedDefaultPolicy()
   const desired = seed.models[HAIKU_55_ID]
@@ -617,25 +617,25 @@ function persistHaiku55Model(repo, stored) {
   if (!dirty) return stored
   const next = { ...stored, models }
   try {
-    repo.set(SETTINGS_KEY, next)
+    await repo.set(SETTINGS_KEY, next)
   } catch {
     return next
   }
   return next
 }
 
-export function getModelPolicy() {
-  if (!loaded) loadModelPolicy()
+export async function getModelPolicy() {
+  if (!loaded) await loadModelPolicy()
   return policy
 }
 
-export function saveModelPolicy(next) {
+export async function saveModelPolicy(next) {
   policy = normalizePolicy(next)
   policy.updated_at = new Date().toISOString()
   policy.source = 'panel'
   try {
     const repo = new SettingsRepo()
-    repo.set(SETTINGS_KEY, policy)
+    await repo.set(SETTINGS_KEY, policy)
   } catch (e) {
     console.warn('[model-policy] persist failed', e?.message || e)
   }
@@ -643,18 +643,18 @@ export function saveModelPolicy(next) {
   return policy
 }
 
-export function resetModelPolicy() {
+export async function resetModelPolicy() {
   policy = seedDefaultPolicy()
   try {
     const repo = new SettingsRepo()
-    repo.set(SETTINGS_KEY, policy)
+    await repo.set(SETTINGS_KEY, policy)
   } catch {}
   loaded = true
   return policy
 }
 
-export function resolvePolicyModelId(raw = '') {
-  if (!loaded) loadModelPolicy()
+export async function resolvePolicyModelId(raw = '') {
+  if (!loaded) await loadModelPolicy()
   const m = String(raw || '').trim()
   if (!m) return null
   const bare = m.split('/').filter(Boolean).pop() || m
@@ -677,9 +677,9 @@ export function resolvePolicyModelId(raw = '') {
   return bare
 }
 
-export function getModelEntry(modelId = '') {
-  if (!loaded) loadModelPolicy()
-  const key = resolvePolicyModelId(modelId)
+export async function getModelEntry(modelId = '') {
+  if (!loaded) await loadModelPolicy()
+  const key = (await resolvePolicyModelId(modelId))
   if (key && policy.models[key]) return { id: key, ...policy.models[key] }
   const id = key || String(modelId || '')
   const caps = heuristicCapabilities(id)
@@ -707,20 +707,20 @@ export function getModelEntry(modelId = '') {
   }
 }
 
-export function isModelEnabled(modelId = '') {
-  return getModelEntry(modelId).enabled !== false
+export async function isModelEnabled(modelId = '') {
+  return (await getModelEntry(modelId)).enabled !== false
 }
 
-export function getCapabilities(modelId = '') {
-  return getModelEntry(modelId).capabilities
+export async function getCapabilities(modelId = '') {
+  return (await getModelEntry(modelId)).capabilities
 }
 
-export function getBetaPolicy(modelId = '') {
-  return getModelEntry(modelId).betas
+export async function getBetaPolicy(modelId = '') {
+  return (await getModelEntry(modelId)).betas
 }
 
-export function getContext1mWhitelist() {
-  if (!loaded) loadModelPolicy()
+export async function getContext1mWhitelist() {
+  if (!loaded) await loadModelPolicy()
   return normalizeContext1mWhitelist(policy.defaults?.context_1m_whitelist, DEFAULT_CONTEXT_1M_WHITELIST)
 }
 
@@ -737,27 +737,27 @@ export function resolveContext1mPass(
   return shouldPassContext1m(modelId, whitelist)
 }
 
-export function shouldPassContext1mByPolicy(modelId = '') {
-  if (!loaded) loadModelPolicy()
+export async function shouldPassContext1mByPolicy(modelId = '') {
+  if (!loaded) await loadModelPolicy()
   return resolveContext1mPass(modelId, {
-    entry: getModelEntry(modelId),
-    whitelist: getContext1mWhitelist(),
+    entry: (await getModelEntry(modelId)),
+    whitelist: (await getContext1mWhitelist()),
     strip: policy.defaults.strip_context_1m !== false,
   })
 }
 
-export function getModelParams(modelId = '') {
-  return getModelEntry(modelId).params
+export async function getModelParams(modelId = '') {
+  return (await getModelEntry(modelId)).params
 }
 
 export const MIN_THINKING_BUDGET = 1024
 
 /** Anthropic rejects thinking.enabled.budget_tokens < 1024. Raise max_tokens with it. */
-export function clampEnabledThinkingBudget(body = {}) {
+export async function clampEnabledThinkingBudget(body = {}) {
   const thinking = body?.thinking
   if (!thinking || typeof thinking !== 'object') return body
   if (String(thinking.type || '').toLowerCase() !== 'enabled') return body
-  const fallback = Number(getModelParams(body.model || '').thinking_fallback_budget) || 4096
+  const fallback = Number((await getModelParams(body.model || '')).thinking_fallback_budget) || 4096
   let budget = Number(thinking.budget_tokens)
   if (!Number.isFinite(budget) || budget <= 0) budget = fallback
   if (Number(thinking.budget_tokens) !== budget) {
@@ -774,15 +774,15 @@ function adaptiveOnlyThinking(thinking) {
   return { type: 'adaptive' }
 }
 
-export function normalizeThinkingByPolicy(body = {}) {
-  if (!loaded) loadModelPolicy()
+export async function normalizeThinkingByPolicy(body = {}) {
+  if (!loaded) await loadModelPolicy()
   if (!body || typeof body !== 'object') return body
   if (policy.defaults.normalize_thinking === false) return body
   const thinking = body.thinking
   if (!thinking || typeof thinking !== 'object') return body
 
   const model = body.model || ''
-  const entry = getModelEntry(model)
+  const entry = (await getModelEntry(model))
   const type = String(thinking.type || '').toLowerCase()
   const params = entry.params || {}
   const caps = entry.capabilities || {}
@@ -805,7 +805,7 @@ export function normalizeThinkingByPolicy(body = {}) {
           ? Number(thinking.budget_tokens)
           : params.thinking_fallback_budget || policy.defaults.thinking_fallback_budget || 4096
       body.thinking = { type: 'enabled', budget_tokens: budget }
-      return clampEnabledThinkingBudget(body)
+      return (await clampEnabledThinkingBudget(body))
     }
   }
 
@@ -818,7 +818,7 @@ export function normalizeThinkingByPolicy(body = {}) {
     }
   }
 
-  return clampEnabledThinkingBudget(body)
+  return (await clampEnabledThinkingBudget(body))
 }
 
 export function isOpus55Model(model = '') {
@@ -856,9 +856,9 @@ function applyHaiku55Thinking(body) {
  * arguments, not whether the model calls a tool. Computer migration is Opus-only.
  * The patched CLI forwards caller fields, so this has to happen before the hop.
  */
-export function applyModelRequestRules(body = {}) {
+export async function applyModelRequestRules(body = {}) {
   if (!body || typeof body !== 'object') return body
-  const canonical = resolvePolicyModelId(body.model)
+  const canonical = (await resolvePolicyModelId(body.model))
   if (isHaiku55Model(body.model) || canonical === HAIKU_55_ID) {
     if (canonical === HAIKU_55_ID) body.model = canonical
     return applyHaiku55Thinking(body)
@@ -907,19 +907,19 @@ function stripTokens(header, tokens) {
     .join(',')
 }
 
-export function applyBetaPolicyToHeader(
+export async function applyBetaPolicyToHeader(
   existingBeta = '',
   modelId = '',
   { isOfficial = false, whitelist, want1m = false } = {},
 ) {
-  if (!loaded) loadModelPolicy()
+  if (!loaded) await loadModelPolicy()
   const pass =
     whitelist !== undefined
       ? resolveContext1mPass(modelId, {
           whitelist: normalizeContext1mWhitelist(whitelist, []),
           strip: policy.defaults.strip_context_1m !== false,
         })
-      : shouldPassContext1mByPolicy(modelId)
+      : (await shouldPassContext1mByPolicy(modelId))
   if (isOfficial) {
     let beta = String(existingBeta || '').trim() ? ensureOauthBeta(existingBeta) : defaultOfficialBetaHeader(modelId)
     if (!pass) return stripTokens(beta, [CONTEXT_1M])
@@ -928,13 +928,13 @@ export function applyBetaPolicyToHeader(
   // Unofficial / OAuth mimic. Client/stored betas are ignored.
   // Bare unofficial never gets context-1m. Trailing [1m] on an allowed
   // model (pass_context_1m / whitelist) is an explicit 1M opt-in.
-  const mimic = unofficialMimicryBetaHeader(modelId)
+  const mimic = (await unofficialMimicryBetaHeader(modelId))
   if (want1m && pass) return ensureContext1mBeta(mimic)
   return mimic
 }
 
-export function unofficialMimicryBetaHeader(modelId = '') {
-  const caps = getCapabilities(modelId)
+export async function unofficialMimicryBetaHeader(modelId = '') {
+  const caps = (await getCapabilities(modelId))
   if (
     caps?.supports_context_management === false ||
     (/haiku/i.test(String(modelId || '')) && !/haiku-5/i.test(String(modelId || '')))
@@ -945,15 +945,15 @@ export function unofficialMimicryBetaHeader(modelId = '') {
 }
 
 /** All policy model ids that look like Claude catalog ids (disabled included). */
-export function getPolicyCatalogIds({ enabledOnly = false } = {}) {
-  if (!loaded) loadModelPolicy()
+export async function getPolicyCatalogIds({ enabledOnly = false } = {}) {
+  if (!loaded) await loadModelPolicy()
   return Object.entries(policy.models || {})
     .filter(([id, cfg]) => isCatalogModelId(id) && (!enabledOnly || cfg.enabled !== false))
     .map(([id]) => id)
 }
 
-export function filterPublicModelIds(workerIds = []) {
-  if (!loaded) loadModelPolicy()
+export async function filterPublicModelIds(workerIds = []) {
+  if (!loaded) await loadModelPolicy()
   const mode = policy.catalog_mode || 'policy_only'
   const ids = [
     ...new Set(
@@ -968,11 +968,11 @@ export function filterPublicModelIds(workerIds = []) {
   if (mode === 'worker_only') return ids
 
   // policy_only and legacy worker_intersect_policy: #/models is the catalog.
-  return getPolicyCatalogIds({ enabledOnly: true })
+  return (await getPolicyCatalogIds({ enabledOnly: true }))
 }
 
-export function listPolicyModels() {
-  if (!loaded) loadModelPolicy()
+export async function listPolicyModels() {
+  if (!loaded) await loadModelPolicy()
   return Object.entries(policy.models)
     .map(([id, cfg]) => ({ id, ...cfg }))
     .sort((a, b) => (a.sort ?? 100) - (b.sort ?? 100) || a.id.localeCompare(b.id))
@@ -983,8 +983,8 @@ export function listPolicyModels() {
  * public only under worker_only; other modes add it disabled for the admin to enable.
  * `displayNameOf(id)` may supply a display name (models.dev) for new entries.
  */
-export function syncWorkerModelsIntoPolicy(workerIds = [], { displayNameOf = null } = {}) {
-  if (!loaded) loadModelPolicy()
+export async function syncWorkerModelsIntoPolicy(workerIds = [], { displayNameOf = null } = {}) {
+  if (!loaded) await loadModelPolicy()
   const added = []
   const enabled = policy.catalog_mode === 'worker_only'
   for (const workerId of workerIds || []) {
@@ -1021,7 +1021,7 @@ export function syncWorkerModelsIntoPolicy(workerIds = [], { displayNameOf = nul
     policy.updated_at = new Date().toISOString()
     policy.source = 'worker_merge'
     try {
-      new SettingsRepo().set(SETTINGS_KEY, policy)
+      await new SettingsRepo().set(SETTINGS_KEY, policy)
     } catch {}
   }
   return { policy, added }
@@ -1031,9 +1031,9 @@ export function syncWorkerModelsIntoPolicy(workerIds = [], { displayNameOf = nul
 export const FALLBACK_MAX_TOKENS = 4096
 
 /** Official per-model default for a missing caller max_tokens. Never overwrites inbound. */
-export function defaultMaxTokensForModel(modelId = '') {
-  if (!loaded) loadModelPolicy()
-  const params = getModelParams(modelId)
+export async function defaultMaxTokensForModel(modelId = '') {
+  if (!loaded) await loadModelPolicy()
+  const params = (await getModelParams(modelId))
   const n = Number(params.max_tokens_default)
   const cap = Number(params.max_tokens_cap)
   let out = Number.isFinite(n) && n > 0 ? n : FALLBACK_MAX_TOKENS
@@ -1041,9 +1041,9 @@ export function defaultMaxTokensForModel(modelId = '') {
   return out
 }
 
-export function applyMaxTokensCap(body = {}) {
+export async function applyMaxTokensCap(body = {}) {
   if (!body || typeof body !== 'object') return body
-  const params = getModelParams(body.model || '')
+  const params = (await getModelParams(body.model || ''))
   const cap = Number(params.max_tokens_cap)
   if (!cap || !Number.isFinite(cap)) return body
   const mt = Number(body.max_tokens)

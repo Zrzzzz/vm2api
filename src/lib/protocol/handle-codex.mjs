@@ -204,7 +204,7 @@ function pinnedVmId(req) {
  * A request that continues a stored response (`previous_response_id`) can
  * only run where that response lives.
  */
-export function pickCodexCandidates(
+export async function pickCodexCandidates(
   projectRoot,
   req,
   { stickyRouter = null, sessions = null, body = null, excluded = null, routing = {} } = {},
@@ -212,7 +212,7 @@ export function pickCodexCandidates(
   const pin = pinnedVmId(req)
   const model = body?.model || null
   const routingPolicy = normalizeCodexRouting(routing.codex || routing).quota
-  const scope = keyScopeFromRequest(req)
+  const scope = (await keyScopeFromRequest(req))
   const poolDenial = vmPoolDenial(scope)
   if (poolDenial) return { error: 'vm_pool_unavailable', message: poolDenial.message, ids: [], candidates: [] }
   if (scope.group_type === 'anthropic') return { error: 'key_group_mismatch', ids: [], candidates: [] }
@@ -220,40 +220,40 @@ export function pickCodexCandidates(
     const vm = getVm(projectRoot, pin)
     if (!vm || !isCodexVm(vm)) return { error: 'platform_mismatch', pin, ids: [] }
     if (!keyAllowsVm(scope, vm)) return { error: 'key_group_mismatch', pin, ids: [] }
-    if (!codexSlotAllowsModel(vm, model)) return { error: 'model_not_allowed', pin, ids: [] }
-    const ordered = orderCodexSessionSlots([vm], {
+    if (!(await codexSlotAllowsModel(vm, model))) return { error: 'model_not_allowed', pin, ids: [] }
+    const ordered = (await orderCodexSessionSlots([vm], {
       pin,
       excluded,
       quotaPolicy: routingPolicy,
-    })
+    }))
     return { ...ordered, pin, sticky: false, sessionKey: null, stickyKeys: [] }
   }
   for (const item of listVms(projectRoot, { codex: { quota: routingPolicy } })) {
     if (!isCodexVm(item)) continue
-    syncCodexQuotaSchedule(projectRoot, getVm(projectRoot, item.id) || item, {
+    await syncCodexQuotaSchedule(projectRoot, getVm(projectRoot, item.id) || item, {
       policy: routingPolicy,
     })
   }
   const stickyKeys = stickyRouter?.collectPoolKeys?.(req, body || {}, { platform: 'openai' }) || []
-  const sessionKey = stickyRouter?.extractPoolKey?.(req, body || {}, { platform: 'openai' }) || stickyKeys[0] || null
-  const bound = sessionKey ? stickyRouter?.resolve?.(sessionKey) : null
+  const sessionKey = (await stickyRouter?.extractPoolKey?.(req, body || {}, { platform: 'openai' })) || stickyKeys[0] || null
+  const bound = sessionKey ? (await stickyRouter?.resolve?.(sessionKey)) : null
   const vms = listVms(projectRoot, { codex: { quota: routingPolicy } }).filter((vm) => keyAllowsVm(scope, vm))
   const continuesResponse = !!body?.previous_response_id && !!bound?.vmId
   if (scope.vm_pool_id && vms.length === 0 && !continuesResponse) {
     return { error: 'vm_pool_unavailable', message: '账号池没有可调度的 GPT 槽位', ids: [], candidates: [] }
   }
-  const ordered = orderCodexSessionSlots(continuesResponse ? vms.filter((vm) => vm.id === bound.vmId) : vms, {
+  const ordered = (await orderCodexSessionSlots(continuesResponse ? vms.filter((vm) => vm.id === bound.vmId) : vms, {
     boundVmId: bound?.vmId || null,
     sessionKey,
     sessionLimit: sessions,
     model,
     excluded,
     quotaPolicy: routingPolicy,
-  })
+  }))
   // A resting home migrates the conversation like a gone one: the next slot rebinds it.
   const boundLeft = ordered.boundState === 'gone' || ordered.boundState === 'resting'
   if (bound?.vmId && sessionKey && boundLeft) {
-    for (const key of stickyKeys.length ? stickyKeys : [sessionKey]) stickyRouter?.unbind?.(key)
+    for (const key of stickyKeys.length ? stickyKeys : [sessionKey]) await stickyRouter?.unbind?.(key)
     try {
       sessions?.drop?.(bound.vmId, sessionKey)
     } catch {}
@@ -264,7 +264,7 @@ export function pickCodexCandidates(
   return { ...ordered, sessionKey, stickyKeys }
 }
 
-function ingestCodexHop(projectRoot, vmId, result, now = Date.now(), policy = null) {
+async function ingestCodexHop(projectRoot, vmId, result, now = Date.now(), policy = null) {
   const headers = result?.headers || {}
   const extra = extraFromCodexHeaders(headers, now)
   let limitedUntil = null
@@ -278,7 +278,7 @@ function ingestCodexHop(projectRoot, vmId, result, now = Date.now(), policy = nu
     quotaExceeded = String(result?.body?.error?.code || result?.error_code || '') === 'usage_limit_reached'
   }
   if (!extra && !limitedUntil && !codexCreditsFromHeaders(headers, now)) return null
-  return persistCodexUsage(projectRoot, vmId, { headers, extra, limitedUntil, quotaExceeded, now, policy })
+  return (await persistCodexUsage(projectRoot, vmId, { headers, extra, limitedUntil, quotaExceeded, now, policy }))
 }
 
 function execFor(projectRoot, vm) {
@@ -402,7 +402,7 @@ function clientGoneSignal(req, res) {
 async function admitCodexCandidate(projectRoot, req, opts, { deadline, signal }) {
   let woken = false
   for (;;) {
-    const picked = pickCodexCandidates(projectRoot, req, opts)
+    const picked = (await pickCodexCandidates(projectRoot, req, opts))
     const livePolicy = normalizeCodexRouting(opts.routing?.codex || opts.routing).quota
     if (picked.error && picked.error !== 'capacity_unavailable') return { picked }
     for (const candidate of picked.candidates || []) {
@@ -644,7 +644,7 @@ export async function handleCodexProtocol({
         }
       }
       const stickyKeys = picked.stickyKeys?.length ? picked.stickyKeys : picked.sessionKey ? [picked.sessionKey] : []
-      const stickyBound = picked.sessionKey ? stickyRouter?.resolve?.(picked.sessionKey) : null
+      const stickyBound = picked.sessionKey ? (await stickyRouter?.resolve?.(picked.sessionKey)) : null
       // The home (or first placement) owns the conversation window; a borrowed
       // seat elsewhere takes only this request's execution lease.
       const claimsWindow = !!picked.sessionKey && (!picked.home || picked.home === vm.id)
@@ -655,18 +655,18 @@ export async function handleCodexProtocol({
         } catch {}
       }
       const ownsPin = !!stickyBound?.vmId && stickyBound.vmId === vm.id
-      const bindSticky = (sessionId = null) => {
+      const bindSticky = async (sessionId = null) => {
         if (!picked.sessionKey || !stickyRouter?.bind) return
         const payload = { accountId: vm.id, vmId: vm.id }
         if (sessionId) payload.sessionId = sessionId
-        for (const key of stickyKeys) stickyRouter.bind(key, payload)
+        for (const key of stickyKeys) await stickyRouter.bind(key, payload)
       }
-      const leaveSticky = () => {
+      const leaveSticky = async () => {
         if (!ownsPin || !picked.sessionKey) return
         try {
           sessions?.drop?.(vm.id, picked.sessionKey)
         } catch {}
-        for (const key of stickyKeys) stickyRouter?.unbind?.(key)
+        for (const key of stickyKeys) await stickyRouter?.unbind?.(key)
       }
       let attemptKind = 'failed'
       try {
@@ -674,7 +674,7 @@ export async function handleCodexProtocol({
         const written = writeCfg(projectRoot, vm, {
           // Same rule as slot start: a node on local egress must leave through
           // that node's forwarder, not the control plane's deployment proxy.
-          proxyUrl: localExit && !vmNodeId(vm) ? '' : hostProxyUrlForVm(vm),
+          proxyUrl: localExit && !vmNodeId(vm) ? '' : (await hostProxyUrlForVm(vm)),
           proxyRequired: true,
           routing,
         })
@@ -825,7 +825,7 @@ export async function handleCodexProtocol({
           result.terminalState = 'incomplete'
           result.body = { error: conversionError }
         }
-        ingestCodexHop(projectRoot, vm.id, result, Date.now(), normalizeCodexRouting(routing.codex).quota)
+        await ingestCodexHop(projectRoot, vm.id, result, Date.now(), normalizeCodexRouting(routing.codex).quota)
         if (result?.transport_retried) logBag.transport_retried = true
         if (result?.reasoning_history_retried) {
           logBag.attempt_count += 1
@@ -839,7 +839,7 @@ export async function handleCodexProtocol({
         const delivered = !conversionError && (result?.ok || (Number(result?.status) === 200 && usageTokens(usage) > 0))
         if (delivered) {
           attemptKind = 'succeeded'
-          bindSticky(outboundSessionId)
+          await bindSticky(outboundSessionId)
           const extracted = extractOpenaiUsage(usage)
           const serviceTier = responseServiceTier || converted.body?.service_tier || usage?.service_tier || null
           const disjoint = extracted ? openaiAnthropicUsageFromExtract(extracted) : null
@@ -896,7 +896,7 @@ export async function handleCodexProtocol({
         }
         if (isCodexFailoverError(result)) {
           pickOpts.excluded.add(vm.id)
-          leaveSticky()
+          await leaveSticky()
           switches += 1
           if (switches > failoverBudget.maxSwitches || attempts >= failoverBudget.maxAttempts) break
           continue
@@ -1043,7 +1043,7 @@ function refreshSearchAccess(projectRoot, vm, usedAccess, { proxyUrl, fetchImpl,
     pending = (async () => {
       const tok = await refresh({ refreshToken: now.refresh, proxyUrl, fetchImpl })
       if (!tok?.ok || !tok.access_token) return ''
-      upsertCodexAccount(projectRoot, vm.id, {
+      await upsertCodexAccount(projectRoot, vm.id, {
         access_token: tok.access_token,
         refresh_token: tok.refresh_token || now.refresh,
         id_token: tok.id_token || now.first.id_token,
@@ -1063,7 +1063,7 @@ function plainHeaders(headers) {
 
 /** One search call on one slot. Resolves `{ status, text, headers }`, or `{ status: 0, error }`. */
 async function postCodexSearch({ projectRoot, vm, body, turnMetadata, fetchImpl, refresh = refreshCodexAccessToken }) {
-  const proxyUrl = hostProxyUrlForVm(vm)
+  const proxyUrl = (await hostProxyUrlForVm(vm))
   if (!fetchImpl && !proxyUrl && !isLocalEgressProxy(vm.proxy)) return { status: 0, error: 'proxy_required' }
   const doFetch = fetchImpl || makeProxyFetch(proxyUrl, CODEX_SEARCH_TIMEOUT_MS, { maxMs: CODEX_SEARCH_TIMEOUT_MS })
   const creds = searchCredentials(projectRoot, vm)
@@ -1179,7 +1179,7 @@ export async function handleCodexSearch({
           refresh: ops.refresh,
         })
         logBag.upstream_status = last.status || null
-        ingestCodexHop(projectRoot, vm.id, {
+        await ingestCodexHop(projectRoot, vm.id, {
           ok: last.status >= 200 && last.status < 300,
           status: last.status,
           headers: last.headers || {},

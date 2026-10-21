@@ -135,8 +135,8 @@ export class ClusterManager {
     this._healthTimer = null
   }
 
-  start() {
-    for (const node of this.repo.list()) this._attach(node)
+  async start() {
+    for (const node of (await this.repo.list())) this._attach(node)
     this._healthTimer = setInterval(() => {
       for (const id of this.links.keys()) this._checkHealth(id)
     }, HEALTH_INTERVAL_MS)
@@ -194,8 +194,8 @@ export class ClusterManager {
   }
 
   async _targetFor(id) {
-    const node = this.repo.get(id)
-    const secrets = this.repo.getSecrets(id)
+    const node = (await this.repo.get(id))
+    const secrets = (await this.repo.getSecrets(id))
     if (!node || !secrets) throw new ClusterError(404, 'node_not_found', '节点不存在')
     return {
       host: node.host,
@@ -234,7 +234,7 @@ export class ClusterManager {
       docker = { ok: false, error: err.message }
     }
     if (link.client !== client) return
-    if (docker.ok && !configuredIpv6Enabled()) {
+    if (docker.ok && !(await configuredIpv6Enabled())) {
       const exits = await syncIpv6ProxyEgress(null, null, { nodeId: id, vms: this.vmsOnNode(id) })
       for (const exit of exits.filter((item) => !item.ok)) {
         this.logger.warn('[ipv6-policy] exit not blocked', exit.vm_id, exit.error)
@@ -259,12 +259,12 @@ export class ClusterManager {
     }
   }
 
-  list() {
-    return this.repo.list().map((node) => this._view(node))
+  async list() {
+    return (await this.repo.list()).map((node) => this._view(node))
   }
 
-  get(id) {
-    const node = this.repo.get(id)
+  async get(id) {
+    const node = (await this.repo.get(id))
     if (!node) throw new ClusterError(404, 'node_not_found', '节点不存在')
     return this._view(node)
   }
@@ -296,33 +296,33 @@ export class ClusterManager {
         host_key: hostKey,
         docker,
         uname: uname?.code === 0 ? uname.stdout.trim() : null,
-        existing_id: this.repo.findByEndpoint(spec.host, spec.port, spec.username),
+        existing_id: (await this.repo.findByEndpoint(spec.host, spec.port, spec.username)),
       }
     } finally {
       client.end()
     }
   }
 
-  add(input) {
+  async add(input) {
     const spec = parseNodeInput(input, { requireHostKey: true })
-    if (spec.jump_node_id && !this.repo.get(spec.jump_node_id)) {
+    if (spec.jump_node_id && !(await this.repo.get(spec.jump_node_id))) {
       throw new ClusterError(400, 'invalid_jump', '跳板节点不存在')
     }
-    if (this.repo.findByEndpoint(spec.host, spec.port, spec.username)) {
+    if ((await this.repo.findByEndpoint(spec.host, spec.port, spec.username))) {
       throw new ClusterError(409, 'node_exists', '该主机与用户已接入')
     }
-    const node = this.repo.insert({
+    const node = (await this.repo.insert({
       ...spec,
       id: `node-${crypto.randomBytes(4).toString('hex')}`,
       host_key_alg: spec.host_key_alg || 'unknown',
-    })
+    }))
     this._attach(node)
     this._nodesChanged()
     return this._view(node)
   }
 
-  _prepareEdit(id, input) {
-    const node = this.repo.get(id)
+  async _prepareEdit(id, input) {
+    const node = (await this.repo.get(id))
     if (!node) throw new ClusterError(404, 'node_not_found', '节点不存在')
     validateNodeEditPatch(node, input)
     const labelOnly = Object.keys(input).every((key) => key === 'label' || key === 'expected_updated_at')
@@ -331,7 +331,7 @@ export class ClusterManager {
       if (label.length > 64) throw new ClusterError(400, 'invalid_label', '备注过长')
       return { id, node, spec: { label }, connectionEdit: false, labelOnly: true, vms: this.vmsOnNode(id) }
     }
-    const next = mergeNodeEdit(node, this.repo.getSecrets(id), input)
+    const next = mergeNodeEdit(node, (await this.repo.getSecrets(id)), input)
     const spec = parseNodeInput(next, { requireHostKey: true })
     const link = this.links.get(id)
     const vms = this.vmsOnNode(id)
@@ -347,12 +347,12 @@ export class ClusterManager {
       vms,
       placementVersion: nodePlacementVersion(vms),
     }
-    this._assertEditCurrent(edit)
+    await this._assertEditCurrent(edit)
     return edit
   }
 
-  _assertEditCurrent(edit) {
-    const current = this.repo.get(edit.id)
+  async _assertEditCurrent(edit) {
+    const current = (await this.repo.get(edit.id))
     if (!current) throw new ClusterError(404, 'node_not_found', '节点不存在')
     if (current.updated_at !== edit.node.updated_at) throw nodeEditConflict()
     if (!edit.connectionEdit) return
@@ -367,10 +367,10 @@ export class ClusterManager {
     if (edit.vms.length && edit.spec.username !== edit.node.username) {
       throw new ClusterError(409, 'node_username_in_use', '节点上仍有虚拟机，不能更换 SSH 用户；请先迁移或删除虚拟机')
     }
-    if (this.repo.dependentsOf(edit.id).length) {
+    if ((await this.repo.dependentsOf(edit.id)).length) {
       throw new ClusterError(409, 'node_in_use', '仍有节点经由它跳转，暂不支持修改该节点的连接配置')
     }
-    const duplicate = this.repo.findByEndpoint(edit.spec.host, edit.spec.port, edit.spec.username)
+    const duplicate = (await this.repo.findByEndpoint(edit.spec.host, edit.spec.port, edit.spec.username))
     if (duplicate && duplicate !== edit.id) throw new ClusterError(409, 'node_exists', '该主机与用户已接入')
     if (this.installs.get(edit.id)?.status === 'running')
       throw new ClusterError(409, 'node_busy', '节点正在安装 Docker，请稍后重试')
@@ -380,7 +380,7 @@ export class ClusterManager {
   async _probeEdit(edit) {
     let previousHost = null
     if (edit.vms.length && edit.client && edit.link.state === 'ready') previousHost = await this.remoteHost(edit.id)
-    this._assertEditCurrent(edit)
+    await this._assertEditCurrent(edit)
     const sock = await this._jumpSock(edit.spec.jump_node_id, edit.spec.host, edit.spec.port)
     const result = await connectSsh({
       host: edit.spec.host,
@@ -422,7 +422,7 @@ export class ClusterManager {
         host = await readNodeHost(result.client)
         await verifyNodeRuntimes(result.client, host, edit.vms, previousHost)
       }
-      this._assertEditCurrent(edit)
+      await this._assertEditCurrent(edit)
       if (!candidate.live()) throw nodeEditConflict()
       return { ...candidate, host, docker }
     } catch (err) {
@@ -433,13 +433,13 @@ export class ClusterManager {
   }
 
   async probeUpdate(id, input) {
-    const edit = this._prepareEdit(id, input)
+    const edit = (await this._prepareEdit(id, input))
     if (!edit.connectionEdit) {
       return {
         host_key: { alg: edit.node.host_key_alg, sha256: edit.node.host_key_sha256 },
         docker: this.health.get(id)?.docker || { ok: false, error: '未探测' },
         vm_count: edit.vms.length,
-        dependent_count: this.repo.dependentsOf(id).length,
+        dependent_count: (await this.repo.dependentsOf(id)).length,
       }
     }
     const candidate = await this._probeEdit(edit)
@@ -452,19 +452,19 @@ export class ClusterManager {
   }
 
   async update(id, input) {
-    const edit = this._prepareEdit(id, input)
+    const edit = (await this._prepareEdit(id, input))
     const candidate = edit.connectionEdit ? await this._probeEdit(edit) : null
     let adopted = false
     try {
-      this._assertEditCurrent(edit)
+      await this._assertEditCurrent(edit)
       if (candidate && !candidate.live()) throw nodeEditConflict()
       let saved
       try {
         saved = edit.labelOnly
-          ? this.repo.updateLabel(id, edit.spec.label, edit.node.updated_at)
-          : this.repo.update(id, edit.spec, edit.node.updated_at)
+          ? (await this.repo.updateLabel(id, edit.spec.label, edit.node.updated_at))
+          : (await this.repo.update(id, edit.spec, edit.node.updated_at))
       } catch (err) {
-        if (String(err.message).includes('UNIQUE constraint failed: cluster_nodes.')) {
+        if (err.code === '23505' && String(err.constraint || '').includes('cluster_nodes')) {
           throw new ClusterError(409, 'node_exists', '该主机与用户已接入')
         }
         throw err
@@ -504,8 +504,8 @@ export class ClusterManager {
   }
 
   async remove(id) {
-    if (!this.repo.get(id)) throw new ClusterError(404, 'node_not_found', '节点不存在')
-    const dependents = this.repo.dependentsOf(id)
+    if (!(await this.repo.get(id))) throw new ClusterError(404, 'node_not_found', '节点不存在')
+    const dependents = (await this.repo.dependentsOf(id))
     if (dependents.length) {
       throw new ClusterError(409, 'node_in_use', `仍有节点经由它跳转：${dependents.join(', ')}`)
     }
@@ -519,15 +519,15 @@ export class ClusterManager {
     this.bridges.delete(id)
     this.health.delete(id)
     this.installs.delete(id)
-    this.repo.remove(id)
+    await this.repo.remove(id)
     this._nodesChanged()
   }
 
-  reconnect(id) {
+  async reconnect(id) {
     const link = this.links.get(id)
     if (!link) throw new ClusterError(404, 'node_not_found', '节点不存在')
     link.reconnect()
-    return this.get(id)
+    return (await this.get(id))
   }
 
   /** Ready SSH client or 409; callers never queue work behind a reconnect. */
@@ -666,7 +666,7 @@ export class ClusterManager {
 
   /** Boot: relays exist before any link is ready so the scheduler's first health dial finds a socket. */
   async restoreSlotRelays() {
-    for (const node of this.repo.list()) {
+    for (const node of (await this.repo.list())) {
       for (const vm of this.vmsOnNode(node.id)) {
         await this.ensureSlotRelays(node.id, vm.id).catch((err) =>
           this.logger.warn(`[cluster] slot relay ${vm.id} on ${node.id}: ${err.message}`),
@@ -686,7 +686,7 @@ export class ClusterManager {
       this._localInflight = collectLocalStatus({
         listen: this.listen,
         containerName: this.containerName,
-        observer: this._natObserver(),
+        observer: (await this._natObserver()),
       })
         .then((status) => {
           this._local = status
@@ -701,8 +701,8 @@ export class ClusterManager {
   }
 
   /** A jumped node sees the jump host as SSH_CLIENT, so only direct ready nodes can observe our public address. */
-  _natObserver() {
-    for (const node of this.repo.list()) {
+  async _natObserver() {
+    for (const node of (await this.repo.list())) {
       if (node.jump_node_id) continue
       const link = this.links.get(node.id)
       if (link?.state === 'ready' && link.client) return { node, client: link.client }

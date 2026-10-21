@@ -181,9 +181,9 @@ export async function collectSlotIdentity(projectRoot, vm, { callGet = readGuest
     identity_collected_at: current.fingerprint.collected_at,
   }
   current.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, current, { mode: 0o600 })
+  await atomicWriteJson(vmPath, current, { mode: 0o600 })
   const homeDir = path.join(projectRoot, 'vms', vm.id, 'cli-home')
-  applyOfficialFingerprintToVm(vmPath, homeDir)
+  await applyOfficialFingerprintToVm(vmPath, homeDir)
   try {
     current = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
   } catch {}

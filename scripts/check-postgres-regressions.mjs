@@ -1,0 +1,10 @@
+import ts from 'typescript';import fs from 'node:fs';import path from 'node:path';import cp from 'node:child_process';
+const roots=cp.execFileSync('git',['ls-files','src'],{encoding:'utf8'}).trim().split('\n').filter(f=>f.endsWith('.mjs')).map(f=>path.resolve(f));
+const source=new Map();for(const f of roots)source.set(f,cp.execFileSync('git',['show','HEAD:'+path.relative(process.cwd(),f)],{encoding:'utf8'}));
+const options={allowJs:true,checkJs:true,noEmit:true,target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.NodeNext,moduleResolution:ts.ModuleResolutionKind.NodeNext,skipLibCheck:true};
+const host=ts.createCompilerHost(options);const original=host.readFile;host.readFile=f=>source.get(path.resolve(f))??original(f);const exists=host.fileExists;host.fileExists=f=>source.has(path.resolve(f))||exists(f);
+const before=ts.createProgram(roots,options,host),after=ts.createProgram(roots.filter(f=>fs.existsSync(f)),options);
+const key=d=>path.relative(process.cwd(),d.file?.fileName||'').replace('/adapters/postgres/repos/', '/repos/')+'#'+d.code+'#'+ts.flattenDiagnosticMessageText(d.messageText,' ');
+const previous=new Set(ts.getPreEmitDiagnostics(before).map(key));
+const added=ts.getPreEmitDiagnostics(after).filter(d=>d.file?.fileName.includes('/src/')&&!previous.has(key(d))).map(d=>({file:path.relative(process.cwd(),d.file.fileName),line:d.file.getLineAndCharacterOfPosition(d.start).line+1,code:d.code,message:ts.flattenDiagnosticMessageText(d.messageText,' ')}));
+fs.writeFileSync('postgres-regressions.json',JSON.stringify(added,null,2));console.log({added:added.length});

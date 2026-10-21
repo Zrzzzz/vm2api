@@ -1,3 +1,4 @@
+import { asyncFilter, asyncFind } from '../core/async-collections.mjs'
 /**
  * Configurable sticky / conversation-continuity routing (SQLite-backed).
  * Binds conversation key → account/VM for the TTL window.
@@ -206,7 +207,10 @@ export class StickyRouter {
     this.db = resolveStoreDb({ db, dataDir })
     this.repo = new StickyRepo(this.db)
     this.config = mergeStickyConfig(config)
-    this.repo.dropAliasKeys()
+  }
+
+  async initialize() {
+    await this.repo.dropAliasKeys()
   }
 
   /** Kept for API compat + post-restore hook (state lives in DB). */
@@ -312,7 +316,7 @@ export class StickyRouter {
   /** Live parent for this device_id. Companions must not inherit fam:/alias rows
    * or another device's session on the same API key.
    */
-  latestParentPoolKey(
+  async latestParentPoolKey(
     req,
     { platform = 'anthropic', now = Date.now(), withinMs = COMPANION_PARENT_MS, deviceId = '' } = {},
   ) {
@@ -324,7 +328,7 @@ export class StickyRouter {
     if (!prefix) return null
     let best = null
     let bestAt = 0
-    for (const [key, ent] of Object.entries(this.repo.all())) {
+    for (const [key, ent] of Object.entries((await this.repo.all()))) {
       if (!key.startsWith(prefix)) continue
       const rest = key.slice(prefix.length)
       if (!rest || /^(fam:|ch:|dev:|envelope$|login$)/.test(rest)) continue
@@ -343,12 +347,12 @@ export class StickyRouter {
    * One conversation, one pool key. An already-bound alias wins so a new
    * per-hop session id cannot open a second VM session.
    */
-  extractPoolKey(req, body = {}, opts = {}) {
+  async extractPoolKey(req, body = {}, opts = {}) {
     const keys = this.collectPoolKeys(req, body, opts)
-    const bound = keys.find((key) => this.resolve(key))
+    const bound = (await asyncFind(keys, async (key) => (await this.resolve(key))))
     if (bound) return bound
     if (normalizeStickyPlatform(opts?.platform) === 'anthropic') {
-      const legacy = this.collectPoolKeys(req, body).find((key) => this.resolve(key))
+      const legacy = (await asyncFind(this.collectPoolKeys(req, body), async (key) => (await this.resolve(key))))
       if (legacy) return legacy
     }
     return keys[0] || null
@@ -382,25 +386,25 @@ export class StickyRouter {
    * Anthropic session sticky keys. A trusted inbound session_id maps to one
    * canonical key across API keys; a still-live legacy API-key-scoped row is
    * copied onto it once. Without a trusted session_id the legacy aliases stay.
-   * @returns {{ stickyKey: string|null, stickyKeys: string[] }}
+   * @returns {Promise<{ stickyKey: string|null, stickyKeys: string[] }>}
    */
-  sessionPoolKeys(req, body = {}, { sessionId = '', deviceId = '', migrate = true } = {}) {
+  async sessionPoolKeys(req, body = {}, { sessionId = '', deviceId = '', migrate = true } = {}) {
     if (!this.config.enabled) return { stickyKey: null, stickyKeys: [] }
     const canonical = this.canonicalSessionKey(sessionId)
     if (!canonical) {
       return {
-        stickyKey: this.extractPoolKey(req, body, { platform: 'anthropic' }),
+        stickyKey: (await this.extractPoolKey(req, body, { platform: 'anthropic' })),
         stickyKeys: this.collectPoolKeys(req, body, { platform: 'anthropic' }),
       }
     }
     // Live legacy rows ride along as aliases so a credential failure unbinds
     // them too; otherwise the next turn would copy a dead pin back.
-    const legacy = [
+    const legacy = (await asyncFilter([
       ...new Set([...this.collectPoolKeys(req, body, { platform: 'anthropic' }), ...this.collectPoolKeys(req, body)]),
-    ].filter((key) => key !== canonical && this.resolve(key))
-    if (!this.resolve(canonical) && legacy.length) {
+    ], async (key) => key !== canonical && (await this.resolve(key))))
+    if (!(await this.resolve(canonical)) && legacy.length) {
       if (!migrate) return { stickyKey: legacy[0], stickyKeys: legacy }
-      this.migrateLegacyIdentity(legacy[0], { sessionId, deviceId })
+      await this.migrateLegacyIdentity(legacy[0], { sessionId, deviceId })
     }
     return { stickyKey: canonical, stickyKeys: [canonical, ...legacy] }
   }
@@ -409,27 +413,27 @@ export class StickyRouter {
    * Family lock key. Trusted parent/root ids use the canonical key; a live
    * legacy family row is copied onto it once so an in-flight family stays put.
    */
-  familyPoolKey(req, sessionId, { trusted = false } = {}) {
+  async familyPoolKey(req, sessionId, { trusted = false } = {}) {
     const legacy = this.familyKey(req, sessionId, 'anthropic')
     if (!trusted || !legacy) return legacy
     const canonical = this.canonicalFamilyKey(sessionId)
-    if (!this.resolve(canonical)) {
-      const prev = this.resolve(legacy)
+    if (!(await this.resolve(canonical))) {
+      const prev = (await this.resolve(legacy))
       if (prev?.accountId && prev?.vmId) {
-        this.bind(canonical, { accountId: prev.accountId, vmId: prev.vmId }, { countHit: false })
+        await this.bind(canonical, { accountId: prev.accountId, vmId: prev.vmId }, { countHit: false })
       }
     }
     return canonical
   }
 
-  /** @returns {{ accountId: string, vmId: string } | null } */
-  resolve(key) {
+  /** @returns {Promise<{ accountId: string, vmId: string } | null> } */
+  async resolve(key) {
     if (!key || !this.config.enabled) return null
-    this._purge()
-    const ent = this.repo.get(key)
+    await this._purge()
+    const ent = (await this.repo.get(key))
     if (!ent) return null
     if (Date.now() > ent.expires_at) {
-      this.repo.remove(key)
+      await this.repo.remove(key)
       return null
     }
     return {
@@ -442,14 +446,14 @@ export class StickyRouter {
     }
   }
 
-  bind(
+  async bind(
     key,
     { accountId, vmId, sessionId = null, deviceId = null, slotIndex = null } = {},
     { countHit = true, ifGeneration = null, replaceSession = false, clearSlot = false } = {},
   ) {
     if (!key || !this.config.enabled) return false
     const ttl = (this.config.ttl_seconds || 86400) * 1000
-    const prev = this.repo.get(key) || {}
+    const prev = (await this.repo.get(key)) || {}
     const prevGeneration = Number(prev.generation) || 0
     if (ifGeneration != null && prevGeneration !== Number(ifGeneration)) return false
     const vmChanged = !!(prev.vm_id && vmId && prev.vm_id !== vmId)
@@ -478,7 +482,7 @@ export class StickyRouter {
           ? prev.session_id || sessionId || null
           : sessionId || prev.session_id || null
     const device = String(deviceId || '').trim()
-    this.repo.upsert(key, {
+    await this.repo.upsert(key, {
       account_id: nextAccount,
       vm_id: nextVm,
       session_id: nextSessionId,
@@ -493,12 +497,12 @@ export class StickyRouter {
   }
 
   /** Move an entire family together. Session rows stay until their next turn. */
-  rebindFamily(key, { accountId, vmId } = {}) {
+  async rebindFamily(key, { accountId, vmId } = {}) {
     if (!key || !this.config.enabled || !accountId || !vmId) return null
     const ttl = (this.config.ttl_seconds || 86400) * 1000
-    const prev = this.repo.get(key) || {}
+    const prev = (await this.repo.get(key)) || {}
     const generation = (Number(prev.generation) || 0) + 1
-    this.repo.upsert(key, {
+    await this.repo.upsert(key, {
       account_id: accountId,
       vm_id: vmId,
       session_id: null,
@@ -513,14 +517,14 @@ export class StickyRouter {
   }
 
   /** Device VM affinity is a soft VM preference, not a session seat binding. */
-  bindDeviceAffinity(key, { accountId, vmId } = {}, { countHit = false } = {}) {
+  async bindDeviceAffinity(key, { accountId, vmId } = {}, { countHit = false } = {}) {
     if (!key || !this.config.enabled || !accountId || !vmId) return null
     const ttl = (this.config.ttl_seconds || 86400) * 1000
-    const prev = this.repo.get(key) || {}
+    const prev = (await this.repo.get(key)) || {}
     const changed = !!(prev.vm_id && (prev.account_id !== accountId || prev.vm_id !== vmId))
     const prevGeneration = Number(prev.generation) || 0
     const generation = prev.vm_id ? (changed ? prevGeneration + 1 : prevGeneration || 1) : 1
-    this.repo.upsert(key, {
+    await this.repo.upsert(key, {
       account_id: accountId,
       vm_id: vmId,
       session_id: null,
@@ -552,17 +556,17 @@ export class StickyRouter {
    * The legacy row itself, and any unrelated row, is never modified or
    * deleted here.
    *
-   * @returns {{ sessionKey: string|null, deviceKey: string|null }}
+   * @returns {Promise<{ sessionKey: string|null, deviceKey: string|null }>}
    */
-  migrateLegacyIdentity(legacyKey, { sessionId = '', deviceId = '' } = {}) {
+  async migrateLegacyIdentity(legacyKey, { sessionId = '', deviceId = '' } = {}) {
     const result = { sessionKey: null, deviceKey: null }
     if (!this.config.enabled || !legacyKey) return result
-    const bound = this.resolve(legacyKey)
+    const bound = (await this.resolve(legacyKey))
     if (!bound || !bound.accountId || !bound.vmId) return result
 
     const sessionKey = this.canonicalSessionKey(sessionId)
     if (sessionKey && sessionKey !== legacyKey) {
-      this.bind(
+      await this.bind(
         sessionKey,
         { accountId: bound.accountId, vmId: bound.vmId, sessionId: bound.sessionId || sessionId, deviceId },
         { countHit: false },
@@ -573,39 +577,39 @@ export class StickyRouter {
     // A live device affinity is the principal's home VM; a legacy session hit
     // must not move it.
     const deviceKey = this.canonicalDeviceKey(deviceId)
-    if (deviceKey && !this.resolve(deviceKey)) {
-      this.bindDeviceAffinity(deviceKey, { accountId: bound.accountId, vmId: bound.vmId }, { countHit: false })
+    if (deviceKey && !(await this.resolve(deviceKey))) {
+      await this.bindDeviceAffinity(deviceKey, { accountId: bound.accountId, vmId: bound.vmId }, { countHit: false })
       result.deviceKey = deviceKey
     }
 
     return result
   }
 
-  unbind(key) {
+  async unbind(key) {
     if (!key) return
-    this.repo.remove(key)
+    await this.repo.remove(key)
   }
 
-  unbindByAccount({ accountId = null, vmId = null } = {}) {
-    return this.repo.removeByAccount({ accountId, vmId })
+  async unbindByAccount({ accountId = null, vmId = null } = {}) {
+    return (await this.repo.removeByAccount({ accountId, vmId }))
   }
 
   /** Live keys pinned to this account or VM, so their windows leave with them. */
-  boundKeys({ accountId = null, vmId = null } = {}) {
+  async boundKeys({ accountId = null, vmId = null } = {}) {
     if (!accountId && !vmId) return []
-    this._purge()
-    return Object.entries(this.repo.all() || {})
+    await this._purge()
+    return Object.entries((await this.repo.all()) || {})
       .filter(([, ent]) => (accountId && ent?.account_id === accountId) || (vmId && ent?.vm_id === vmId))
       .map(([key, ent]) => ({ key, accountId: ent.account_id, vmId: ent.vm_id }))
   }
 
-  _purge() {
-    this.repo.purgeExpired(Date.now())
+  async _purge() {
+    await this.repo.purgeExpired(Date.now())
   }
 
-  stats() {
-    this._purge()
-    const sessions = this.repo.all()
+  async stats() {
+    await this._purge()
+    const sessions = (await this.repo.all())
     const list = Object.values(sessions || {})
     return {
       enabled: !!this.config.enabled,

@@ -76,7 +76,7 @@ function gptRank(id) {
   return mini * 1000 - major * 10 - minor
 }
 
-export function listTestableModels(platform) {
+export async function listTestableModels(platform) {
   const kind = normalizeTestPlatform(platform)
   const rank = (id) => {
     if (kind === 'openai' || isGptSeriesId(id)) return gptRank(id)
@@ -93,24 +93,24 @@ export function listTestableModels(platform) {
     source,
   })
   if (kind === 'openai') {
-    return listGptPolicyModels()
+    return (await listGptPolicyModels())
       .map((m) => map(m, 'gpt-policy'))
       .sort((a, b) => rank(a.id) - rank(b.id) || String(a.id).localeCompare(String(b.id)))
   }
-  const effective = listOfficialModels().map((m) => map(m, 'effective'))
+  const effective = (await listOfficialModels()).map((m) => map(m, 'effective'))
   const list = effective.length
     ? effective
-    : listPolicyModels()
+    : (await listPolicyModels())
         .filter((m) => m.enabled !== false)
         .map((m) => map(m, 'policy'))
   const filtered = list.filter((m) => !isGptTestModel(m))
   return filtered.sort((a, b) => rank(a.id) - rank(b.id) || String(a.id).localeCompare(String(b.id)))
 }
 
-export function testModelsView(platform) {
+export async function testModelsView(platform) {
   const kind = normalizeTestPlatform(platform)
   return {
-    items: listTestableModels(kind),
+    items: (await listTestableModels(kind)),
     platform: kind,
     protocol: kind === 'openai' ? 'openai.responses' : kind === 'anthropic' ? 'anthropic.messages' : null,
     inbound_path: kind === 'openai' ? '/v1/responses' : kind === 'anthropic' ? '/v1/messages' : null,
@@ -132,7 +132,7 @@ function listCodexVmsForCatalog(projectRoot, vm) {
   return out
 }
 
-function persistRefreshedCodexAccount(projectRoot, vmId, patch = {}, previous = {}) {
+async function persistRefreshedCodexAccount(projectRoot, vmId, patch = {}, previous = {}) {
   const accounts = readCodexAccounts(projectRoot, vmId)
   let idx = accounts.findIndex(
     (row) =>
@@ -144,7 +144,7 @@ function persistRefreshedCodexAccount(projectRoot, vmId, patch = {}, previous = 
   if (!cur.id) cur.id = cur.email || cur.chatgpt_account_id || 'codex'
   if (!accounts.length) accounts.push(cur)
   else accounts[idx] = cur
-  writeCodexAccounts(projectRoot, vmId, accounts)
+  await writeCodexAccounts(projectRoot, vmId, accounts)
   return cur
 }
 
@@ -191,7 +191,7 @@ export async function syncCodexCatalog({
   let lastError = null
   for (const target of targets) {
     const direct = isLocalEgressProxy(target.proxy)
-    const proxyUrl = hostProxyUrlForVm(target)
+    const proxyUrl = (await hostProxyUrlForVm(target))
     if (!proxyUrl && !fetchImpl && !direct) {
       lastError = {
         ok: false,
@@ -228,7 +228,7 @@ export async function syncCodexCatalog({
           }
           continue
         }
-        persistRefreshedCodexAccount(
+        await persistRefreshedCodexAccount(
           projectRoot,
           target.id,
           {
@@ -273,7 +273,7 @@ export async function syncCodexCatalog({
     }
   }
   const models = [...merged.values()]
-  const { added } = syncGptIdsIntoPolicy(models, { displayNameOf: (id) => modelsDevMeta('openai', id)?.name })
+  const { added } = (await syncGptIdsIntoPolicy(models, { displayNameOf: (id) => modelsDevMeta('openai', id)?.name }))
   return {
     ok: true,
     vm_id: usedVm,
@@ -321,7 +321,7 @@ export async function resolveTestModels({
     })
     if (live.ok) source = 'chatgpt'
   }
-  return { ...testModelsView(kind), source }
+  return { ...(await testModelsView(kind)), source }
 }
 
 function extractText(body) {
@@ -423,7 +423,7 @@ function loadRouting(projectRoot) {
   return readRoutingConfigFile(projectRoot)
 }
 
-export function buildVmTestInbound({
+export async function buildVmTestInbound({
   model,
   prompt,
   maxTokens,
@@ -434,7 +434,7 @@ export function buildVmTestInbound({
   rewrite = false,
   personaMode = 'rewrite',
 } = {}) {
-  const caps = getCapabilities(model) || {}
+  const caps = (await getCapabilities(model)) || {}
   const thinking = caps.requires_adaptive || caps.thinking_mode === 'adaptive_only' ? { type: 'adaptive' } : null
   let inbound = claudeCodeInboundBody({
     model,
@@ -478,7 +478,7 @@ export function testChatCredentialMode(vm = {}) {
   return credentialModeOfVm(vm)
 }
 
-export function slotTestIdentity(projectRoot, vm) {
+export async function slotTestIdentity(projectRoot, vm) {
   const homeDir = path.join(projectRoot, 'vms', vm.id, 'cli-home')
   const identity = loadVmIdentity({
     vmId: vm.id,
@@ -495,7 +495,7 @@ export function slotTestIdentity(projectRoot, vm) {
     try {
       const vmPath = path.join(projectRoot, 'vms', `${vm.id}.json`)
       const disk = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
-      atomicWriteJson(
+      await atomicWriteJson(
         vmPath,
         {
           ...disk,
@@ -968,13 +968,13 @@ export async function runVmTestChat(opts = {}) {
 
   let model = String(opts.model || '').trim()
   if (!model) {
-    const models = listTestableModels(codex ? 'openai' : 'anthropic')
+    const models = (await listTestableModels(codex ? 'openai' : 'anthropic'))
     model = models[0]?.id || (codex ? 'gpt-5.4' : 'claude-haiku-4-5-20251001')
   }
   push('info', `模型 ${model}`)
 
   if (codex) {
-    if (!isGptSeriesId(model) || !isGptModelEnabled(model)) {
+    if (!isGptSeriesId(model) || !(await isGptModelEnabled(model))) {
       push('error', `模型不可用: ${model}`)
       return done({
         ok: false,
@@ -986,7 +986,7 @@ export async function runVmTestChat(opts = {}) {
       })
     }
   } else {
-    const validated = validateOfficialModel(model)
+    const validated = (await validateOfficialModel(model))
     if (validated?.error) {
       push('error', `模型不可用: ${validated.error.message || validated.error}`)
       return done({
@@ -998,7 +998,7 @@ export async function runVmTestChat(opts = {}) {
         duration_ms: Date.now() - started,
       })
     }
-    if (!isModelEnabled(model)) {
+    if (!(await isModelEnabled(model))) {
       push('error', '模型在策略中已禁用')
       return done({
         ok: false,
@@ -1024,8 +1024,8 @@ export async function runVmTestChat(opts = {}) {
   }
 
   const prompt = String(opts.prompt || DEFAULT_PROMPT).trim() || DEFAULT_PROMPT
-  const params = getModelParams(model) || {}
-  const caps = getCapabilities(model) || {}
+  const params = (await getModelParams(model)) || {}
+  const caps = (await getCapabilities(model)) || {}
   const rawEffort = opts.reasoning_effort ?? opts.effort
   const effort = normalizeCodexReasoningEffort(
     rawEffort == null || rawEffort === '' ? (codex ? DEFAULT_CODEX_REASONING_EFFORT : '') : rawEffort,
@@ -1062,7 +1062,7 @@ export async function runVmTestChat(opts = {}) {
     }
     identitySource = 'codex'
   } else {
-    const slot = slotTestIdentity(projectRoot, vm)
+    const slot = (await slotTestIdentity(projectRoot, vm))
     identitySource = slot.identity_source || 'slot'
     if (unofficial) {
       inbound = {
@@ -1078,7 +1078,7 @@ export async function runVmTestChat(opts = {}) {
         accept: 'text/event-stream',
       }
     } else {
-      ;({ inbound, headers } = buildVmTestInbound({
+      ;({ inbound, headers } = (await buildVmTestInbound({
         model,
         prompt,
         maxTokens,
@@ -1088,7 +1088,7 @@ export async function runVmTestChat(opts = {}) {
         identity: slot.identity,
         rewrite: true,
         personaMode: opts.personaMode || 'rewrite',
-      }))
+      })))
     }
   }
 
@@ -1118,11 +1118,11 @@ export async function runVmTestChat(opts = {}) {
         push('info', 'Codex hop 401，尝试刷新 OAuth')
         const tok = await refreshCodexAccessToken({
           refreshToken,
-          proxyUrl: hostProxyUrlForVm(vm),
+          proxyUrl: (await hostProxyUrlForVm(vm)),
           fetchImpl: opts.fetchImpl,
         })
         if (tok.ok) {
-          persistRefreshedCodexAccount(projectRoot, vmId, {
+          await persistRefreshedCodexAccount(projectRoot, vmId, {
             access_token: tok.access_token,
             refresh_token: tok.refresh_token,
             id_token: tok.id_token || first.id_token,
@@ -1199,7 +1199,7 @@ export async function runVmTestChat(opts = {}) {
     if (errObj.request_id) push('info', `request_id=${errObj.request_id}`)
     if (result?.status === 401 && /revoked/i.test(String(errObj.message || errObj.upstream_message || ''))) {
       try {
-        opts.accountQuota?.recordLastProbe?.(vm.claude?.account_uuid || vm.account_uuid || vmId, {
+        await opts.accountQuota?.recordLastProbe?.(vm.claude?.account_uuid || vm.account_uuid || vmId, {
           ok: false,
           source: 'test-chat',
           error: errObj.message,

@@ -27,9 +27,9 @@ import { effectiveOpenAIPolicy, evaluateOpenAIQuotaGate, normalizeOpenAIQuotaPol
 // `stopped` is leftover Claude docker lifecycle. Codex kernel is independent.
 const HARD_UNAVAILABLE = new Set(['dead', 'error', 'disabled'])
 
-export function isCodexSlotReady(vm, now = Date.now()) {
+export async function isCodexSlotReady(vm, now = Date.now()) {
   if (!vm || !isCodexVm(vm)) return false
-  if (proxyBlockedReason(vm.proxy)) return false
+  if ((await proxyBlockedReason(vm.proxy))) return false
   if (vm.schedulable === false && !isLeftoverQuotaScheduleOff(vm)) return false
   if (!vm.has_token) return false
   // An expired access token with no refresh token can never succeed: the
@@ -95,12 +95,12 @@ function parkUntil(vm, now) {
  * Ready slots first (lowest 5h/7d stress), parked slots last so a
  * total-exhaust pool still has somewhere to fail instead of 503.
  */
-export function pickCodexSlots(vms, { pin = null, now = Date.now(), quotaPolicy = null, model = null } = {}) {
+export async function pickCodexSlots(vms, { pin = null, now = Date.now(), quotaPolicy = null, model = null } = {}) {
   const list = Array.isArray(vms) ? vms : []
   if (pin) {
     const vm = list.find((item) => item?.id === pin) || null
     if (!vm || !isCodexVm(vm)) return { error: 'platform_mismatch', pin, ids: [], ready: [], parked: [] }
-    const blocked = proxyBlockedReason(vm.proxy)
+    const blocked = (await proxyBlockedReason(vm.proxy))
     if (blocked) return { error: blocked, pin, ids: [], ready: [], parked: [] }
     return { ids: [vm.id], pin, ready: [vm.id], parked: [] }
   }
@@ -109,13 +109,13 @@ export function pickCodexSlots(vms, { pin = null, now = Date.now(), quotaPolicy 
   const resting = []
   let restUntil = null
   for (const vm of list) {
-    if (!isCodexSlotReady(vm, now)) continue
+    if (!(await isCodexSlotReady(vm, now))) continue
     // Operator rest window: not even a parked fallback — the slot is off-shift.
     const rest = evaluateActiveHours(activeHoursOf(vm), now, vm.timezone)
     if (!rest.active) {
       resting.push(vm.id)
       // Only a slot that could serve this model promises a wake time.
-      if (codexSlotAllowsModel(vm, model)) restUntil = restUntil == null ? rest.until : Math.min(restUntil, rest.until)
+      if ((await codexSlotAllowsModel(vm, model))) restUntil = restUntil == null ? rest.until : Math.min(restUntil, rest.until)
       continue
     }
     if (isCodexSlotParked(vm, now, quotaPolicy)) parked.push(vm)
@@ -171,9 +171,9 @@ function quotaResetAt(vm) {
   return Math.min(...resets)
 }
 
-export function codexAccountStatus(vm, now = Date.now(), policy = null) {
+export async function codexAccountStatus(vm, now = Date.now(), policy = null) {
   if (!vm || !isCodexVm(vm)) return 'error'
-  if (proxyBlockedReason(vm.proxy)) return 'disabled'
+  if ((await proxyBlockedReason(vm.proxy))) return 'disabled'
   if (vm.schedulable === false && !isLeftoverQuotaScheduleOff(vm)) return 'disabled'
   const status = String(vm.status || '').toLowerCase()
   if (status === 'disabled') return 'disabled'
@@ -185,12 +185,12 @@ export function codexAccountStatus(vm, now = Date.now(), policy = null) {
 }
 
 /** Panel allowlist on a GPT slot. No model or no list means allowed. */
-export function codexSlotAllowsModel(vm, model) {
+export async function codexSlotAllowsModel(vm, model) {
   if (!model) return true
-  return modelMatchesAllowlist(model, vm?.allowed_models ?? vm?.policy?.allowed_models)
+  return (await modelMatchesAllowlist(model, vm?.allowed_models ?? vm?.policy?.allowed_models))
 }
 
-export function codexAccountCandidate(vm, now = Date.now(), signals = null, policy = null) {
+export async function codexAccountCandidate(vm, now = Date.now(), signals = null, policy = null) {
   const runtime = signals || openAIRuntimeSignals(vm?.id, now)
   const effective = effectiveOpenAIPolicy(vm, normalizeOpenAIQuotaPolicy(policy))
   return {
@@ -201,7 +201,7 @@ export function codexAccountCandidate(vm, now = Date.now(), signals = null, poli
     maxSessions: effective.max_sessions,
     rpmCount: runtime.rpmCount || 0,
     rpmResetAt: runtime.rpmResetAt ?? null,
-    status: codexAccountStatus(vm, now, policy),
+    status: (await codexAccountStatus(vm, now, policy)),
     inFlight: runtime.inFlight || 0,
     lastStartedAt: runtime.lastStartedAt ?? null,
     quotaResetAt: quotaResetAt(vm),
@@ -224,7 +224,7 @@ export function codexAccountCandidate(vm, now = Date.now(), signals = null, poli
  * working window (back tomorrow, but not for this request); a busy home is
  * still `live`.
  */
-export function orderCodexSessionSlots(
+export async function orderCodexSessionSlots(
   vms,
   {
     pin = null,
@@ -244,7 +244,7 @@ export function orderCodexSessionSlots(
   const list = Array.isArray(vms) ? vms : []
   const byId = new Map(list.map((vm) => [vm.id, vm]))
   const policy = normalizeOpenAIQuotaPolicy(quotaPolicy)
-  const found = pickCodexSlots(vms, { pin, now, quotaPolicy: policy, model })
+  const found = (await pickCodexSlots(vms, { pin, now, quotaPolicy: policy, model }))
   const boundResting = !!boundVmId && (found.resting || []).includes(boundVmId)
   const picked = found.error ? found : withModelAllowed(found, byId, model)
   if (picked.error) {
@@ -258,11 +258,11 @@ export function orderCodexSessionSlots(
       ...picked,
       ids: pool,
       sticky: false,
-      candidates: pool.map((id) => codexAccountCandidate(byId.get(id), now, null, policy)),
+      candidates: (await Promise.all(pool.map(async (id) => (await codexAccountCandidate(byId.get(id), now, null, policy))))),
     }
   }
   const home =
-    boundVmId && pool.includes(boundVmId) && codexAccountStatus(byId.get(boundVmId), now, policy) === 'normal'
+    boundVmId && pool.includes(boundVmId) && (await codexAccountStatus(byId.get(boundVmId), now, policy)) === 'normal'
       ? boundVmId
       : null
   const boundState = boundVmId
@@ -286,7 +286,7 @@ export function orderCodexSessionSlots(
     return { error: 'session_window_full', ids: [], ready: [], parked: [], sticky: false, boundState, candidates: [] }
   }
   const cursor = roundRobinCursor == null ? readOpenAICursor() : roundRobinCursor
-  const candidates = ids.map((id) => codexAccountCandidate(byId.get(id), now, null, policy))
+  const candidates = (await Promise.all(ids.map(async (id) => (await codexAccountCandidate(byId.get(id), now, null, policy)))))
   const ordered = orderOpenAIAccounts(candidates, {
     strategy,
     now,
@@ -296,7 +296,7 @@ export function orderCodexSessionSlots(
     roundRobinCursor: cursor,
   })
   if (!ordered.ids.length) {
-    const statuses = ids.map((id) => codexAccountStatus(byId.get(id), now, policy))
+    const statuses = (await Promise.all(ids.map(async (id) => (await codexAccountStatus(byId.get(id), now, policy)))))
     const quotaExhausted = statuses.length > 0 && statuses.every((status) => status === 'quota_exhausted')
     const retryAt = quotaExhausted ? null : rpmRetryAt(candidates, now) || holdRetryAt(candidates, now)
     return {
@@ -351,7 +351,7 @@ function holdRetryAt(candidates, now) {
 
 function withModelAllowed(picked, byId, model) {
   if (!model) return picked
-  const keep = (id) => codexSlotAllowsModel(byId.get(id), model)
+  const keep = async (id) => (await codexSlotAllowsModel(byId.get(id), model))
   const ids = picked.ids.filter(keep)
   if (!ids.length) return { error: 'model_not_allowed', ids: [], ready: [], parked: [] }
   return {

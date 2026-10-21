@@ -106,29 +106,29 @@ export async function peekCurrentAccount({
   const identity = resolveInboundIdentity({ inbound, body: inbound, headers: req?.headers || {} })
   const stickyKey =
     (platform === 'anthropic' && identity.sessionId && stickyRouter?.sessionPoolKeys
-      ? stickyRouter.sessionPoolKeys(req, inbound, {
+      ? (await stickyRouter.sessionPoolKeys(req, inbound, {
           sessionId: identity.sessionId,
           deviceId: identity.deviceId,
           migrate: false,
-        }).stickyKey
-      : stickyRouter?.extractPoolKey?.(req, inbound, { platform })) || null
+        })).stickyKey
+      : (await stickyRouter?.extractPoolKey?.(req, inbound, { platform }))) || null
   if (!poolScheduler?.peekAccount) {
     return { ok: false, code: 'no_eligible_accounts' }
   }
-  const keyScope = keyScopeFromRequest(req)
+  const keyScope = (await keyScopeFromRequest(req))
   const poolDenial = vmPoolDenial(keyScope)
   if (poolDenial) return { ok: false, code: ErrorCode.VM_POOL_UNAVAILABLE, message: poolDenial.message }
   // Same gate as Messages: a platform-scoped key must not hop to the other platform's VMs.
   if (platform && keyScope.group_type !== 'all' && keyScope.group_type !== platform) {
     return { ok: false, code: ErrorCode.KEY_GROUP_MISMATCH, group_type: keyScope.group_type }
   }
-  return poolScheduler.peekAccount({
+  return (await poolScheduler.peekAccount({
     model,
     stickyKey,
     signal,
     ownerScope: ownerScopeFromRequest(req, usersRepo),
     keyScope,
-  })
+  }))
 }
 
 /** Same client contract as Messages: Fable gate 429, capacity 529 / pool-wide limit 429 with Retry-After, else 503. */
@@ -184,12 +184,12 @@ function distillContext(req, inbound) {
   return { official, zeroInject: inject === 'zero' || preset === 'zero' }
 }
 
-function refusalPolicy(deps) {
+async function refusalPolicy(deps) {
   try {
     const settings = deps.settings || new SettingsRepo()
-    return refusalGuardPolicy((key, fallback) => settings.get(key, fallback))
+    return (await refusalGuardPolicy(async (key, fallback) => (await settings.get(key, fallback))))
   } catch {
-    return refusalGuardPolicy()
+    return (await refusalGuardPolicy())
   }
 }
 
@@ -216,7 +216,7 @@ export async function blockCountTokensBeforeHop(req, inbound, deps = {}) {
   let jev
   try {
     const settings = deps.settings || new SettingsRepo()
-    jev = readJevConfig((key, fallback) => settings.get(key, fallback))
+    jev = readJevConfig(async (key, fallback) => (await settings.get(key, fallback)))
   } catch {
     jev = readJevConfig()
   }
@@ -226,7 +226,7 @@ export async function blockCountTokensBeforeHop(req, inbound, deps = {}) {
     headers: req?.headers,
     ...distillContext(req, inbound),
     distillRules: deps.cfg?.distill,
-    policy: refusalPolicy(deps),
+    policy: (await refusalPolicy(deps)),
     jev,
     repo: refusalRepo(deps),
     devices: deviceRepo(deps),
@@ -245,7 +245,7 @@ export async function blockCountTokensBeforeHop(req, inbound, deps = {}) {
 
 export async function handleUserCountTokens(req, res, deps) {
   const json = (...args) => deps.json(...args)
-  if (!deps.requireAuth(req, res)) return
+  if (!(await deps.requireAuth(req, res))) return
   let inbound
   try {
     inbound = await deps.readBody(req, inboundBodyLimit(deps.getRouting?.(), deps.cfg.limits.max_body_bytes))
@@ -287,7 +287,7 @@ export async function handleUserCountTokens(req, res, deps) {
   if (gate.wait) {
     const again = await blockCountTokensBeforeHop(req, parsed.body, {
       ...deps,
-      account: scopeAccountFromVm(peeked.vm, findAccount(deps.accountQuota, peeked.vm)?.unified),
+      account: scopeAccountFromVm(peeked.vm, (await findAccount(deps.accountQuota, peeked.vm))?.unified),
     })
     if (again?.error) return json(res, again.error.status, again.error.body)
   }
@@ -348,7 +348,7 @@ export async function resolveUsageWindows({
   probe = probeAccount,
 } = {}) {
   const acc =
-    accountQuota?.repo?.get?.(accountId) || accountQuota?.ensure?.({ account_id: accountId, vm_id: vmId }) || null
+    (await accountQuota?.repo?.get?.(accountId)) || (await accountQuota?.ensure?.({ account_id: accountId, vm_id: vmId })) || null
   let listed = listQuotaFromHeaders(acc?.unified || {})
   let source = 'extra'
   if (!usageWindowsEmpty(listed)) return { listed, source }
@@ -362,9 +362,9 @@ export async function resolveUsageWindows({
   }
   if (!result || isOfficialUsageRateLimited(result)) return { listed, source }
   try {
-    accountQuota?.ingestOAuthUsage?.(accountId, result)
+    await accountQuota?.ingestOAuthUsage?.(accountId, result)
   } catch {}
-  const next = accountQuota?.repo?.get?.(accountId) || acc
+  const next = (await accountQuota?.repo?.get?.(accountId)) || acc
   listed = listQuotaFromHeaders(next?.unified || {})
   source = 'oauth-usage'
   return { listed, source }
@@ -372,7 +372,7 @@ export async function resolveUsageWindows({
 
 export async function handleUserUsage(req, res, deps) {
   const json = (...args) => deps.json(...args)
-  if (!deps.requireAuth(req, res)) return
+  if (!(await deps.requireAuth(req, res))) return
   const peeked = await peekCurrentAccount({
     poolScheduler: typeof deps.getPoolScheduler === 'function' ? deps.getPoolScheduler() : deps.poolScheduler,
     stickyRouter: deps.stickyRouter,

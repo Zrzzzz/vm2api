@@ -921,10 +921,10 @@ export function validateJevPatch(body = {}) {
 }
 
 /** Apply a panel PUT. Omitted keys stay. An empty api_key, or api_keys: [], clears them. */
-export function applyJevPatch(settings, body = {}) {
+export async function applyJevPatch(settings, body = {}) {
   const problems = validateJevPatch(body)
   if (problems.length) return { ok: false, problems }
-  const current = normalizeJevConfig(settings.get(JEV_SETTING, null))
+  const current = normalizeJevConfig((await settings.get(JEV_SETTING, null)))
   const next = normalizeJevConfig({
     ...current,
     ...body,
@@ -938,7 +938,7 @@ export function applyJevPatch(settings, body = {}) {
     patterns: Object.hasOwn(body, 'patterns') ? body.patterns : current.patterns,
     rules: Object.hasOwn(body, 'rules') ? body.rules : current.rules,
   })
-  settings.set(JEV_SETTING, next)
+  await settings.set(JEV_SETTING, next)
   if (Object.hasOwn(body, 'api_keys') || Object.hasOwn(body, 'api_key')) rearmJevKeys(next)
   return { ok: true, config: publicJevConfig(next) }
 }
@@ -1233,7 +1233,7 @@ function rearmJevKeys(config) {
 let keyCursor = 0
 
 /**
- * @returns {{ action: 'pass', reason?: string } | { action: 'block', category: string, categories: string[] }}
+ * @returns {Promise<{ action: 'pass', reason?: string } | { action: 'block', category: string, categories: string[] }>}
  */
 export async function classifyJev(text, cfg, fetchImpl = globalThis.fetch, now = Date.now()) {
   const config = normalizeJevConfig(cfg)

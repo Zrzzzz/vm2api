@@ -92,9 +92,9 @@ export function slotHasBoundProxy(vm) {
   return hasBoundExit(vm.proxy)
 }
 
-export function evaluateSlotGate(vm) {
+export async function evaluateSlotGate(vm) {
   if (isCodexVm(vm)) return { ok: false, reason: 'codex_vm' }
-  const blocked = proxyBlockedReason(vm?.proxy)
+  const blocked = (await proxyBlockedReason(vm?.proxy))
   if (blocked) return { ok: false, reason: blocked }
   const oauthProjection = /^oauth_/.test(String(vm?.schedule_disabled_reason || ''))
   if (!isVmScheduleReady(vm, { allowMissingCredential: oauthProjection })) {

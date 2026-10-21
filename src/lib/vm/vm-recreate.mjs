@@ -106,15 +106,15 @@ export function buildRecreatedVmRecord(prev, generated) {
   return next
 }
 
-export function recreateVmFiles(projectRoot, prev) {
+export async function recreateVmFiles(projectRoot, prev) {
   if (!projectRoot || !prev?.id) throw new Error('projectRoot and vm id required')
   wipeSlotHome(projectRoot, prev.id)
-  const generated = assignComputerFingerprint(projectRoot, prev, {
+  const generated = (await assignComputerFingerprint(projectRoot, prev, {
     taken: takenFingerprintKeys(listVms(projectRoot), { exceptId: prev.id }),
-  })
+  }))
   const vm = buildRecreatedVmRecord(prev, generated)
   const vmPath = path.join(projectRoot, 'vms', `${prev.id}.json`)
-  atomicWriteJson(vmPath, vm, { mode: 0o600 })
+  await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   writeGuestMachineIdFile(projectRoot, vm.id, vm.fingerprint.guest_machine_id)
   seedFreshCliHome(projectRoot, vm)
   return { vm, vmPath }

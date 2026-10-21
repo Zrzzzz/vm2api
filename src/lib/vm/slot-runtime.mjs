@@ -41,8 +41,8 @@ export function startSlot(vm, projectRoot, opts = {}) {
  * rebuild, so the record must carry them. Callers that only patch status after
  * start (create, import, recreate) would otherwise leave runtime as {type}.
  */
-function persistNodeRuntime(vm, projectRoot, boot) {
-  if (vmNodeId(vm) && boot?.runtime) persistVmRuntime(projectRoot, vm.id, boot.runtime)
+async function persistNodeRuntime(vm, projectRoot, boot) {
+  if (vmNodeId(vm) && boot?.runtime) await persistVmRuntime(projectRoot, vm.id, boot.runtime)
 }
 
 export async function startSlotReady(vm, projectRoot, opts = {}) {
@@ -50,14 +50,14 @@ export async function startSlotReady(vm, projectRoot, opts = {}) {
     if (!slotHost(vm).supports('codex')) return unsupportedOnHost('codex')
     const boot = await (opts.ops?.startSlot || startSlot)(vm, projectRoot, opts)
     if (!boot?.ok) return boot
-    persistNodeRuntime(vm, projectRoot, boot)
+    await persistNodeRuntime(vm, projectRoot, boot)
     const kernel = await ensureSlotInferenceRuntime(vm, projectRoot, opts)
     if (!kernel.ok) return kernel
     return { ok: true, engine: 'codex', docker: boot, kernel }
   }
   const boot = await startSlot(vm, projectRoot, opts)
   if (!boot?.ok) return boot
-  persistNodeRuntime(vm, projectRoot, boot)
+  await persistNodeRuntime(vm, projectRoot, boot)
   return attachInferenceRuntime(boot, vm, projectRoot, opts)
 }
 
@@ -79,7 +79,7 @@ export async function reloadSlot(vm, projectRoot, opts = {}) {
 export async function reloadSlotReady(vm, projectRoot, opts = {}) {
   const boot = await reloadSlot(vm, projectRoot, opts)
   if (!boot?.ok) return boot
-  persistVmRuntime(projectRoot, vm.id, boot.runtime)
+  await persistVmRuntime(projectRoot, vm.id, boot.runtime)
   return attachInferenceRuntime(boot, vm, projectRoot, opts)
 }
 
@@ -115,7 +115,7 @@ export async function ensureSlotInferenceRuntime(vm, projectRoot, opts = {}) {
     // Local egress on this host is the deployment proxy (empty URL). A node
     // slot's local egress is the node's own route, reached through the
     // control-plane forwarder; an empty URL would leave from here instead.
-    const proxyUrl = localExit && !vmNodeId(vm) ? '' : hostProxyUrlForVm(vm)
+    const proxyUrl = localExit && !vmNodeId(vm) ? '' : (await hostProxyUrlForVm(vm))
     write(projectRoot, vm, {
       proxyUrl,
       proxyRequired: !localExit || !!proxyUrl,

@@ -182,7 +182,7 @@ export function getActiveVmId(projectRoot) {
   }
 }
 
-export function persistAccountTier(projectRoot, vmId, tier, { source = null } = {}) {
+export async function persistAccountTier(projectRoot, vmId, tier, { source = null } = {}) {
   const key = String(tier || '').toLowerCase()
   if (key !== 'pro' && key !== 'max') return null
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
@@ -194,7 +194,7 @@ export function persistAccountTier(projectRoot, vmId, tier, { source = null } = 
   vm.claude.account_tier = key
   vm.claude.account_tier_source = source
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
@@ -202,7 +202,7 @@ export function persistAccountTier(projectRoot, vmId, tier, { source = null } = 
  * Merge live `x-codex-*` headers (and optional park-until) into vm.codex.
  * Cluster 5H/7D meters read this via summarizeCodexSlot -> usage.quota.
  */
-export function persistCodexUsage(
+export async function persistCodexUsage(
   projectRoot,
   vmId,
   { headers, extra, limitedUntil, quotaExceeded = false, now = Date.now(), policy = null } = {},
@@ -241,8 +241,8 @@ export function persistCodexUsage(
   vm.codex.extra = merged
   vm.codex.usage = buildCodexUsageView(extraToCodexSnapshot(merged))
   vm.updated_at = new Date(now).toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
-  syncCodexQuotaSchedule(projectRoot, vm, { now, policy })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
+  await syncCodexQuotaSchedule(projectRoot, vm, { now, policy })
   return getVm(projectRoot, vmId) || vm
 }
 
@@ -251,36 +251,36 @@ export function persistCodexUsage(
  * Never flips the operator switch. Leftover quota-off (not schedule_manual)
  * is restored to on + restriction.
  */
-export function syncCodexQuotaSchedule(projectRoot, vm, { now = Date.now(), policy = null } = {}) {
+export async function syncCodexQuotaSchedule(projectRoot, vm, { now = Date.now(), policy = null } = {}) {
   if (!projectRoot || !vm?.id) return { action: 'keep', reason: null }
   const ev = evaluateCodexQuotaSchedule(vm, now, policy)
   const file = path.join(projectRoot, 'vms', `${vm.id}.json`)
   const leftover = isLeftoverQuotaScheduleOff(vm)
   if (ev.action === 'restrict' || ev.action === 'restore') {
     const until = ev.until
-    if (until == null && /_local$/.test(ev.reason || '')) clearVmQuotaRestriction(file)
-    const next = markVmRestriction(file, { until, reason: ev.reason })
+    if (until == null && /_local$/.test(ev.reason || '')) await clearVmQuotaRestriction(file)
+    const next = (await markVmRestriction(file, { until, reason: ev.reason }))
     if (next) {
       vm.claude = next.claude
       vm.temp_unschedulable_until = next.temp_unschedulable_until
       vm.temp_unschedulable_reason = next.temp_unschedulable_reason
     }
     if (leftover) {
-      setVmSchedulable(projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
+      await setVmSchedulable(projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
       vm.schedulable = true
       vm.schedule_disabled_reason = null
     }
     return { ...ev, action: leftover ? 'restore' : 'restrict' }
   }
   if (ev.action === 'clear' || ev.action === 'enable') {
-    const next = clearVmQuotaRestriction(file)
+    const next = (await clearVmQuotaRestriction(file))
     if (next) {
       vm.claude = next.claude
       delete vm.temp_unschedulable_until
       delete vm.temp_unschedulable_reason
     }
     if (leftover || ev.action === 'enable') {
-      setVmSchedulable(projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
+      await setVmSchedulable(projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
       vm.schedulable = true
       vm.schedule_disabled_reason = null
       return { ...ev, action: 'enable' }
@@ -288,7 +288,7 @@ export function syncCodexQuotaSchedule(projectRoot, vm, { now = Date.now(), poli
     return { ...ev, action: 'clear' }
   }
   if (leftover) {
-    setVmSchedulable(projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
+    await setVmSchedulable(projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
     vm.schedulable = true
     vm.schedule_disabled_reason = null
     return { action: 'enable', reason: null }
@@ -296,7 +296,7 @@ export function syncCodexQuotaSchedule(projectRoot, vm, { now = Date.now(), poli
   return ev
 }
 
-export function persistAllowedModels(projectRoot, vmId, models) {
+export async function persistAllowedModels(projectRoot, vmId, models) {
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
   if (!fs.existsSync(file)) return null
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -305,22 +305,22 @@ export function persistAllowedModels(projectRoot, vmId, models) {
   if (!next.length) delete vm.policy.allowed_models
   else vm.policy.allowed_models = next
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
 /** Reload can recreate the container (new id, new exit network); the record must follow. Re-reads so other fields are not clobbered. */
-export function persistVmRuntime(projectRoot, vmId, runtime) {
+export async function persistVmRuntime(projectRoot, vmId, runtime) {
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
   if (!runtime || !fs.existsSync(file)) return null
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
   vm.runtime = runtime
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
-export function persistVmSessionSlots(projectRoot, vmId, value, { override = true } = {}) {
+export async function persistVmSessionSlots(projectRoot, vmId, value, { override = true } = {}) {
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
   if (!fs.existsSync(file)) return null
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -330,11 +330,11 @@ export function persistVmSessionSlots(projectRoot, vmId, value, { override = tru
     sessionSlotsOverride: override,
   }
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
-export function persistVmMaxSessions(projectRoot, vmId, value, { override = true } = {}) {
+export async function persistVmMaxSessions(projectRoot, vmId, value, { override = true } = {}) {
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
   if (!fs.existsSync(file)) return null
   if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value) || value < 0 || value > 256) {
@@ -347,12 +347,12 @@ export function persistVmMaxSessions(projectRoot, vmId, value, { override = true
     sessionsOverride: override,
   }
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
 /** `override` is a parsed `quota_override` (null clears it, the slot follows global quota again). */
-export function persistVmQuotaOverride(projectRoot, vmId, override) {
+export async function persistVmQuotaOverride(projectRoot, vmId, override) {
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
   if (!fs.existsSync(file)) return null
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -360,12 +360,12 @@ export function persistVmQuotaOverride(projectRoot, vmId, override) {
   if (override) vm.policy.quota = override
   else delete vm.policy.quota
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
 /** `value` is a parsed `active_hours` window (null clears it: the slot runs 24h). */
-export function persistVmActiveHours(projectRoot, vmId, value) {
+export async function persistVmActiveHours(projectRoot, vmId, value) {
   const parsed = parseActiveHoursInput(value)
   if (!parsed.ok) throw new TypeError(parsed.error)
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
@@ -375,11 +375,11 @@ export function persistVmActiveHours(projectRoot, vmId, value) {
   if (parsed.value == null) delete vm.policy.active_hours
   else vm.policy.active_hours = parsed.value
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
-export function persistVmScheduleLevel(projectRoot, vmId, value) {
+export async function persistVmScheduleLevel(projectRoot, vmId, value) {
   const parsed = parseScheduleLevelInput(value)
   if (!parsed.ok) throw new TypeError(parsed.error)
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
@@ -389,7 +389,7 @@ export function persistVmScheduleLevel(projectRoot, vmId, value) {
   if (parsed.value == null) delete vm.policy.priority
   else vm.policy.priority = parsed.value
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
@@ -408,17 +408,17 @@ function applySlotEnginePatch(vm, patch = {}) {
   }
 }
 
-export function persistSlotEnginePolicy(projectRoot, vmId, patch = {}) {
+export async function persistSlotEnginePolicy(projectRoot, vmId, patch = {}) {
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
   if (!fs.existsSync(file)) return null
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
   applySlotEnginePatch(vm, patch)
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
-export function persistSlotEnginePolicyMany(projectRoot, ids, patch = {}) {
+export async function persistSlotEnginePolicyMany(projectRoot, ids, patch = {}) {
   const targets =
     Array.isArray(ids) && ids.length
       ? ids.map((id) => String(id || '').trim()).filter(Boolean)
@@ -426,15 +426,15 @@ export function persistSlotEnginePolicyMany(projectRoot, ids, patch = {}) {
   const items = []
   const missing = []
   for (const id of targets) {
-    const vm = persistSlotEnginePolicy(projectRoot, id, patch)
+    const vm = (await persistSlotEnginePolicy(projectRoot, id, patch))
     if (!vm) missing.push(id)
     else items.push(summarizeVm(vm))
   }
   return { updated: items.length, missing, items }
 }
-export function setActiveVm(projectRoot, id) {
+export async function setActiveVm(projectRoot, id) {
   const file = path.join(projectRoot, 'vms', 'active.json')
-  atomicWriteJson(file, { active_vm: id, updated_at: new Date().toISOString() })
+  await atomicWriteJson(file, { active_vm: id, updated_at: new Date().toISOString() })
 }
 
 /** Drop the active pointer. Used when the last slot is deleted. */
@@ -490,7 +490,7 @@ export function isVmScheduleReady(vm, { allowMissingCredential = false } = {}) {
   return true
 }
 
-export function setVmSchedulable(
+export async function setVmSchedulable(
   projectRoot,
   id,
   schedulable,
@@ -513,27 +513,27 @@ export function setVmSchedulable(
     vm.schedule_disabled_reason = reason || 'disabled'
     if (!preserveStatus && String(vm.status || '').toLowerCase() === 'running') vm.status = 'paused'
   }
-  atomicWriteJson(file, vm)
+  await atomicWriteJson(file, vm)
   return summarizeVm(vm)
 }
 export const KERNEL_UPDATE_HOLD = 'kernel_update'
 
-export function holdSchedulableSlots(project, reason = KERNEL_UPDATE_HOLD) {
+export async function holdSchedulableSlots(project, reason = KERNEL_UPDATE_HOLD) {
   const held = []
   for (const vm of listVms(project)) {
     if (vm?.schedulable === false) continue
-    const summary = setVmSchedulable(project, vm.id, false, reason, { preserveStatus: true, source: 'force' })
+    const summary = (await setVmSchedulable(project, vm.id, false, reason, { preserveStatus: true, source: 'force' }))
     if (summary) held.push(vm.id)
   }
   return held
 }
 
-export function resumeSchedulableSlots(project, ids, reason = KERNEL_UPDATE_HOLD) {
+export async function resumeSchedulableSlots(project, ids, reason = KERNEL_UPDATE_HOLD) {
   const restored = []
   for (const id of ids || []) {
     const vm = getVm(project, id)
     if (!vm || vm.schedule_disabled_reason !== reason) continue
-    const summary = setVmSchedulable(project, id, true, null, { preserveStatus: true, source: 'force' })
+    const summary = (await setVmSchedulable(project, id, true, null, { preserveStatus: true, source: 'force' }))
     if (summary?.schedulable !== false) restored.push(id)
   }
   return restored
@@ -557,18 +557,18 @@ export async function waitForSlotDrain(poolScheduler, ids, { timeoutMs = 120000 
   return { ok: inflight === 0, inflight }
 }
 
-export function markKernelRestartPending(project, id, reason = 'kernel_restart_failed') {
-  return patchVmRecord(project, id, { kernel_restart_pending: reason })
+export async function markKernelRestartPending(project, id, reason = 'kernel_restart_failed') {
+  return (await patchVmRecord(project, id, { kernel_restart_pending: reason }))
 }
 
-export function clearKernelRestartPending(project, id) {
-  return patchVmRecord(project, id, (vm) => {
+export async function clearKernelRestartPending(project, id) {
+  return (await patchVmRecord(project, id, (vm) => {
     delete vm.kernel_restart_pending
     return vm
-  })
+  }))
 }
 
-export function bindVmProxy(projectRoot, id, proxyInfo) {
+export async function bindVmProxy(projectRoot, id, proxyInfo) {
   const file = path.join(projectRoot, 'vms', `${id}.json`)
   if (!fs.existsSync(file)) return null
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -587,7 +587,7 @@ export function bindVmProxy(projectRoot, id, proxyInfo) {
   // It is not an operator toggle — it follows whether an exit is bound.
   vm.proxy_cli_enabled = hasBoundExit(vm.proxy)
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm)
+  await atomicWriteJson(file, vm)
   return summarizeVm(vm)
 }
 
@@ -607,7 +607,7 @@ export function adoptVmProxyBinding(target, source) {
  * Re-read vm.json, apply a patch of owned fields, write. Use this after another
  * writer (bind, timezone, start) so a stale snapshot cannot clobber their fields.
  */
-export function patchVmRecord(projectRoot, id, patch) {
+export async function patchVmRecord(projectRoot, id, patch) {
   const file = path.join(projectRoot, 'vms', `${id}.json`)
   if (!fs.existsSync(file)) return null
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -618,7 +618,7 @@ export function patchVmRecord(projectRoot, id, patch) {
     Object.assign(vm, patch)
   }
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
@@ -626,7 +626,7 @@ export function patchVmRecord(projectRoot, id, patch) {
  * Heal slots whose bound exit and `proxy_cli_enabled` drifted (the #332 stale
  * write). False was never an operator switch — panel/API have no such toggle.
  */
-export function repairVmProxyCliEnabled(projectRoot) {
+export async function repairVmProxyCliEnabled(projectRoot) {
   const repaired = []
   const dir = path.join(projectRoot, 'vms')
   if (!fs.existsSync(dir)) return repaired
@@ -643,14 +643,14 @@ export function repairVmProxyCliEnabled(projectRoot) {
     if (vm.proxy_cli_enabled === enabled) continue
     vm.proxy_cli_enabled = enabled
     vm.updated_at = new Date().toISOString()
-    atomicWriteJson(file, vm, { mode: 0o600 })
+    await atomicWriteJson(file, vm, { mode: 0o600 })
     repaired.push(vm.id)
   }
   return repaired
 }
 
 /** Attach a rotated SMBIOS identity to slots that were created without one. */
-export function repairSlotSmbios(projectRoot) {
+export async function repairSlotSmbios(projectRoot) {
   const repaired = []
   const dir = path.join(projectRoot, 'vms')
   if (!fs.existsSync(dir)) return repaired
@@ -664,7 +664,7 @@ export function repairSlotSmbios(projectRoot) {
     }
     if (!vm?.id || !ensureSlotSmbios(vm)) continue
     vm.updated_at = new Date().toISOString()
-    atomicWriteJson(file, vm, { mode: 0o600 })
+    await atomicWriteJson(file, vm, { mode: 0o600 })
     repaired.push(vm.id)
   }
   return repaired
@@ -679,7 +679,7 @@ export function repairSlotSmbios(projectRoot) {
  * The fingerprint carries its own copy of the zone — leaving that stale would
  * make the workstation identity disagree with the container clock.
  */
-export function persistVmTimezone(projectRoot, id, timezone, { source = 'manual' } = {}) {
+export async function persistVmTimezone(projectRoot, id, timezone, { source = 'manual' } = {}) {
   const zone = validTimezone(timezone)
   if (!zone) return null
   const file = path.join(projectRoot, 'vms', `${id}.json`)
@@ -689,23 +689,23 @@ export function persistVmTimezone(projectRoot, id, timezone, { source = 'manual'
   vm.timezone_source = source
   if (vm.fingerprint && typeof vm.fingerprint === 'object') vm.fingerprint.timezone = zone
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm)
+  await atomicWriteJson(file, vm)
   return summarizeVm(vm)
 }
 
-export function persistVmOwner(projectRoot, id, { ownerUserId = null, origin = null } = {}) {
+export async function persistVmOwner(projectRoot, id, { ownerUserId = null, origin = null } = {}) {
   const file = path.join(projectRoot, 'vms', `${id}.json`)
   if (!fs.existsSync(file)) return null
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
   vm.owner_user_id = normalizeOwnerId(ownerUserId)
   vm.origin = origin || vmOriginOf({ ...vm, owner_user_id: vm.owner_user_id })
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
 /** Return administrator-assigned slots to the platform when their tenant is removed. */
-export function reclaimAssignedVms(projectRoot, ownerIds, { onError = null } = {}) {
+export async function reclaimAssignedVms(projectRoot, ownerIds, { onError = null } = {}) {
   const reclaimed = []
   if (!ownerIds.size) return reclaimed
   const dir = path.join(projectRoot, 'vms')
@@ -714,7 +714,7 @@ export function reclaimAssignedVms(projectRoot, ownerIds, { onError = null } = {
       const vm = readJsonCached(path.join(dir, name))
       if (!vm?.id || !ownerIds.has(vmOwnerId(vm)) || vmOriginOf(vm) !== VM_ORIGIN.adminAssigned) continue
       // Keep credentials, quota cooldowns and the operator's scheduling switch intact.
-      persistVmOwner(projectRoot, vm.id, { ownerUserId: null, origin: VM_ORIGIN.platform })
+      await persistVmOwner(projectRoot, vm.id, { ownerUserId: null, origin: VM_ORIGIN.platform })
       reclaimed.push(vm.id)
     } catch (error) {
       if (!onError) throw error

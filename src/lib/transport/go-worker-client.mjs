@@ -429,13 +429,13 @@ function dumpSessionEnvelope(envelope) {
  * body on the VM's HTTP betas would lift every role=system turn into system[],
  * so system grows each turn and no cached prefix is ever read.
  */
-export function finalizeWorkerPayload({ body, reqHeaders, exec, identity, routing, want1m = false, cliHop = false }) {
+export async function finalizeWorkerPayload({ body, reqHeaders, exec, identity, routing, want1m = false, cliHop = false }) {
   const model = body?.model || ''
   const credMode = credentialModeFromOauth(exec?.vm?.claude || {})
-  const headers = prepareOutboundHeaders(reqHeaders, exec?.homeDir, identity, model, {
+  const headers = (await prepareOutboundHeaders(reqHeaders, exec?.homeDir, identity, model, {
     credentialMode: credMode,
     want1m: want1m === true,
-  })
+  }))
   const betas = withRequestProtocolBetas(String(headers?.['anthropic-beta'] || '').split(','), body)
   headers['anthropic-beta'] = betas.join(',')
   // Envelope headers are discarded; the existing MessageRequest.betas channel
@@ -447,7 +447,7 @@ export function finalizeWorkerPayload({ body, reqHeaders, exec, identity, routin
   }
 }
 
-function workerEnvelope({
+async function workerEnvelope({
   requestContext = null,
   body,
   reqHeaders,
@@ -461,7 +461,7 @@ function workerEnvelope({
   preserveCacheBreakpoints = null,
   cliHop = false,
 } = {}) {
-  const finalized = finalizeWorkerPayload({ body, reqHeaders, exec, identity, routing, want1m, cliHop })
+  const finalized = (await finalizeWorkerPayload({ body, reqHeaders, exec, identity, routing, want1m, cliHop }))
   const envelope = {
     ...(requestContext ? { request_context: requestContext } : {}),
     body: finalized.body,
@@ -501,7 +501,7 @@ export async function callGoWorker({
   cliHop = false,
 } = {}) {
   if (isCrsMock()) {
-    const { body: outboundBody, headers } = finalizeWorkerPayload({
+    const { body: outboundBody, headers } = (await finalizeWorkerPayload({
       body,
       reqHeaders,
       exec,
@@ -509,7 +509,7 @@ export async function callGoWorker({
       routing,
       want1m,
       cliHop,
-    })
+    }))
     writeCrsTrace({ body: outboundBody, headers, stream: false })
     const mock = mockCrsPayload({ scenario: mockScenario(exec) })
     return {
@@ -529,7 +529,7 @@ export async function callGoWorker({
       requestPath,
       body: {
         ...(envelope ||
-          workerEnvelope({
+          (await workerEnvelope({
             body,
             reqHeaders,
             exec,
@@ -541,7 +541,7 @@ export async function callGoWorker({
             preserveCacheBreakpoints,
             cliHop,
             requestContext,
-          })),
+          }))),
         request_id: requestId,
       },
       signal,
@@ -605,7 +605,7 @@ export async function streamGoWorker({
   cliHop = false,
 } = {}) {
   if (isCrsMock()) {
-    const { body: outboundBody, headers } = finalizeWorkerPayload({
+    const { body: outboundBody, headers } = (await finalizeWorkerPayload({
       body,
       reqHeaders,
       exec,
@@ -613,7 +613,7 @@ export async function streamGoWorker({
       routing,
       want1m,
       cliHop,
-    })
+    }))
     writeCrsTrace({ body: outboundBody, headers, stream: true })
     const scenario = mockScenario(exec)
     const mockStartedAt = Date.now()
@@ -695,7 +695,7 @@ export async function streamGoWorker({
       requestPath,
       body: {
         ...(envelope ||
-          workerEnvelope({
+          (await workerEnvelope({
             body,
             reqHeaders,
             exec,
@@ -708,7 +708,7 @@ export async function streamGoWorker({
             preserveCacheBreakpoints,
             cliHop,
             requestContext,
-          })),
+          }))),
         request_id: requestId,
       },
       signal,
@@ -1043,7 +1043,7 @@ function credentialSummary(credential, now = Date.now()) {
 
 export async function importWorkerCredential(exec, credential, { timeoutMs = 60000, signal } = {}) {
   try {
-    writeWorkerCredentialFile(exec.homeDir, credential)
+    await writeWorkerCredentialFile(exec.homeDir, credential)
     // Import is the one case where the control plane's credential replaces the slot's copy.
     await slotHost(exec.vm).onImport(exec.vm, path.dirname(exec.homeDir))
   } catch (error) {

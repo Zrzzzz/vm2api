@@ -125,7 +125,7 @@ function loadSessions() {
   }
 }
 
-function saveSessions() {
+async function saveSessions() {
   try {
     const f = sessionFile()
     fs.mkdirSync(path.dirname(f), { recursive: true })
@@ -134,7 +134,7 @@ function saveSessions() {
     for (const [token, s] of panelSessions.entries()) {
       if (s.exp > now) obj[token] = s
     }
-    atomicWriteJson(f, obj, { mode: 0o600 })
+    await atomicWriteJson(f, obj, { mode: 0o600 })
   } catch (err) {
     console.warn(`kin-security: failed to persist panel sessions: ${err.message}`)
   }
@@ -142,23 +142,23 @@ function saveSessions() {
 
 loadSessions()
 
-export function createPanelSession(username, ttlMs = SESSION_TTL_MS, extra = {}) {
+export async function createPanelSession(username, ttlMs = SESSION_TTL_MS, extra = {}) {
   if (ttlMs && typeof ttlMs === 'object') {
     extra = ttlMs
     ttlMs = extra.ttlMs || SESSION_TTL_MS
   }
   const token = 'kin-panel-' + crypto.randomBytes(24).toString('hex')
-  const role = extra.role || (_lookupRole && _lookupRole(username)) || 'admin'
+  const role = extra.role || (_lookupRole && await _lookupRole(username)) || 'admin'
   panelSessions.set(panelSessionKey(token), {
     user: username,
     role,
     exp: Date.now() + ttlMs,
   })
-  saveSessions()
+  await saveSessions()
   return token
 }
 
-export function verifyPanelSession(token) {
+export async function verifyPanelSession(token) {
   if (!token || !token.startsWith('kin-panel-')) return null
   const key = panelSessionKey(token)
   let s = panelSessions.get(key)
@@ -170,11 +170,11 @@ export function verifyPanelSession(token) {
   if (!s) return null
   if (Date.now() > s.exp) {
     panelSessions.delete(key)
-    saveSessions()
+    await saveSessions()
     return null
   }
   if (!s.role && _lookupRole) {
-    s.role = _lookupRole(s.user) || null
+    s.role = await _lookupRole(s.user) || null
   }
   if (!s.role) {
     const admin = getPanelAdmin()
@@ -184,18 +184,18 @@ export function verifyPanelSession(token) {
   const remaining = s.exp - now
   if (remaining > 0 && remaining < SESSION_TTL_MS / 2) {
     s.exp = now + SESSION_TTL_MS
-    saveSessions()
+    await saveSessions()
   }
   return s
 }
 
-export function revokePanelSession(token) {
+export async function revokePanelSession(token) {
   if (!token) return
   panelSessions.delete(panelSessionKey(token))
-  saveSessions()
+  await saveSessions()
 }
 
-export function revokePanelSessionsForUser(username, { exceptToken } = {}) {
+export async function revokePanelSessionsForUser(username, { exceptToken } = {}) {
   const name = String(username || '')
   if (!name) return 0
   const exceptKey = exceptToken ? panelSessionKey(exceptToken) : null
@@ -206,19 +206,19 @@ export function revokePanelSessionsForUser(username, { exceptToken } = {}) {
     panelSessions.delete(key)
     n += 1
   }
-  if (n) saveSessions()
+  if (n) await saveSessions()
   return n
 }
 
 /**
- * @returns {{ username: string, role: string, id?: string } | null}
+ * @returns {Promise<{ username: string, role: string, id?: string } | null>}
  */
-export function verifyPanelLogin(username, password) {
+export async function verifyPanelLogin(username, password) {
   if (_authenticateUser) {
-    const rec = _authenticateUser(username, password)
+    const rec = await _authenticateUser(username, password)
     if (rec) return { username: rec.username, role: rec.role || 'user', id: rec.id }
     // Existing DB user (including disabled) must not fall through to env password.
-    if (_lookupRole && _lookupRole(username)) return null
+    if (_lookupRole && await _lookupRole(username)) return null
   }
   const admin = getPanelAdmin()
   if (!admin.password) return null

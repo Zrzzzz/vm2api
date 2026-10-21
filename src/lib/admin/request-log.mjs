@@ -388,9 +388,11 @@ export class RequestLogStore {
     this._mem = [] // recent normal summaries for panel hot path
     this._memMax = 200
     this._cleanupTimer = null
+    this._pendingWrites = new Set()
+    this._writeErrors = []
   }
 
-  setConfig({ mode, retainDays, debugRetainDays, maxMb, mutedErrorClasses } = {}) {
+  async setConfig({ mode, retainDays, debugRetainDays, maxMb, mutedErrorClasses } = {}) {
     if (mode != null) {
       const m = String(mode).trim().toLowerCase()
       if (MODES.has(m)) this.mode = m
@@ -411,7 +413,7 @@ export class RequestLogStore {
     if (mutedErrorClasses !== undefined) {
       this.mutedErrorClasses = resolveMutedErrorClasses(mutedErrorClasses)
     }
-    return this.snapshot()
+    return (await this.snapshot())
   }
 
   /** Kept for API compat + post-restore hook (state lives in DB). */
@@ -499,7 +501,7 @@ export class RequestLogStore {
    * Write normal summary always (unless off).
    * Write debug full record when mode===debug.
    */
-  finish(ctx, extra = {}) {
+  async finish(ctx, extra = {}) {
     if (!ctx || ctx.mode === 'off') return null
     const duration_ms = Math.max(0, Date.now() - (ctx.t0 || Date.now()))
     const usage = normalizeUsage(disjointOpenaiUsage(extra.usage || {}) || {})
@@ -569,7 +571,7 @@ export class RequestLogStore {
       intercept: extra.intercept ? String(extra.intercept).slice(0, 400) : null,
       // sub2api ownership + billing columns
       user_id: extra.user_id ?? null,
-      vm_owner_user_id: this.repo.vmOwnerOf(extra.vm_id),
+      vm_owner_user_id: (await this.repo.vmOwnerOf(extra.vm_id)),
       group_id: extra.group_id ?? 1,
       rate_multiplier: Number.isFinite(Number(extra.rate_multiplier)) ? Number(extra.rate_multiplier) : 1,
       ...costColumnsForLog(billedUsage, extra.upstream_model || extra.model || extra.requested_model, extra),
@@ -581,15 +583,9 @@ export class RequestLogStore {
     const classified = classifyRequestError(summary)
     if (classified?.error_class) summary.error_class = classified.error_class
 
-    try {
-      this.repo.insertSummaryIfAbsent(summary)
-    } catch {}
-    if (this.jsonlMirror) this._appendJsonl(summary)
-    this._mem.push(summary)
-    if (this._mem.length > this._memMax) this._mem = this._mem.slice(-this._memMax)
-
+    let debugRec = null
     if (ctx.mode === 'debug') {
-      const debugRec = {
+      debugRec = {
         ...summary,
         headers: ctx.headers,
         inbound_summary: extra.inbound_summary || summarizeBody(extra.inbound_body),
@@ -614,11 +610,32 @@ export class RequestLogStore {
             : null,
         response: ctx.response ? debugResponse(ctx.response) : null,
       }
-      try {
-        this.repo.insertDebug(summary.request_id || summary.id, summary.ts, debugRec)
-      } catch {}
     }
+    await this.db.transaction(async () => {
+      await this.repo.insertSummaryIfAbsent(summary)
+      if (debugRec) await this.repo.insertDebug(summary.request_id || summary.id, summary.ts, debugRec)
+    })
+    if (this.jsonlMirror) this._appendJsonl(summary)
+    this._mem.push(summary)
+    if (this._mem.length > this._memMax) this._mem = this._mem.slice(-this._memMax)
     return summary
+  }
+
+  trackWrite(operation) {
+    const task = Promise.resolve().then(operation)
+    this._pendingWrites.add(task)
+    task.then(() => this._pendingWrites.delete(task), error => {
+      this._pendingWrites.delete(task)
+      this._writeErrors.push(error.code || 'database_write_failed')
+      if (this._writeErrors.length > 10) this._writeErrors.shift()
+      console.error(JSON.stringify({event:'request_log_persistence_failed',code:error.code || 'database_write_failed'}))
+    })
+    return task
+  }
+
+  async flush() {
+    while (this._pendingWrites.size) await Promise.allSettled([...this._pendingWrites])
+    if (this._writeErrors.length) throw new Error('Request log persistence failed; inspect request_log_persistence_failed events')
   }
 
   /** Optional legacy JSONL mirror for external log collectors. */
@@ -650,66 +667,66 @@ export class RequestLogStore {
     return (items || []).filter((row) => !row.error_class || !blocked.has(row.error_class))
   }
 
-  listNormal({ limit = 50, ...filters } = {}) {
-    return this.queryNormal({ limit, ...filters }).items
+  async listNormal({ limit = 50, ...filters } = {}) {
+    return (await this.queryNormal({ limit, ...filters })).items
   }
 
   /** Filtered + paginated query with total (panel). Default hides muted classes. */
-  queryNormal(opts = {}) {
+  async queryNormal(opts = {}) {
     const exclude = this._mutedExclude(opts)
-    const result = this.repo.query({ ...opts, exclude_error_class: exclude })
+    const result = (await this.repo.query({ ...opts, exclude_error_class: exclude }))
     result.items = this._dropMuted(result.items, exclude)
     return result
   }
 
-  exportRows(opts = {}) {
+  async exportRows(opts = {}) {
     const limit = Math.max(1, Math.min(5000, Number(opts.limit) || 2000))
-    return this.queryNormal({ ...opts, limit, offset: 0, maxLimit: 5000 })
+    return (await this.queryNormal({ ...opts, limit, offset: 0, maxLimit: 5000 }))
   }
 
   /** Aggregated stats for charts. */
-  aggregate(opts = {}) {
-    return this.repo.aggregate(opts)
+  async aggregate(opts = {}) {
+    return (await this.repo.aggregate(opts))
   }
 
-  totals() {
-    return this.repo.totals()
+  async totals() {
+    return (await this.repo.totals())
   }
 
-  hasSuccessfulRequest(opts = {}) {
-    return this.repo.hasSuccessfulRequest(opts)
+  async hasSuccessfulRequest(opts = {}) {
+    return (await this.repo.hasSuccessfulRequest(opts))
   }
 
-  billingStats(opts = {}) {
-    return this.repo.billingStats(opts)
+  async billingStats(opts = {}) {
+    return (await this.repo.billingStats(opts))
   }
 
-  ownerBilling(opts = {}) {
-    return this.repo.ownerBilling(opts)
+  async ownerBilling(opts = {}) {
+    return (await this.repo.ownerBilling(opts))
   }
 
-  costByModel(opts = {}) {
-    return this.repo.costByModel(opts)
+  async costByModel(opts = {}) {
+    return (await this.repo.costByModel(opts))
   }
 
-  vmUsageStats(opts = {}) {
-    return this.repo.vmUsageStats(opts)
+  async vmUsageStats(opts = {}) {
+    return (await this.repo.vmUsageStats(opts))
   }
 
-  keyUsageStats(opts = {}) {
-    return this.repo.keyUsageStats(opts)
+  async keyUsageStats(opts = {}) {
+    return (await this.repo.keyUsageStats(opts))
   }
 
   /** Windowed SLA / QPS / TTFT snapshot for overview + log analysis. */
-  windowStats(opts = {}) {
-    return this.repo.windowStats(opts)
+  async windowStats(opts = {}) {
+    return (await this.repo.windowStats(opts))
   }
 
-  protocolEntryStats(opts = {}) {
-    return this.repo.protocolEntryStats(opts)
+  async protocolEntryStats(opts = {}) {
+    return (await this.repo.protocolEntryStats(opts))
   }
 
-  listDebug({
+  async listDebug({
     limit = 20,
     exclude_error_class = null,
     include_muted = false,
@@ -718,58 +735,49 @@ export class RequestLogStore {
   } = {}) {
     const exclude = this._mutedExclude({ exclude_error_class, include_muted, error_class })
     const n = Math.max(1, Math.min(100, Number(limit) || 20))
-    const pool = this.repo.listDebug({ limit: exclude ? Math.min(200, n * 15) : n, owner_user_id })
+    const pool = (await this.repo.listDebug({ limit: exclude ? Math.min(200, n * 15) : n, owner_user_id }))
     const items = error_class ? pool.filter((row) => row.error_class === error_class) : this._dropMuted(pool, exclude)
     return items.slice(0, n)
   }
 
-  getDebug(requestId, { owner_user_id = null } = {}) {
+  async getDebug(requestId, { owner_user_id = null } = {}) {
     if (!requestId) return null
-    const rec = this.repo.getDebug(requestId) || this.repo.getByRequestId(requestId)
+    const rec = (await this.repo.getDebug(requestId)) || (await this.repo.getByRequestId(requestId))
     if (!rec) return null
-    if (owner_user_id && !this.repo.belongsToOwner(requestId, owner_user_id)) return null
+    if (owner_user_id && !(await this.repo.belongsToOwner(requestId, owner_user_id))) return null
     return rec
   }
 
-  snapshot() {
+  async snapshot() {
     return {
       mode: this.mode,
-      retain_days: this.retainDays,
-      debug_retain_days: this.debugRetainDays,
-      max_mb: this.maxMb,
+      retention_policy: 'permanent',
+      retain_days: null,
+      debug_retain_days: null,
+      max_mb: 0,
       muted_error_classes: this.mutedErrorClasses.slice(),
       recent_normal: this._mem.length,
-      backend: 'sqlite',
+      backend: 'postgresql',
       jsonl_mirror: this.jsonlMirror,
-      total_rows: (() => {
+      total_rows: (await (async () => {
         try {
-          return this.repo.count()
+          return (await this.repo.count())
         } catch {
           return null
         }
-      })(),
+      })()),
     }
   }
 
-  /** Retention: delete rows older than retain windows, then enforce max_mb. */
-  cleanup() {
-    try {
-      this.repo.cleanup({
-        retainDays: this.retainDays,
-        debugRetainDays: this.debugRetainDays,
-        maxBytes: this.maxMb > 0 ? this.maxMb * 1024 * 1024 : 0,
-      })
-    } catch {}
-    this._cleanupLegacyFiles(this.retainDays, this.root)
-    this._cleanupLegacyFiles(this.debugRetainDays, path.join(this.root, 'debug'))
-  }
+  /** Permanent retention. No age or capacity deletion is performed. */
+  async cleanup() { return await this.repo.cleanup() }
 
   startCleanupScheduler({ intervalMs = CLEANUP_INTERVAL_MS } = {}) {
     this.stopCleanupScheduler()
     const ms = Math.max(60_000, Number(intervalMs) || CLEANUP_INTERVAL_MS)
-    const run = () => {
+    const run = async () => {
       try {
-        this.cleanup()
+        await this.cleanup()
       } catch {}
     }
     this._cleanupTimer = setInterval(run, ms)
@@ -781,18 +789,7 @@ export class RequestLogStore {
     this._cleanupTimer = null
   }
 
-  _cleanupLegacyFiles(days, dir) {
-    const cutoff = Date.now() - days * 86400_000
-    try {
-      if (!fs.existsSync(dir)) return
-      for (const name of fs.readdirSync(dir)) {
-        if (!/^\d{4}-\d{2}-\d{2}/.test(name)) continue
-        const dayMs = Date.parse(name.slice(0, 10) + 'T00:00:00Z')
-        if (!Number.isFinite(dayMs) || dayMs >= cutoff) continue
-        fs.rmSync(path.join(dir, name), { recursive: true, force: true })
-      }
-    } catch {}
-  }
+
 }
 
 const EXPORT_COLUMNS = [

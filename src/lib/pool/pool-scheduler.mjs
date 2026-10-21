@@ -391,7 +391,7 @@ export class PoolScheduler extends EventEmitter {
     const blocked = new Set(excluded)
     let stickyCleared = false
     let familyGated = false
-    const boundBefore = stickyKey ? this.stickyRouter?.resolve?.(stickyKey) : null
+    const boundBefore = stickyKey ? (await this.stickyRouter?.resolve?.(stickyKey)) : null
     const fail = (reason, candidates = [], available = [], waitPool = candidates) => {
       const waitMs = Date.now() - startedAt
       return {
@@ -440,21 +440,21 @@ export class PoolScheduler extends EventEmitter {
       const preferred = avoid?.size
         ? available.filter((candidate) => !avoid.has(candidate.accountId) && !avoid.has(candidate.vmId))
         : available
-      let selected = this.pick(preferred, {
+      let selected = (await this.pick(preferred, {
         stickyKey,
         eligible: candidates,
         spilled,
         stickyKeys,
         deviceVmId,
         familyVmId: familyGated ? null : familyVm,
-      })
+      }))
       if (this.lastStickyCleared) stickyCleared = true
       const reserveMisses = []
       const attempted = new Set()
       // Free capacity first: a sticky or preferred miss scans every other
       // candidate before anything waits. Borrowing never moves the durable pin.
       while (selected) {
-        const reservation = this.reserve(selected, { skipQuota: pinned, pinned })
+        const reservation = (await this.reserve(selected, { skipQuota: pinned, pinned }))
         if (reservation) return finishReserve(selected, reservation)
         reserveMisses.push({ ...selected, busy: true, waitReason: selected.waitReason || 'concurrency_limit' })
         attempted.add(selected.accountId)
@@ -463,12 +463,12 @@ export class PoolScheduler extends EventEmitter {
             !attempted.has(candidate.accountId) && !blocked.has(candidate.accountId) && !blocked.has(candidate.vmId),
         )
         if (!remaining.length) break
-        selected = this.pick(remaining, {
+        selected = (await this.pick(remaining, {
           stickyKey: null,
           eligible: candidates,
           deviceVmId,
           familyVmId: familyGated ? null : familyVm,
-        })
+        }))
       }
       const effectiveCandidates = reserveMisses.length
         ? candidates.map((candidate) => {
@@ -494,12 +494,12 @@ export class PoolScheduler extends EventEmitter {
       const now = Date.now()
       const wakeAts = waitPool.map((candidate) => Number(candidate.availableAt) || 0).filter((value) => value > now)
       const concurrencyWait = waitPool.some((candidate) => candidate.busy && stickyShouldWait(candidate.waitReason))
-      const waitPlan = this.resolveWaitPlan({
+      const waitPlan = (await this.resolveWaitPlan({
         candidates: waitPool,
         stickyKey,
         stickyCleared,
         requestDeadline: loopDeadline,
-      })
+      }))
       const waitDeadline = waitPlan?.deadline || loopDeadline
       if (wakeAts.length && Math.min(...wakeAts) >= waitDeadline && !concurrencyWait) {
         return fail('all_accounts_busy', waitCandidates, waitAvailable, waitPool)
@@ -595,13 +595,13 @@ export class PoolScheduler extends EventEmitter {
         // A grant can land while eligibility was being re-read.
         if (ticket?.granted) return finish(ticket.granted)
         if (familyVm && !candidates.some((candidate) => candidate.vmId === familyVm)) familyGated = true
-        const sticky = this.reconcileSticky({
+        const sticky = (await this.reconcileSticky({
           stickyKey,
           stickyKeys,
           eligible: candidates,
           spilled,
           familyVmId: familyGated ? null : familyVm,
-        })
+        }))
         if (sticky.cleared) stickyCleared = true
         const byVm = new Map(candidates.map((candidate) => [candidate.vmId, candidate]))
         if (ticket) ticket.candidates = byVm
@@ -630,7 +630,7 @@ export class PoolScheduler extends EventEmitter {
         if (seat) {
           if (!ticket) {
             if (!this.planner.hasConcWaiters(seat.vmId)) {
-              const granted = this.claimSeat(seatKey, byVm.get(seat.vmId), 'seat-held')
+              const granted = (await this.claimSeat(seatKey, byVm.get(seat.vmId), 'seat-held'))
               if (granted) return finish(granted)
             }
             if (!allowWait || now >= failoverDeadline) return fail('all_accounts_busy')
@@ -648,7 +648,7 @@ export class PoolScheduler extends EventEmitter {
         } else {
           const stickyVms = [familyGated ? '' : familyVm, deviceVm, sticky.vmId || ''].filter(Boolean)
           if (!ticket) {
-            const granted = this.openNewSeat(seatKey, candidates, { avoided, stickyVms })
+            const granted = (await this.openNewSeat(seatKey, candidates, { avoided, stickyVms }))
             if (granted) return finish(granted)
             if (!candidates.length) {
               const empty = emptyPoolFailure(model, candidates)
@@ -718,16 +718,16 @@ export class PoolScheduler extends EventEmitter {
   }
 
   /** Sticky VMs first (family, device, session), then the configured strategy. */
-  openNewSeat(seatKey, candidates, { avoided, stickyVms = [] }) {
+  async openNewSeat(seatKey, candidates, { avoided, stickyVms = [] }) {
     const openable = this.openableCandidates(candidates, avoided)
     if (!openable.length) return null
     for (const vmId of stickyVms) {
       const home = openable.find((candidate) => candidate.vmId === vmId)
-      const granted = home ? this.claimSeat(seatKey, home, 'sticky') : null
+      const granted = home ? (await this.claimSeat(seatKey, home, 'sticky')) : null
       if (granted) return granted
     }
     for (const candidate of this.planner.rank(openable)) {
-      const granted = this.claimSeat(seatKey, candidate, this.planner.strategy)
+      const granted = (await this.claimSeat(seatKey, candidate, this.planner.strategy))
       if (granted) return granted
     }
     return null
@@ -738,12 +738,12 @@ export class PoolScheduler extends EventEmitter {
    * the seat land together or not at all. The device's existing seat must be
    * on this VM; otherwise a new one opens only under cap and budget.
    */
-  claimSeat(seatKey, candidate, selectionReason) {
+  async claimSeat(seatKey, candidate, selectionReason) {
     if (!candidate || !grantable(candidate)) return null
     const current = this.planner.seatOf(seatKey)
     if (current && current.vmId !== candidate.vmId) return null
     if (!current && !this.planner.canOpen(candidate.vmId, candidate.seatCap, candidate.headroom)) return null
-    const reservation = this.reserve(candidate)
+    const reservation = (await this.reserve(candidate))
     if (!reservation) return null
     const seat =
       current ||
@@ -783,8 +783,8 @@ export class PoolScheduler extends EventEmitter {
       wake: null,
       accepts: (id) => ticket.kind === 'global' && ticket.candidates.has(id),
       vmIds: () => [...ticket.candidates.keys()],
-      tryGrant: (id) => {
-        const granted = this.claimSeat(ticket.seatKey, ticket.candidates.get(id), 'queued')
+      tryGrant: async (id) => {
+        const granted = (await this.claimSeat(ticket.seatKey, ticket.candidates.get(id), 'queued'))
         if (!granted) return false
         ticket.granted = granted
         return true
@@ -834,23 +834,23 @@ export class PoolScheduler extends EventEmitter {
    * sits in a cooldown that must rotate, releases the pin; capacity keeps it.
    * `spilled` homes keep their pin. Returns the VM the pin still points at.
    */
-  reconcileSticky({ stickyKey = null, stickyKeys = null, eligible = [], spilled = null, familyVmId = null } = {}) {
-    const bound = stickyKey ? this.stickyRouter?.resolve?.(stickyKey) : null
+  async reconcileSticky({ stickyKey = null, stickyKeys = null, eligible = [], spilled = null, familyVmId = null } = {}) {
+    const bound = stickyKey ? (await this.stickyRouter?.resolve?.(stickyKey)) : null
     if (!bound) return { cleared: false, vmId: null, match: null }
     const familyVm = familyVmId ? String(familyVmId).trim() : ''
     if (familyVm && bound.vmId !== familyVm && eligible.some((candidate) => candidate.vmId === familyVm)) {
       // The family home moved: this session follows it instead of keeping a stale pin.
-      this.releaseSticky(bound, stickyKey, stickyKeys)
+      await this.releaseSticky(bound, stickyKey, stickyKeys)
       return { cleared: true, vmId: null, match: null }
     }
     const match = eligible.find((candidate) => candidate.vmId === bound.vmId && candidate.accountId === bound.accountId)
     if (!match) {
-      if (!spilled?.has(bound.accountId)) this.releaseSticky(bound, stickyKey, stickyKeys)
+      if (!spilled?.has(bound.accountId)) await this.releaseSticky(bound, stickyKey, stickyKeys)
       return { cleared: true, vmId: null, match: null }
     }
     if (match.busy && !stickyShouldWait(match.waitReason, match.cooldownReason)) {
       // Auth / quota / pause cooldown: the conversation moves.
-      this.releaseSticky(bound, stickyKey, stickyKeys)
+      await this.releaseSticky(bound, stickyKey, stickyKeys)
       return { cleared: true, vmId: null, match: null }
     }
     return { cleared: false, vmId: bound.vmId, match }
@@ -866,7 +866,7 @@ export class PoolScheduler extends EventEmitter {
     quotaRequest = null,
   } = {}) {
     const now = Date.now()
-    this.runtimeRepo?.clearExpired?.(now)
+    await this.runtimeRepo?.clearExpired?.(now)
     const summaries = listVms(this.projectRoot)
     const candidates = []
     // Accounts dropped by an upstream 429 / 529 cooldown; an empty pool reports
@@ -887,7 +887,7 @@ export class PoolScheduler extends EventEmitter {
       if (!keyAllowsVm(keyScope, vm)) continue
       const accountId = accountIdOf(vm, this.projectRoot)
       if (!accountId || excluded.has(accountId) || excluded.has(vm.id)) continue
-      const state = this.runtimeRepo?.get?.(accountId) || null
+      const state = (await this.runtimeRepo?.get?.(accountId)) || null
       const eligibility = await this.checkEligibility({
         vm,
         accountId,
@@ -955,11 +955,11 @@ export class PoolScheduler extends EventEmitter {
     if (hardBlock) return { ok: false, reason: hardBlock.reason, until: hardBlock.until }
     let circuitProbeUntil = null
     if (!pinned) {
-      const circuit = this.unitCircuit?.inspect?.(accountId, now)
+      const circuit = (await this.unitCircuit?.inspect?.(accountId, now))
       if (circuit?.reason === 'circuit_open') return { ok: false, reason: circuit.reason, until: circuit.until }
       if (circuit?.reason === 'circuit_probe') circuitProbeUntil = circuit.until
     }
-    const gate = evaluateSlotGate(vm)
+    const gate = (await evaluateSlotGate(vm))
     if (!gate.ok && gate.reason !== 'no_credential') {
       // Master pin may test a slot taken out of the pool, but SOCKS is still mandatory.
       if (!(pinned && gate.reason === 'vm_unschedulable')) return gate
@@ -974,7 +974,7 @@ export class PoolScheduler extends EventEmitter {
         isSlotProxyDesynced(vm, this.projectRoot) &&
         vm.schedule_disabled_reason !== 'proxy_desynced'
       ) {
-        setVmSchedulable(this.projectRoot, vm.id, false, 'proxy_desynced')
+        await setVmSchedulable(this.projectRoot, vm.id, false, 'proxy_desynced')
       }
       return proxySync
     }
@@ -982,12 +982,12 @@ export class PoolScheduler extends EventEmitter {
     let headroom = null
     if (!pinned) {
       try {
-        account = this.accountQuota?.repo?.get?.(accountId) || null
+        account = (await this.accountQuota?.repo?.get?.(accountId)) || null
       } catch {}
-      const modelGate = slotAllowsModel({ vm, account, model })
+      const modelGate = (await slotAllowsModel({ vm, account, model }))
       if (!modelGate.ok) return modelGate
       if (account) {
-        this.syncQuotaSchedule(vm, account)
+        await this.syncQuotaSchedule(vm, account)
         if (this.projectRoot) {
           const live = getVm(this.projectRoot, vm.id)
           if (live) {
@@ -1038,7 +1038,7 @@ export class PoolScheduler extends EventEmitter {
             ev.reason === 'quota_refresh_failed' &&
             vm.schedule_disabled_reason !== 'disabled'
           ) {
-            setVmSchedulable(this.projectRoot, vm.id, false, 'quota_refresh_failed', { preserveStatus: true })
+            await setVmSchedulable(this.projectRoot, vm.id, false, 'quota_refresh_failed', { preserveStatus: true })
           }
           if (ev.key === 'cool') {
             // cooldown is a wait, not a hard skip — handled below
@@ -1058,10 +1058,10 @@ export class PoolScheduler extends EventEmitter {
     const workerStatus = await this.getWorkerHealth(this.executionContext(vm, accountId), { signal })
     const cred = evaluateCredentialEligibility({ vm, workerStatus, now })
     if (!cred.ok) return cred
-    state = this.runtimeRepo?.get?.(accountId) || state
+    state = (await this.runtimeRepo?.get?.(accountId)) || state
     if (isLeftoverGrantRevokeRuntime(state, vm)) {
       try {
-        this.runtimeRepo?.clearGrantRevokeCooldown?.(accountId, { vmId: vm.id })
+        await this.runtimeRepo?.clearGrantRevokeCooldown?.(accountId, { vmId: vm.id })
       } catch {}
       state = viewRuntimeWithoutLeftoverRevoke(state, vm)
     }
@@ -1070,7 +1070,7 @@ export class PoolScheduler extends EventEmitter {
     const leftoverNoRefreshPark = pinned && String(state?.cooldown_reason || '') === 'oauth_no_refresh'
     if (leftoverNoRefreshPark) {
       try {
-        this.runtimeRepo?.clearGrantRevokeCooldown?.(accountId, { vmId: vm.id })
+        await this.runtimeRepo?.clearGrantRevokeCooldown?.(accountId, { vmId: vm.id })
       } catch {}
       state = {
         ...state,
@@ -1102,15 +1102,15 @@ export class PoolScheduler extends EventEmitter {
         markWait(key === FABLE_FAMILY_KEY ? 'fable_cooldown' : 'model_cooldown', modelState.cooldown_until)
       }
     }
-    if (isFableModel(modelKey) && this.accountQuota?.fableWindowLimited?.(accountId)) {
-      const until = this.accountQuota.fableWindowResetAt?.(accountId)
+    if (isFableModel(modelKey) && (await this.accountQuota?.fableWindowLimited?.(accountId))) {
+      const until = (await this.accountQuota.fableWindowResetAt?.(accountId))
       markWait('fable_quota', until)
     }
     if (this.accountQuota?.weeklySplitOf) {
-      const split = this.accountQuota.weeklySplitOf(accountId)
+      const split = (await this.accountQuota.weeklySplitOf(accountId))
       const reason = splitBlocksModel(split, modelKey)
       if (reason) {
-        const until = this.accountQuota.weeklySplitResetAt?.(accountId, reason === 'fable_split' ? 'fable' : 'regular')
+        const until = (await this.accountQuota.weeklySplitResetAt?.(accountId, reason === 'fable_split' ? 'fable' : 'regular'))
         markWait(reason, until)
       }
     }
@@ -1124,14 +1124,14 @@ export class PoolScheduler extends EventEmitter {
     }
     let gateZone = null
     if (this.accountQuota && !pinned) {
-      const quotaGate = this.accountQuota.canAccept(accountId, { tier: vmTierOf(vm), quotaRequest })
+      const quotaGate = (await this.accountQuota.canAccept(accountId, { tier: vmTierOf(vm), quotaRequest }))
       if (!quotaGate.ok) {
         if (quotaGate.reason === 'concurrency_limit') markWait('concurrency_limit')
         else if (quotaGate.reason === 'rpm_limit') markWait('rpm_limit', quotaGate.detail?.reset_at)
         else if (quotaGate.reason === 'quota_band_inflight') markWait('quota_band_inflight')
         else return { ok: false, reason: quotaGate.reason || 'quota_gate' }
       }
-      gateZone = this.accountQuota.gateZoneOf?.(accountId, { tier: vmTierOf(vm) }) || null
+      gateZone = (await this.accountQuota.gateZoneOf?.(accountId, { tier: vmTierOf(vm) })) || null
     }
     // A sticky preference must not bypass exhausted kernel recovery.
     if (kernelFaults.has(vm.id)) return { ok: false, reason: 'kernel_faulted' }
@@ -1182,11 +1182,11 @@ export class PoolScheduler extends EventEmitter {
     }
     this.healthCache.set(exec.vmId, { at: now, value })
     if (this.runtimeRepo && exec.accountId) {
-      const prev = this.runtimeRepo.get?.(exec.accountId)
+      const prev = (await this.runtimeRepo.get?.(exec.accountId))
       const prevGen = Number(prev?.credential_generation) || 0
       const nextGen = Number(value?.credential?.generation) || 0
       const effectiveGen = Math.max(prevGen, nextGen)
-      this.runtimeRepo.upsert({
+      await this.runtimeRepo.upsert({
         account_id: exec.accountId,
         vm_id: exec.vmId,
         status: runtimeHealthStatus(value),
@@ -1206,10 +1206,10 @@ export class PoolScheduler extends EventEmitter {
       ) {
         try {
           const vmPath = String(exec.homeDir).replace(/\/cli-home\/?$/, '.json')
-          const mirrored = mirrorWorkerCredentialsToVm(vmPath, exec.homeDir)
+          const mirrored = (await mirrorWorkerCredentialsToVm(vmPath, exec.homeDir))
           const uuid = mirrored?.claude?.account_uuid || exec.accountId
           if (uuid && uuid !== exec.vmId) {
-            this.accountQuota?.rebindToVm?.(uuid, exec.vmId, { email: mirrored?.claude?.email })
+            await this.accountQuota?.rebindToVm?.(uuid, exec.vmId, { email: mirrored?.claude?.email })
           }
         } catch {}
       }
@@ -1219,14 +1219,14 @@ export class PoolScheduler extends EventEmitter {
           const leftoverOff =
             live?.schedule_disabled_reason === 'oauth_cleared' || live?.schedule_disabled_reason === 'oauth_no_refresh'
           if (leftoverOff && value.credential?.has_access && !live.claude?.refresh_error) {
-            setVmSchedulable(this.projectRoot, exec.vmId, true)
+            await setVmSchedulable(this.projectRoot, exec.vmId, true)
           }
         } catch {}
         // Leftover TTL must not wipe a 401 park. Only a newer generation is a rotation.
         if (prevGen > 0 && nextGen > prevGen) {
-          this.clearAuthCooldownFor(exec.vmId, exec.accountId)
+          await this.clearAuthCooldownFor(exec.vmId, exec.accountId)
           try {
-            clearVmAuthCooldown(vmJsonPath(this.projectRoot, exec.vmId))
+            await clearVmAuthCooldown(vmJsonPath(this.projectRoot, exec.vmId))
           } catch {}
         }
       }
@@ -1234,12 +1234,12 @@ export class PoolScheduler extends EventEmitter {
     return value
   }
 
-  clearAuthCooldownFor(vmId, accountId = null) {
+  async clearAuthCooldownFor(vmId, accountId = null) {
     const ids = [...new Set([accountId, vmId].filter(Boolean))]
     let cleared = false
     for (const id of ids) {
       try {
-        if (this.runtimeRepo?.clearAuthCooldown?.(id, { vmId })) cleared = true
+        if ((await this.runtimeRepo?.clearAuthCooldown?.(id, { vmId }))) cleared = true
       } catch {}
     }
     if (cleared) {
@@ -1251,12 +1251,12 @@ export class PoolScheduler extends EventEmitter {
   }
 
   /** Live ticket after import/login: drop leftover oauth_revoked park. */
-  clearGrantRevokeCooldownFor(vmId, accountId = null) {
+  async clearGrantRevokeCooldownFor(vmId, accountId = null) {
     const ids = [...new Set([accountId, vmId].filter(Boolean))]
     let cleared = false
     for (const id of ids) {
       try {
-        if (this.runtimeRepo?.clearGrantRevokeCooldown?.(id, { vmId })) cleared = true
+        if ((await this.runtimeRepo?.clearGrantRevokeCooldown?.(id, { vmId }))) cleared = true
       } catch {}
     }
     if (cleared) {
@@ -1268,9 +1268,9 @@ export class PoolScheduler extends EventEmitter {
   }
 
   /** Session leaves this VM: drop its alias keys. A device seat lives in the planner, not here. */
-  releaseSticky(bound, stickyKey, stickyKeys) {
+  async releaseSticky(bound, stickyKey, stickyKeys) {
     const keys = Array.isArray(stickyKeys) && stickyKeys.length ? stickyKeys : stickyKey ? [stickyKey] : []
-    for (const key of keys) this.stickyRouter?.unbind?.(key)
+    for (const key of keys) await this.stickyRouter?.unbind?.(key)
   }
 
   /**
@@ -1278,9 +1278,9 @@ export class PoolScheduler extends EventEmitter {
    * conversation pinned to it moves. In-flight leases keep their own release;
    * seats on it move with the device's next request.
    */
-  releaseAccountSessions({ accountId = null, vmId = null } = {}) {
+  async releaseAccountSessions({ accountId = null, vmId = null } = {}) {
     if (!accountId && !vmId) return 0
-    return this.stickyRouter?.unbindByAccount?.({ accountId, vmId }) || 0
+    return (await this.stickyRouter?.unbindByAccount?.({ accountId, vmId })) || 0
   }
 
   /**
@@ -1290,19 +1290,19 @@ export class PoolScheduler extends EventEmitter {
    * skipped only for capacity (kernel slot_busy). Their pin survives; the next
    * turn returns. Ties inside one priority/load level use the balanced order.
    */
-  pick(
+  async pick(
     candidates,
     { stickyKey, eligible = candidates, spilled = null, stickyKeys = null, deviceVmId = null, familyVmId = null } = {},
   ) {
     this.lastStickyCleared = false
     if (!candidates.length && !eligible?.length) return null
-    const sticky = this.reconcileSticky({
+    const sticky = (await this.reconcileSticky({
       stickyKey,
       stickyKeys,
       eligible: eligible || candidates,
       spilled,
       familyVmId,
-    })
+    }))
     this.lastStickyCleared = sticky.cleared
     let borrowed = false
     if (sticky.match) {
@@ -1354,7 +1354,7 @@ export class PoolScheduler extends EventEmitter {
       const empty = emptyPoolFailure(model, candidates)
       return { ok: false, code: empty.reason, retry_after_ms: empty.retry_after_ms }
     }
-    const bound = stickyKey ? this.stickyRouter?.resolve?.(stickyKey) : null
+    const bound = stickyKey ? (await this.stickyRouter?.resolve?.(stickyKey)) : null
     if (bound) {
       const match = candidates.find(
         (candidate) => candidate.vmId === bound.vmId && candidate.accountId === bound.accountId,
@@ -1411,7 +1411,7 @@ export class PoolScheduler extends EventEmitter {
    * release() is idempotent and hands freed concurrency to the VM's queue.
    * Seats are layered on top by claimSeat().
    */
-  reserve(candidate, { skipQuota = false, pinned = false } = {}) {
+  async reserve(candidate, { skipQuota = false, pinned = false } = {}) {
     const requestInflight = this.inflight.get(candidate.accountId) || 0
     if (!candidate.maxConcurrency || requestInflight >= candidate.maxConcurrency) return null
     const family = isFableModel(candidate.model) ? FABLE_FAMILY_KEY : null
@@ -1424,14 +1424,14 @@ export class PoolScheduler extends EventEmitter {
     ) {
       return null
     }
-    const quotaReservation = this.accountQuota?.tryAcquire?.(candidate.accountId, {
+    const quotaReservation = (await this.accountQuota?.tryAcquire?.(candidate.accountId, {
       skipGate: !!skipQuota,
       tier: vmTierOf(candidate.vm),
       quotaRequest: candidate.quotaRequest,
-    })
+    }))
     if (quotaReservation && !quotaReservation.ok) return null
     // A pin is an operator diagnostic: it reaches the slot without taking the probe.
-    const circuitHold = pinned ? null : this.unitCircuit?.admit?.(candidate.accountId)
+    const circuitHold = pinned ? null : (await this.unitCircuit?.admit?.(candidate.accountId))
     if (circuitHold && !circuitHold.ok) {
       if (quotaReservation) this.accountQuota?.release?.(candidate.accountId)
       return null
@@ -1469,12 +1469,12 @@ export class PoolScheduler extends EventEmitter {
     this.emit('change')
   }
 
-  markSuccess(candidate, { workerStatus = null, countUsage = true } = {}) {
+  async markSuccess(candidate, { workerStatus = null, countUsage = true } = {}) {
     const now = Date.now()
-    if (countUsage !== false) this.accountQuota?.noteBandSettled?.(candidate.accountId)
-    const prev = this.runtimeRepo?.get?.(candidate.accountId)
+    if (countUsage !== false) await this.accountQuota?.noteBandSettled?.(candidate.accountId)
+    const prev = (await this.runtimeRepo?.get?.(candidate.accountId))
     if (countUsage !== false) this.lastUsed.set(candidate.accountId, now)
-    this.runtimeRepo?.upsert?.({
+    await this.runtimeRepo?.upsert?.({
       account_id: candidate.accountId,
       vm_id: candidate.vmId,
       status: 'ready',
@@ -1488,13 +1488,13 @@ export class PoolScheduler extends EventEmitter {
     })
     if (this.projectRoot && candidate.vmId) {
       try {
-        clearVmAuthCooldown(vmJsonPath(this.projectRoot, candidate.vmId))
+        await clearVmAuthCooldown(vmJsonPath(this.projectRoot, candidate.vmId))
       } catch {}
     }
   }
 
-  markCooldown(candidate, { until, reason, model = null, status = 'cooldown' } = {}) {
-    this.runtimeRepo?.markCooldown?.(candidate.accountId, {
+  async markCooldown(candidate, { until, reason, model = null, status = 'cooldown' } = {}) {
+    await this.runtimeRepo?.markCooldown?.(candidate.accountId, {
       vmId: candidate.vmId,
       until,
       reason,
@@ -1503,7 +1503,7 @@ export class PoolScheduler extends EventEmitter {
     })
     if (isAuthCooldownReason(reason) && this.projectRoot && candidate.vmId) {
       try {
-        markVmAuthCooldown(vmJsonPath(this.projectRoot, candidate.vmId), {
+        await markVmAuthCooldown(vmJsonPath(this.projectRoot, candidate.vmId), {
           until,
           reason,
           generation:
@@ -1516,7 +1516,7 @@ export class PoolScheduler extends EventEmitter {
       } catch {}
     } else if (!model && isAccountRestrictionReason(reason) && this.projectRoot && candidate.vmId) {
       try {
-        markVmRestriction(vmJsonPath(this.projectRoot, candidate.vmId), { until, reason })
+        await markVmRestriction(vmJsonPath(this.projectRoot, candidate.vmId), { until, reason })
       } catch {}
     }
     this.healthCache.delete(candidate.vmId)
@@ -1588,8 +1588,8 @@ export class PoolScheduler extends EventEmitter {
     return Math.max(0, Math.min(base, failoverLeft, planLeft))
   }
 
-  resolveWaitPlan({ candidates = [], stickyKey = null, stickyCleared = false, requestDeadline = null } = {}) {
-    const bound = !stickyCleared && stickyKey ? this.stickyRouter?.resolve?.(stickyKey) : null
+  async resolveWaitPlan({ candidates = [], stickyKey = null, stickyCleared = false, requestDeadline = null } = {}) {
+    const bound = !stickyCleared && stickyKey ? (await this.stickyRouter?.resolve?.(stickyKey)) : null
     if (bound) {
       const match = candidates.find(
         (candidate) => candidate.vmId === bound.vmId && candidate.accountId === bound.accountId,
@@ -1695,10 +1695,10 @@ export class PoolScheduler extends EventEmitter {
    * Never flips the operator switch. Leftover quota-off that is not
    * schedule_manual is restored to on + restriction.
    */
-  syncQuotaSchedule(vm, account = null) {
+  async syncQuotaSchedule(vm, account = null) {
     if (!this.projectRoot || !vm?.id) return { action: 'keep', reason: null }
     const accountId = account?.account_id || vm.claude?.account_uuid || vm.id
-    account = account || this.accountQuota?.repo?.get?.(accountId) || null
+    account = account || (await this.accountQuota?.repo?.get?.(accountId)) || null
     if (!account) return { action: 'keep', reason: null }
     const now = Date.now()
     const lastUsedAt = this.lastUsed.get(accountId) || account.last_used_at || 0
@@ -1740,9 +1740,9 @@ export class PoolScheduler extends EventEmitter {
     const file = vmJsonPath(this.projectRoot, vm.id)
     if (!ev.accept && isQuotaWindowReason(ev.reason)) {
       const until = Number(ev.until) || now + 5 * 60_000
-      this.applyQuotaRestriction(vm, accountId, { until, reason: ev.reason, file })
+      await this.applyQuotaRestriction(vm, accountId, { until, reason: ev.reason, file })
       if (leftover) {
-        setVmSchedulable(this.projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
+        await setVmSchedulable(this.projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
         vm.schedulable = true
         vm.schedule_disabled_reason = null
         return { action: 'restore', reason: ev.reason, until }
@@ -1750,9 +1750,9 @@ export class PoolScheduler extends EventEmitter {
       return { action: 'restrict', reason: ev.reason, until }
     }
     if (ev.accept) {
-      this.clearQuotaRestriction(vm, accountId, file)
+      await this.clearQuotaRestriction(vm, accountId, file)
       if (leftover) {
-        setVmSchedulable(this.projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
+        await setVmSchedulable(this.projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
         vm.schedulable = true
         vm.schedule_disabled_reason = null
         return { action: 'enable', reason: null }
@@ -1760,7 +1760,7 @@ export class PoolScheduler extends EventEmitter {
       return { action: 'clear', reason: null }
     }
     if (leftover) {
-      setVmSchedulable(this.projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
+      await setVmSchedulable(this.projectRoot, vm.id, true, null, { preserveStatus: true, source: 'force' })
       vm.schedulable = true
       vm.schedule_disabled_reason = null
       return { action: 'restore', reason: ev.reason || null }
@@ -1768,14 +1768,14 @@ export class PoolScheduler extends EventEmitter {
     return { action: 'keep', reason: ev.reason || null }
   }
 
-  applyQuotaRestriction(vm, accountId, { until, reason, file }) {
-    this.runtimeRepo?.markCooldown?.(accountId, {
+  async applyQuotaRestriction(vm, accountId, { until, reason, file }) {
+    await this.runtimeRepo?.markCooldown?.(accountId, {
       vmId: vm.id,
       until,
       reason,
       status: 'cooldown',
     })
-    const next = markVmRestriction(file, { until, reason })
+    const next = (await markVmRestriction(file, { until, reason }))
     if (next) {
       vm.claude = next.claude || vm.claude
       vm.temp_unschedulable_until = next.temp_unschedulable_until
@@ -1784,8 +1784,8 @@ export class PoolScheduler extends EventEmitter {
     this.scheduleCooldownWake(accountId, until)
   }
 
-  clearQuotaRestriction(vm, accountId, file) {
-    const state = this.runtimeRepo?.get?.(accountId)
+  async clearQuotaRestriction(vm, accountId, file) {
+    const state = (await this.runtimeRepo?.get?.(accountId))
     // A live 429 block lifts only on its reset or an `allowed` header, never
     // from a passive Extra re-read (sub2api ClearRateLimit via UpdateSessionWindow).
     if (hardBlockOf(state)) return false
@@ -1793,7 +1793,7 @@ export class PoolScheduler extends EventEmitter {
     if (reason && !isAccountRestrictionReason(reason) && !isQuotaWindowReason(reason)) return false
     if (isAuthCooldownReason(reason)) return false
     if (state && isAccountRestrictionReason(state.cooldown_reason)) {
-      this.runtimeRepo?.upsert?.({
+      await this.runtimeRepo?.upsert?.({
         account_id: accountId,
         vm_id: vm.id,
         cooldown_until: null,
@@ -1801,7 +1801,7 @@ export class PoolScheduler extends EventEmitter {
         status: 'ready',
       })
     }
-    const next = clearVmQuotaRestriction(file)
+    const next = (await clearVmQuotaRestriction(file))
     if (next) {
       vm.claude = next.claude || vm.claude
       delete vm.temp_unschedulable_until

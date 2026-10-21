@@ -152,7 +152,7 @@ const GROUPS: { title: string; items: GuideItem[] }[] = [
         title: '数据库',
         view: 'database',
         to: '/database',
-        summary: 'SQLite 体积和日志占用。',
+        summary: '数据库体积、连接池和查询延迟。',
       },
     ],
   },

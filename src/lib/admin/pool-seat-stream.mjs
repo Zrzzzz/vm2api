@@ -16,7 +16,7 @@ export const SEAT_STREAM_PING_MS = 15_000
  * @param {import('../vm/proxy-pool.mjs').ProxyPool | null} [opts.proxyPool]
  * @param {(() => Set<string>) | null} [opts.visibleVmIds] Null = every VM (admin / super).
  */
-export function servePoolSeatStream({
+export async function servePoolSeatStream({
   req,
   res,
   getScheduler,
@@ -49,10 +49,10 @@ export function servePoolSeatStream({
     }
     res.write(`event: seats\ndata: ${JSON.stringify(frame)}\n\n`)
   }
-  const sendProxies = () => {
+  const sendProxies = async () => {
     proxyTimer = null
     if (closed || !proxyPool) return
-    const frame = { proxies: scope(proxyPool.liveStatusByVm?.() || {}), ts: Date.now() }
+    const frame = { proxies: scope((await proxyPool.liveStatusByVm?.()) || {}), ts: Date.now() }
     res.write(`event: proxy\ndata: ${JSON.stringify(frame)}\n\n`)
   }
   // Both run inside acquire/release and probe paths: only arm a timer, never throw.
@@ -76,7 +76,7 @@ export function servePoolSeatStream({
   bind()
   proxyPool?.on?.('change', onProxyChange)
   sendSeats()
-  sendProxies()
+  await sendProxies()
   const ping = setInterval(() => {
     if (closed) return
     if (bind()) onSeatChange()

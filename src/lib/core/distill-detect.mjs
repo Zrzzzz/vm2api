@@ -431,7 +431,7 @@ export function loadDistillRules(file) {
   }
 }
 
-export function saveDistillRules(file, patch) {
+export async function saveDistillRules(file, patch) {
   const cur = loadDistillRules(file)
   const src = patch && typeof patch === 'object' ? patch : {}
   const merged = {
@@ -455,7 +455,7 @@ export function saveDistillRules(file, patch) {
     merged.hard_needles = (cur.hard_needles || []).filter((item) => submitted.has(String(item).trim().toLowerCase()))
   }
   const next = normalizeDistillRules(merged)
-  atomicWriteJson(file, next)
+  await atomicWriteJson(file, next)
   return next
 }
 

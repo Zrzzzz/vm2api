@@ -191,18 +191,14 @@ export function createHandleProtocol(deps) {
     return disjointOpenaiUsage(next)
   }
 
-  function attachPricing(logBag, { managedKey = null, rateMultiplier = 1, bill = false } = {}) {
+  async function attachPricing(logBag, { managedKey = null, rateMultiplier = 1, bill = false } = {}) {
     const model = logBag.upstream_model || logBag.model
     const priced = costColumnsFromUsage(logBag.usage || {}, model)
     Object.assign(logBag, priced)
     if (!bill || !managedKey) return
-    try {
-      apiKeyStore.recordUsage(managedKey, logBag.usage || {}, {
-        model,
-        rateMultiplier,
-        officialCost: priced.total_cost,
-      })
-    } catch {}
+    await apiKeyStore.recordUsage(managedKey, logBag.usage || {}, {
+      model, rateMultiplier, officialCost: priced.total_cost,
+    })
   }
 
   function finishClientCancel(res, result, logBag) {
@@ -277,7 +273,7 @@ export function createHandleProtocol(deps) {
     let jev
     try {
       const settings = deps.settings || new SettingsRepo()
-      jev = readJevConfig((key, fallback) => settings.get(key, fallback))
+      jev = readJevConfig(async (key, fallback) => (await settings.get(key, fallback)))
     } catch {
       jev = readJevConfig()
     }
@@ -292,7 +288,7 @@ export function createHandleProtocol(deps) {
     let jev
     try {
       const settings = deps.settings || new SettingsRepo()
-      jev = readJevConfig((key, fallback) => settings.get(key, fallback))
+      jev = readJevConfig(async (key, fallback) => (await settings.get(key, fallback)))
     } catch {
       jev = readJevConfig()
     }
@@ -303,7 +299,7 @@ export function createHandleProtocol(deps) {
       official,
       zeroInject: isZeroInjectMode(),
       distillRules: cfg.distill,
-      policy: refusalPolicy(),
+      policy: (await refusalPolicy()),
       jev,
       repo: refusalRepo(),
       devices: deviceRepo(),
@@ -336,6 +332,7 @@ export function createHandleProtocol(deps) {
     return inject === 'zero' || preset === 'zero'
   }
 
+  /** @returns {InstanceType<typeof RefusalGuardsRepo>} */
   function refusalRepo() {
     if (deps.refusalGuards) return deps.refusalGuards
     try {
@@ -345,15 +342,16 @@ export function createHandleProtocol(deps) {
     }
   }
 
-  function refusalEnabled() {
+  async function refusalEnabled() {
     try {
       const settings = deps.settings || new SettingsRepo()
-      return isRefusalGuardEnabled((key, fallback) => settings.get(key, fallback))
+      return (await isRefusalGuardEnabled(async (key, fallback) => (await settings.get(key, fallback))))
     } catch {
-      return isRefusalGuardEnabled()
+      return (await isRefusalGuardEnabled())
     }
   }
 
+  /** @returns {InstanceType<typeof RefusalDeviceBlocksRepo>} */
   function deviceRepo() {
     if (deps.refusalDevices) return deps.refusalDevices
     try {
@@ -363,26 +361,26 @@ export function createHandleProtocol(deps) {
     }
   }
 
-  function banRefusalDevice(deviceId, { requestId, fingerprint, reason }) {
+  async function banRefusalDevice(deviceId, { requestId, fingerprint, reason }) {
     if (!deviceId) return
     try {
-      deviceRepo()?.block?.({ deviceId, requestId, fingerprint, reason })
+      await deviceRepo()?.block?.({ deviceId, requestId, fingerprint, reason })
     } catch {
       /* the prompt block still stands */
     }
   }
 
-  function refusalPolicy() {
+  async function refusalPolicy() {
     try {
       const settings = deps.settings || new SettingsRepo()
-      return refusalGuardPolicy((key, fallback) => settings.get(key, fallback))
+      return (await refusalGuardPolicy(async (key, fallback) => (await settings.get(key, fallback))))
     } catch {
-      return refusalGuardPolicy()
+      return (await refusalGuardPolicy())
     }
   }
 
-  function rememberRefusal({ inbound, body, headers, result, logBag, requestId }) {
-    if (!refusalEnabled()) return
+  async function rememberRefusal({ inbound, body, headers, result, logBag, requestId }) {
+    if (!(await refusalEnabled())) return
     const contentRefusal = isUpstreamRefusal(result, logBag)
     const timed = result?.policy?.rememberRefusal === true
     if (!contentRefusal && !timed) return
@@ -391,7 +389,7 @@ export function createHandleProtocol(deps) {
     const fingerprint = refusalFingerprint(body, inbound)
     try {
       const ttl = Number(result?.policy?.refusalTtlMs) || 0
-      repo.remember({
+      await repo.remember({
         fingerprint,
         model: body?.model || inbound?.model || '',
         requestId,
@@ -403,8 +401,8 @@ export function createHandleProtocol(deps) {
     } catch {
       return
     }
-    if (!contentRefusal || !refusalPolicy().device_block_enabled) return
-    banRefusalDevice(inboundRefusalDeviceId({ inbound, body, headers }), {
+    if (!contentRefusal || !(await refusalPolicy()).device_block_enabled) return
+    await banRefusalDevice(inboundRefusalDeviceId({ inbound, body, headers }), {
       requestId,
       fingerprint,
       reason: 'refusal_guard',
@@ -494,20 +492,20 @@ export function createHandleProtocol(deps) {
       outbound_session_id: null,
     }
     res.on('finish', () => {
-      try {
+      requestLog.trackWrite(async () => {
         const groupId = req.apiKeyRecord?.group_id ?? 1
-        requestLog.finish(logCtx, {
+        await requestLog.finish(logCtx, {
           status: res.statusCode || 0,
           api_key_kind: req.apiKeyKind || null,
           api_key_id: req.apiKeyRecord?.id || null,
           user_id: req.apiKeyRecord?.user_id ?? null,
           group_id: groupId,
-          rate_multiplier: deps.groupsRepo.rateMultiplier(groupId),
+          rate_multiplier: (await deps.groupsRepo.rateMultiplier(groupId)),
           ...logBag,
         })
-      } catch {}
+      })
     })
-    if (!requireAuth(req, res)) {
+    if (!(await requireAuth(req, res))) {
       logBag.error_code = req.authError?.code || ErrorCode.INVALID_API_KEY
       logBag.error_message = req.authError?.message || 'Invalid credentials'
       logBag.api_key_presented = presentedApiKeyForLog(req.presentedApiKey)
@@ -649,7 +647,7 @@ export function createHandleProtocol(deps) {
       logBag.error_message = errorResult.body?.error?.message || null
       return json(res, errorResult.status, errorResult.body)
     }
-    const keyScope = keyScopeFromRequest(req)
+    const keyScope = (await keyScopeFromRequest(req))
     const poolDenial = vmPoolDenial(keyScope)
     if (poolDenial) {
       stats.errors++
@@ -786,7 +784,7 @@ export function createHandleProtocol(deps) {
       )
     }
     if (inferenceBackend !== 'api') {
-      const modelCheck = validateOfficialModel(ctx.body?.model)
+      const modelCheck = (await validateOfficialModel(ctx.body?.model))
       if (!modelCheck.ok) {
         stats.errors++
         const errorResult = mapModelError(modelCheck)
@@ -800,11 +798,11 @@ export function createHandleProtocol(deps) {
 
     const hdrRewrite = String(req.headers['x-kin-rewrite'] || '') === '1'
     const rewriteEnabled = cfg.rewrite.enabled || hdrRewrite
-    const converted = toClaudeMessages(protocol, ctx.body, {
+    const converted = (await toClaudeMessages(protocol, ctx.body, {
       rewrite: rewriteEnabled,
       model_map: false,
       strict_passthrough: String(req.headers['x-kin-strict-passthrough'] || '') === '1',
-    })
+    }))
     stats.requests++
     stats.by_route[protocol] = (stats.by_route[protocol] || 0) + 1
     if (converted.mode === 'passthrough') stats.passthrough++
@@ -819,7 +817,7 @@ export function createHandleProtocol(deps) {
     if (requestContext) {
       logBag.classifier = classifierRequestSummary(inbound, ctx.body, requestContext)
       try {
-        ctx.body = prepareClassifierBody(ctx.body)
+        ctx.body = (await prepareClassifierBody(ctx.body))
         logBag.classifier = classifierRequestSummary(inbound, ctx.body, requestContext)
       } catch (error) {
         if (!error.body?.error) throw error
@@ -891,13 +889,13 @@ export function createHandleProtocol(deps) {
       ? null
       : resolveSeatIdentity({ inbound, body: ctx.body, headers: req.headers, clientIp: clientIp(req) }).key
     const sessionKeys = stickyRouter?.sessionPoolKeys
-      ? stickyRouter.sessionPoolKeys(req, inbound, {
+      ? (await stickyRouter.sessionPoolKeys(req, inbound, {
           sessionId: inboundIdentity.sessionId,
           deviceId: stickyDeviceId,
           migrate: !isProbe,
-        })
+        }))
       : {
-          stickyKey: stickyRouter?.extractPoolKey?.(req, inbound, { platform: 'anthropic' }) || null,
+          stickyKey: (await stickyRouter?.extractPoolKey?.(req, inbound, { platform: 'anthropic' })) || null,
           stickyKeys: stickyRouter?.collectPoolKeys?.(req, inbound, { platform: 'anthropic' }) || [],
         }
     const stickyKey = sessionKeys.stickyKey || null
@@ -910,11 +908,11 @@ export function createHandleProtocol(deps) {
     const familyKey = !familySession
       ? null
       : stickyRouter?.familyPoolKey
-        ? stickyRouter.familyPoolKey(req, familySession, { trusted: familyTrusted })
+        ? (await stickyRouter.familyPoolKey(req, familySession, { trusted: familyTrusted }))
         : stickyRouter?.familyKey?.(req, familySession, 'anthropic') || null
-    const familyVmId = familyKey ? stickyRouter?.resolve?.(familyKey)?.vmId || null : null
+    const familyVmId = familyKey ? (await stickyRouter?.resolve?.(familyKey))?.vmId || null : null
     const stickyBound =
-      stickyKey && typeof stickyRouter?.resolve === 'function' ? stickyRouter.resolve(stickyKey) : null
+      stickyKey && typeof stickyRouter?.resolve === 'function' ? (await stickyRouter.resolve(stickyKey)) : null
     const outboundSessionId = resolveOutboundSessionId(callerSession, {
       ...sessionContext,
       accountId: stickyBound?.accountId || '',
@@ -991,7 +989,7 @@ export function createHandleProtocol(deps) {
     if (inferenceBackend === 'api') {
       const managedKey = req.apiKeyRecord || null
       if (managedKey) {
-        const gate = apiKeyStore.acquire(managedKey)
+        const gate = (await apiKeyStore.acquire(managedKey))
         if (!gate.ok) {
           stats.errors++
           return json(
@@ -1067,9 +1065,9 @@ export function createHandleProtocol(deps) {
         ? Math.max(0, result.firstTokenAt - logCtx.t0)
         : (result?.ttftMs ?? null)
       logBag.final_state = result?.terminalState || null
-      attachPricing(logBag, {
+      await attachPricing(logBag, {
         managedKey,
-        rateMultiplier: deps.groupsRepo.rateMultiplier(managedKey?.group_id ?? 1),
+        rateMultiplier: (await deps.groupsRepo.rateMultiplier(managedKey?.group_id ?? 1)),
         bill: !!(result?.ok && managedKey),
       })
       if (clientStream) {
@@ -1108,7 +1106,7 @@ export function createHandleProtocol(deps) {
     const streamIdleTimeoutMs = resolveStreamIdleTimeoutMs(getRouting(), cfg)
     const managedKey = req.apiKeyRecord || null
     if (managedKey) {
-      const gate = apiKeyStore.acquire(managedKey)
+      const gate = (await apiKeyStore.acquire(managedKey))
       if (!gate.ok) {
         stats.errors++
         return json(
@@ -1210,7 +1208,7 @@ export function createHandleProtocol(deps) {
               logBag,
               requestId: logCtx.request_id,
               res,
-              account: scopeAccountFromVm(selected?.vm, findAccount(accountQuota, selected?.vm)?.unified),
+              account: scopeAccountFromVm(selected?.vm, (await findAccount(accountQuota, selected?.vm))?.unified),
             })
             if (blocked) {
               const error = new Error('response already sent')
@@ -1264,7 +1262,7 @@ export function createHandleProtocol(deps) {
             // Classifier keeps its own system. Official family keeps its inbound
             // system only when the protocol tab turns passthrough on.
             const panelRewrite = !requestContext && !officialPassthrough
-            hopBody = prepareCliHopBody(repaired ? body : hopBody, {
+            hopBody = (await prepareCliHopBody(repaired ? body : hopBody, {
               stream: upstreamStream,
               repaired,
               cacheTtl: requestedCacheTtl,
@@ -1272,7 +1270,7 @@ export function createHandleProtocol(deps) {
               preserveSystem: officialPassthrough,
               preserveThinkingBlocks: preserveCliHopThinkingBlocks,
               preserveCallerEnvironment,
-            })
+            }))
             hopBody = await materializeRemoteImageSources(hopBody)
             if (panelRewrite) {
               hopBody = applyCrsUnofficialPersona(hopBody, {
@@ -1359,7 +1357,7 @@ export function createHandleProtocol(deps) {
           logBag.persona_preset = resolveSlotPersonaPreset(selected.vm, routingNow)
           logBag.official_cc_inference = 'http'
           logBag.provider = 'anthropic_api'
-          const prepared = prepareOutboundEnvelope({
+          const prepared = (await prepareOutboundEnvelope({
             requestContext,
             canonicalBody: hopBody,
             inbound,
@@ -1390,7 +1388,7 @@ export function createHandleProtocol(deps) {
             credentialMode: credMode,
             authScheme: isApiKeyMode(credMode) ? 'apikey' : 'oauth',
             want1m,
-          })
+          }))
           if (logCtx.capture_outbound) logBag.outbound_body = prepared.body
           logBag.outbound_headers = redactHeaders(prepared.headers || {})
           logBag.outbound_summary = summarizeBody(prepared.body)
@@ -1552,7 +1550,7 @@ export function createHandleProtocol(deps) {
       logBag.error_code = logBag.error_code || 'content_filter_refusal'
       logBag.error_message = logBag.error_message || 'upstream stop_reason=refusal'
     }
-    rememberRefusal({ inbound, body: ctx.body, headers: req.headers, result, logBag, requestId: logCtx.request_id })
+    await rememberRefusal({ inbound, body: ctx.body, headers: req.headers, result, logBag, requestId: logCtx.request_id })
 
     if (result?.accountId) {
       try {
@@ -1566,7 +1564,7 @@ export function createHandleProtocol(deps) {
           .join('\n')
         const headers = extraHeadersFromLimitError(limitText, result.headers || {})
         const exhausted = isAccountQuotaExhausted(result, limitText)
-        accountQuota.ingestHeaders(result.accountId, headers, healthReal ? null : logBag.usage, {
+        await accountQuota.ingestHeaders(result.accountId, headers, healthReal ? null : logBag.usage, {
           exhausted,
           status: result.status,
           countRequest: !healthReal,
@@ -1585,9 +1583,9 @@ export function createHandleProtocol(deps) {
           if (vm) pool.syncQuotaSchedule(vm)
         }
       } catch {}
-      attachPricing(logBag, {
+      await attachPricing(logBag, {
         managedKey,
-        rateMultiplier: deps.groupsRepo.rateMultiplier(managedKey?.group_id ?? 1),
+        rateMultiplier: (await deps.groupsRepo.rateMultiplier(managedKey?.group_id ?? 1)),
         bill: !!managedKey,
       })
     }
@@ -1620,7 +1618,7 @@ export function createHandleProtocol(deps) {
           res.write(buildAnthropicSseError(mapped.body?.error || {}))
         }
       }
-      rememberRefusal({ inbound, body: ctx.body, headers: req.headers, result, logBag, requestId: logCtx.request_id })
+      await rememberRefusal({ inbound, body: ctx.body, headers: req.headers, result, logBag, requestId: logCtx.request_id })
       return res.end()
     }
 
@@ -1677,20 +1675,20 @@ export function createHandleProtocol(deps) {
       final_state: null,
     }
     res.on('finish', () => {
-      try {
+      requestLog.trackWrite(async () => {
         const groupId = req.apiKeyRecord?.group_id ?? 1
-        requestLog.finish(logCtx, {
+        await requestLog.finish(logCtx, {
           status: res.statusCode || 0,
           api_key_kind: req.apiKeyKind || null,
           api_key_id: req.apiKeyRecord?.id || null,
           user_id: req.apiKeyRecord?.user_id ?? null,
           group_id: groupId,
-          rate_multiplier: deps.groupsRepo.rateMultiplier(groupId),
+          rate_multiplier: (await deps.groupsRepo.rateMultiplier(groupId)),
           ...logBag,
         })
-      } catch {}
+      })
     })
-    if (!requireAuth(req, res)) {
+    if (!(await requireAuth(req, res))) {
       logBag.error_code = req.authError?.code || ErrorCode.INVALID_API_KEY
       logBag.error_message = req.authError?.message || 'Invalid credentials'
       logBag.api_key_presented = presentedApiKeyForLog(req.presentedApiKey)

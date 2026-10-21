@@ -23,12 +23,17 @@
   "dependencies": {
     "croner": "^10.0.1",
     "https-proxy-agent": "^9.1.0",
+    "knex": "^3.1.0",
     "node-fetch": "^2.7.0",
+    "pg": "^8.16.3",
     "socks-proxy-agent": "^10.1.0",
     "ssh2": "^1.17.0",
     "ws": "^8.22.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.11"
+    "@biomejs/biome": "2.5.11",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.9.3"
   }
 }

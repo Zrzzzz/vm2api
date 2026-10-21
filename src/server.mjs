@@ -71,7 +71,6 @@ import { syncIpv6ProxyEgress } from './lib/vm/proxy-policy-runtime.mjs'
 import { GATEWAY_CAPABILITIES } from './lib/vm/execution-context.mjs'
 import { isTelemetryPath, telemetryInterceptResponse } from './lib/identity/telemetry-rewrite.mjs'
 import { openDatabase, closeDatabase } from './lib/db/database.mjs'
-import { runLegacyImport } from './lib/db/legacy-import.mjs'
 import { initVmDbSync, stopVmWatch } from './lib/vm/vm-db-sync.mjs'
 import { BackupService } from './lib/admin/backup-service.mjs'
 import { ClusterNodesRepo } from './lib/db/repos/cluster-nodes-repo.mjs'
@@ -139,21 +138,16 @@ const allowRate = createRateLimiter({
   refillPerSec: cfg.limits.rate_refill,
 })
 
-// --- Persistent store (SQLite, sub2api-inspired) ---
+// --- Persistent PostgreSQL store ---
 const dataDir = cfg.paths.data || path.join(cfg.paths.root, 'data')
-openDatabase({ dataDir })
+await openDatabase()
 try {
-  loadModelPolicy()
+  await loadModelPolicy()
 } catch (e) {
   console.warn('[model-policy] boot load failed', e?.message || e)
 }
-// one-time migration of legacy JSON files (data/*.json + request-logs) into the DB
-const legacyImport = runLegacyImport({ dataDir, projectRoot: cfg.paths.project })
-if (legacyImport?.imported) {
-  console.log('[db] legacy JSON import done:', JSON.stringify(legacyImport.counts || {}))
-}
 // VM/credential mirror: write-through hook + startup reconcile + fs.watch
-const vmSync = initVmDbSync(cfg.paths.project)
+const vmSync = (await initVmDbSync(cfg.paths.project))
 if (vmSync.upserted || vmSync.rebuilt) {
   console.log(`[db] vm mirror reconciled: upserted=${vmSync.upserted} rebuilt=${vmSync.rebuilt}`)
 }
@@ -276,8 +270,8 @@ const {
   migrateLegacyOpenAIPolicies,
 } = routingRt
 
-routingConfig = loadRoutingConfig()
-migrateLegacyOpenAIPolicies(routingConfig)
+routingConfig = (await loadRoutingConfig())
+await migrateLegacyOpenAIPolicies(routingConfig)
 setManualScheduleWins(routingConfig.pool?.manual_schedule_wins)
 if (routingConfig.official_cc) {
   routingConfig.official_cc = normalizeOfficialCcConfig(routingConfig.official_cc)
@@ -288,6 +282,7 @@ routingConfig.notify = normalizeNotifyConfig(routingConfig.notify)
 routingConfig.tiers = normalizeTiers(routingConfig.tiers, routingConfig.quota, routingConfig.concurrency)
 syncTierDefaultsIntoRouting()
 stickyRouter = new StickyRouter({ dataDir, config: routingConfig })
+await stickyRouter.initialize()
 accountQuota = new AccountQuota({
   dataDir,
   config: routingConfig,
@@ -300,29 +295,30 @@ accountQuota = new AccountQuota({
     max_rpm: v.policy?.maxRpm ?? routingConfig?.concurrency?.default_max_rpm ?? 0,
   })),
 })
+await accountQuota.initialize()
 accountQuota.loadVmQuotaOverrides(listVms(cfg.paths.project))
 
 const apiKeyStore = new ApiKeyStore({ dataDir: cfg.paths.data })
 groupsRepo = new GroupsRepo()
 const apiEndpointStore = new ApiEndpointStore({ dataDir: cfg.paths.data })
 const apiScheduler = new ApiScheduler()
-apiScheduler.reload(apiEndpointStore.listRaw())
+apiScheduler.reload((await apiEndpointStore.listRaw()))
 const panelUsers = new PanelUserStore({ dataDir: cfg.paths.data, projectRoot: cfg.paths.project })
 try {
-  panelUsers.bootstrapFromEnv(getPanelAdmin())
+  await panelUsers.bootstrapFromEnv(getPanelAdmin())
 } catch (e) {
   console.warn('[panel-users] bootstrap failed', e?.message || e)
 }
 attachPanelAuth({
-  authenticate: (username, password) => panelUsers.authenticate(username, password),
-  lookupRole: (username) => panelUsers.getByUsername(username)?.role || null,
+  authenticate: async (username, password) => (await panelUsers.authenticate(username, password)),
+  lookupRole: async (username) => (await panelUsers.getByUsername(username))?.role || null,
 })
 requestLog = new RequestLogStore({
   dataDir: cfg.paths.data,
   mode: process.env.KIN_REQUEST_LOG_MODE || routingConfig?.logging?.mode || 'normal',
 })
 if (routingConfig?.logging) {
-  requestLog.setConfig({
+  await requestLog.setConfig({
     // Env wins at boot so e2e / ops can force off|debug. Panel PUT still hot-updates.
     mode: process.env.KIN_REQUEST_LOG_MODE || routingConfig.logging.mode,
     retainDays: routingConfig.logging.retain_days,
@@ -332,7 +328,7 @@ if (routingConfig?.logging) {
   })
 }
 try {
-  requestLog.cleanup()
+  await requestLog.cleanup()
 } catch {}
 requestLog.startCleanupScheduler()
 
@@ -356,21 +352,22 @@ proxyPool = new ProxyPool({
     if (state === 'idle' || state === 'connecting') return { pending: true, error: `node_link_${state}` }
     return { ok: false, error: `node_link_${state}` }
   },
-  onDisableVm: (vmId, reason, proxyId) => {
-    setVmSchedulable(cfg.paths.project, vmId, false, `${reason}|proxy=${proxyId}`)
+  onDisableVm: async (vmId, reason, proxyId) => {
+    await setVmSchedulable(cfg.paths.project, vmId, false, `${reason}|proxy=${proxyId}`)
   },
-  onDisconnectVm: (vmId, reason, proxyId) => {
-    setVmSchedulable(cfg.paths.project, vmId, false, `${reason}|proxy=${proxyId}`)
+  onDisconnectVm: async (vmId, reason, proxyId) => {
+    await setVmSchedulable(cfg.paths.project, vmId, false, `${reason}|proxy=${proxyId}`)
   },
-  onEnableVm: (vmId, _reason, proxyId) => {
+  onEnableVm: async (vmId, _reason, proxyId) => {
     const vm = getVm(cfg.paths.project, vmId)
     const why = String(vm?.schedule_disabled_reason || '')
     if (!why.includes(`proxy=${proxyId}`) && !/egress_down|proxy_probe_failed/.test(why)) return
-    setVmSchedulable(cfg.paths.project, vmId, true)
+    await setVmSchedulable(cfg.paths.project, vmId, true)
   },
-  egressCheck: (proxy) => proxyEgressReady(proxy, cfg.paths.project),
+  egressCheck: async (proxy) => (await proxyEgressReady(proxy, cfg.paths.project)),
   repairEgress: (proxy) => ensureProxyEgress(cfg.paths.project, proxy),
 })
+await proxyPool.load()
 // An upgrade replaces bin/ files; slots mounting data/run/slot-guest-bin must see the new ones.
 try {
   refreshSlotGuestBinDir(cfg.paths.project)
@@ -381,8 +378,8 @@ proxyPool.startScheduler()
 
 // 首次安装的出口池是空的，槽没有可绑出口就起不来。本机出口永远成立，先补上。
 try {
-  if (!proxyPool.snapshot().proxies?.length) {
-    const seeded = proxyPool.ensureLocal()
+  if (!(await proxyPool.snapshot()).proxies?.length) {
+    const seeded = (await proxyPool.ensureLocal())
     if (seeded.created) {
       void ensureProxyEgress(cfg.paths.project, proxyPool.getProxyByIdWithAuth(seeded.proxy.id))
       console.log('[bootstrap] seeded local egress px-local')
@@ -392,23 +389,23 @@ try {
   console.warn('[bootstrap] local egress seed failed', e?.message || e)
 }
 
-initPoolRuntime()
+await initPoolRuntime()
 try {
-  applyRoutingTierConcurrency(routingConfig.tiers)
+  await applyRoutingTierConcurrency(routingConfig.tiers)
 } catch (e) {
   console.warn('[quota] apply tier concurrency failed', e?.message || e)
 }
 
-function accountForUsageProbe(vm) {
+async function accountForUsageProbe(vm) {
   const keys = [vm?.claude?.account_uuid, vm?.account_uuid, vm?.id].filter(Boolean)
   for (const key of keys) {
     try {
-      const acc = accountQuota.repo.get(key)
+      const acc = (await accountQuota.repo.get(key))
       if (acc) return acc
     } catch {}
   }
   try {
-    return accountQuota.repo.list().find((a) => a.vm_id === vm.id) || null
+    return (await accountQuota.repo.list()).find((a) => a.vm_id === vm.id) || null
   } catch {
     return null
   }
@@ -417,20 +414,20 @@ function accountForUsageProbe(vm) {
 const USAGE_ACTIVE_WINDOW_MS = 5 * 3600_000
 
 /** Serving traffic within one 5h window, or still holding pinned conversations (#163). */
-function usageProbeActive(vm, account) {
+async function usageProbeActive(vm, account) {
   if (isCodexVm(vm)) return false
   const id = account?.account_id || vm?.claude?.account_uuid || vm?.account_uuid || vm?.id
-  const lastUsed = Number(poolScheduler?.lastUsed?.get?.(id) || runtimeRepo?.get?.(id)?.last_used_at || 0)
+  const lastUsed = Number(poolScheduler?.lastUsed?.get?.(id) || (await runtimeRepo?.get?.(id))?.last_used_at || 0)
   if (lastUsed && Date.now() - lastUsed < USAGE_ACTIVE_WINDOW_MS) return true
-  return (stickyRouter?.boundKeys?.({ accountId: id, vmId: vm?.id }) || []).length > 0
+  return ((await stickyRouter?.boundKeys?.({ accountId: id, vmId: vm?.id })) || []).length > 0
 }
 
-function attachSlotRuntime(vm) {
-  const acc = accountForUsageProbe(vm)
+async function attachSlotRuntime(vm) {
+  const acc = (await accountForUsageProbe(vm))
   const keys = [acc?.account_id, vm?.claude?.account_uuid, vm?.account_uuid, vm?.id].filter(Boolean)
   for (const key of keys) {
     try {
-      const rt = accountQuota.runtimeRepo?.get?.(key)
+      const rt = (await accountQuota.runtimeRepo?.get?.(key))
       if (rt) {
         return {
           ...vm,
@@ -477,15 +474,15 @@ const vmTestSchedule = new VmTestScheduleRunner({
 })
 credentialRefreshMonitor = createCredentialRefreshMonitor({
   config: normalizeCredentialRefreshConfig(routingConfig.credential_refresh),
-  listTargets: () =>
-    listVms(cfg.paths.project).map((vm) => {
+  listTargets: async () =>
+    (await Promise.all(listVms(cfg.paths.project).map(async (vm) => {
       let lastProbe = vm.last_probe || null
       try {
-        const acc = accountQuota?.repo?.get?.(vm.account_uuid || vm.id)
+        const acc = (await accountQuota?.repo?.get?.(vm.account_uuid || vm.id))
         lastProbe = acc?.unified?.last_probe || acc?.last_probe || lastProbe
       } catch {}
       return { ...vm, last_probe: lastProbe }
-    }),
+    }))),
   refreshOne: (vm) =>
     refreshWorkerCredentialForVm({
       vmId: vm.id,
@@ -521,21 +518,21 @@ usageProbeMonitor = createUsageProbeMonitor({
   listTargets: () => listVms(cfg.paths.project),
   accountForVm: accountForUsageProbe,
   isActive: usageProbeActive,
-  reconcile: (vm, account) => {
+  reconcile: async (vm, account) => {
     const id = account?.account_id || vm?.claude?.account_uuid || vm?.account_uuid || vm?.id
     if (isCodexVm(vm)) {
       try {
-        syncCodexQuotaSchedule(cfg.paths.project, getVm(cfg.paths.project, vm.id) || vm, {
+        await syncCodexQuotaSchedule(cfg.paths.project, getVm(cfg.paths.project, vm.id) || vm, {
           policy: routingConfig.codex?.quota,
         })
       } catch {}
       return
     }
     try {
-      accountQuota.persistEffectiveWindows(id)
+      await accountQuota.persistEffectiveWindows(id)
     } catch {}
     try {
-      poolScheduler.syncQuotaSchedule(vm, account)
+      await poolScheduler.syncQuotaSchedule(vm, account)
     } catch {}
   },
   probeOne: (vm) => panel.buildProbeOne({ cfg, accountQuota, id: vm.id, routingConfig }),
@@ -565,7 +562,7 @@ const backupService = new BackupService({
   projectRoot: cfg.paths.project,
   configDir: path.dirname(routingConfigPath),
 })
-backupService.onRestored((db) => {
+backupService.onRestored(async (db) => {
   // A restore swaps the DatabaseSync instance and routing files. Rebuild every
   // holder before reporting success; otherwise requests keep stale snapshots
   // or silently write through statements owned by the closed connection.
@@ -573,10 +570,10 @@ backupService.onRestored((db) => {
     store.rebind(db)
   }
   groupsRepo = new GroupsRepo(db)
-  apiScheduler.reload(apiEndpointStore.listRaw())
+  apiScheduler.reload((await apiEndpointStore.listRaw()))
 
-  routingConfig = loadRoutingConfig()
-  migrateLegacyOpenAIPolicies(routingConfig)
+  routingConfig = (await loadRoutingConfig())
+  await migrateLegacyOpenAIPolicies(routingConfig)
   setManualScheduleWins(routingConfig.pool?.manual_schedule_wins)
   if (routingConfig.official_cc) {
     routingConfig.official_cc = normalizeOfficialCcConfig(routingConfig.official_cc)
@@ -589,8 +586,9 @@ backupService.onRestored((db) => {
 
   stickyRouter.reloadConfig(routingConfig)
   accountQuota.reloadConfig(routingConfig)
-  accountQuota.loadVmQuotaOverrides(listVms(cfg.paths.project))
-  requestLog.setConfig({
+  await accountQuota.initialize()
+accountQuota.loadVmQuotaOverrides(listVms(cfg.paths.project))
+  await requestLog.setConfig({
     mode: process.env.KIN_REQUEST_LOG_MODE || routingConfig.logging?.mode,
     retainDays: routingConfig.logging?.retain_days,
     debugRetainDays: routingConfig.logging?.debug_retain_days,
@@ -603,7 +601,7 @@ backupService.onRestored((db) => {
   usageProbeMonitor?.setConfig(routingConfig.usage_probe)
   notifyMonitor?.setConfig(routingConfig.notify)
 
-  initPoolRuntime()
+  await initPoolRuntime()
   reloadActiveVm(cfg)
   vmTestSchedule.reload()
 })
@@ -665,20 +663,20 @@ async function refreshWorkerCredentialForVm({ vmId, vmPath, homeDir, vm, force =
   const published = publicCredentialRefreshResult(vmId, result, { force })
   if (result.ok) {
     try {
-      mirrorWorkerCredentialsToVm(vmPath, homeDir, { acceptLiveGrant: true })
+      await mirrorWorkerCredentialsToVm(vmPath, homeDir, { acceptLiveGrant: true })
     } catch {}
     try {
       invalidateLiveCredentialCache()
     } catch {}
     try {
       const accountId = vm?.claude?.account_uuid || vmId
-      accountQuota.clearGrantRevokeLeftover(accountId)
-      poolScheduler?.clearAuthCooldownFor?.(vmId, accountId)
-      poolScheduler?.clearGrantRevokeCooldownFor?.(vmId, accountId)
+      await accountQuota.clearGrantRevokeLeftover(accountId)
+      await poolScheduler?.clearAuthCooldownFor?.(vmId, accountId)
+      await poolScheduler?.clearGrantRevokeCooldownFor?.(vmId, accountId)
     } catch {}
   } else if (published.refresh_class !== 'retryable') {
     try {
-      markVmRefreshError(vmPath, result)
+      await markVmRefreshError(vmPath, result)
     } catch {}
     try {
       invalidateLiveCredentialCache()
@@ -701,7 +699,7 @@ function rejectAuth(req, res, error) {
   return false
 }
 
-function requireAuth(req, res) {
+async function requireAuth(req, res) {
   req.presentedApiKey = extractApiKey(req)
   const token = extractPanelToken(req) || req.presentedApiKey
   if (!token) {
@@ -717,7 +715,7 @@ function requireAuth(req, res) {
     )
   }
   // Panel session
-  const session = verifyPanelSession(token)
+  const session = (await verifyPanelSession(token))
   if (session) {
     if (!allowRate('panel:' + session.user)) {
       return rejectAuth(
@@ -732,8 +730,8 @@ function requireAuth(req, res) {
       )
     }
     req.panelUser = session.user
-    req.panelRole = session.role || panelUsers.getByUsername(session.user)?.role || 'user'
-    const rec = panelUsers.getByUsername(session.user)
+    req.panelRole = session.role || (await panelUsers.getByUsername(session.user))?.role || 'user'
+    const rec = (await panelUsers.getByUsername(session.user))
     req.panelUserId = rec?.id || null
     req.panelVmCreateQuota = rec?.vm_create_quota ?? 0
     return true
@@ -759,7 +757,7 @@ function requireAuth(req, res) {
   }
 
   // Managed multi-keys (sub2api-style)
-  const managed = apiKeyStore.authenticate(token)
+  const managed = (await apiKeyStore.authenticate(token))
   if (!managed.ok) {
     return rejectAuth(
       req,
@@ -772,7 +770,7 @@ function requireAuth(req, res) {
       }),
     )
   }
-  const gate = apiKeyStore.canAccept(managed.record)
+  const gate = (await apiKeyStore.canAccept(managed.record))
   if (!gate.ok) {
     const type =
       gate.status === 429
@@ -809,8 +807,8 @@ function requireAuth(req, res) {
   return true
 }
 
-function fetchWorkerModels(opts) {
-  return gatewayModelCatalog(opts)
+async function fetchWorkerModels(opts) {
+  return (await gatewayModelCatalog(opts))
 }
 
 const importCommit = createImportCommit({
@@ -882,11 +880,11 @@ const responsesWs = createResponsesWsHandler({
  * another machine's row (the shared px-local before per-node rows) move onto
  * their own node's row, with the slot's recorded proxy rewritten to match.
  */
-function syncNodeLocalEgress() {
+async function syncNodeLocalEgress() {
   try {
-    proxyPool.syncLocalNodes(clusterManager.list().map((node) => node.id))
-    for (const move of proxyPool.adoptNodeLocalBindings()) {
-      bindVmProxy(cfg.paths.project, move.vm_id, proxyPool.getProxyByIdWithAuth(move.to))
+    await proxyPool.syncLocalNodes((await clusterManager.list()).map((node) => node.id))
+    for (const move of (await proxyPool.adoptNodeLocalBindings())) {
+      await bindVmProxy(cfg.paths.project, move.vm_id, proxyPool.getProxyByIdWithAuth(move.to))
       console.log(`[local-egress] ${move.vm_id}: ${move.from} -> ${move.to}`)
     }
   } catch (e) {
@@ -910,7 +908,7 @@ const clusterManager = new ClusterManager({
       throw new ClusterError(409, 'node_in_use', '节点仍有进行中的请求、虚拟机操作或镜像构建，请完成后重试')
     }
   },
-  onNodesChanged: () => syncNodeLocalEgress(),
+  onNodesChanged: async () => (await syncNodeLocalEgress()),
   // A node's local row follows its link: re-probe as soon as the link settles.
   onLinkState: (nodeId, state) => {
     if (state === 'ready' || state === 'error' || state === 'backoff') {
@@ -921,10 +919,10 @@ const clusterManager = new ClusterManager({
 localEgressCluster = clusterManager
 bindPlacement({ manager: clusterManager, projectRoot: cfg.paths.project })
 await startNodeEgressSocks({ clientFor: (nodeId) => clusterManager.client(nodeId) })
-clusterManager.start()
+await clusterManager.start()
 clusterManager.restoreSlotRelays()
-syncNodeLocalEgress()
-if (proxyPool.snapshot().config.ipv6_enabled !== true) {
+await syncNodeLocalEgress()
+if ((await proxyPool.snapshot()).config.ipv6_enabled !== true) {
   const exits = await syncIpv6ProxyEgress(cfg.paths.project, proxyPool)
   for (const exit of exits.filter((item) => !item.ok)) {
     console.warn('[ipv6-policy] exit not blocked', exit.vm_id || exit.proxy_id, exit.error)
@@ -935,7 +933,7 @@ const slotShell = createSlotShell({ projectRoot: cfg.paths.project })
 for (const vm of listVms(cfg.paths.project)) {
   if (isCodexVm(vm)) continue
   try {
-    ensureSlotSubscriptionType(path.join(cfg.paths.project, 'vms', vm.id, 'cli-home'), vm.account_tier)
+    await ensureSlotSubscriptionType(path.join(cfg.paths.project, 'vms', vm.id, 'cli-home'), vm.account_tier)
   } catch (error) {
     console.warn('[credential-subscription]', vm.id, error?.message || error)
   }
@@ -1084,7 +1082,7 @@ const server = http.createServer(async (req, res) => {
         health_probe: healthMonitor?.getSnapshot?.() || null,
         api_kernel: {
           ...apiKernelSnapshot(cfg),
-          endpoints: apiEndpointStore.listRaw().filter((ep) => !ep.disabled).length,
+          endpoints: (await apiEndpointStore.listRaw()).filter((ep) => !ep.disabled).length,
         },
       })
     }
@@ -1110,15 +1108,15 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && p === '/v1/models') {
-      if (!requireAuth(req, res)) return
+      if (!(await requireAuth(req, res))) return
       if (resolveInferenceBackend(req) === 'api') {
         return json(res, 200, apiScheduler.catalog())
       }
-      const result = await fetchWorkerModels({ groupType: keyScopeFromRequest(req).group_type })
+      const result = await fetchWorkerModels({ groupType: (await keyScopeFromRequest(req)).group_type })
       return json(res, 200, result)
     }
     if (req.method === 'POST' && p === '/admin/models/refresh') {
-      if (!requireAuth(req, res)) return
+      if (!(await requireAuth(req, res))) return
       const result = await fetchWorkerModels()
       return json(res, 200, result)
     }
@@ -1183,8 +1181,8 @@ const server = http.createServer(async (req, res) => {
   }
 })
 
-server.on('upgrade', (req, socket, head) => {
-  if (responsesWs.handleUpgrade(req, socket, head)) return
+server.on('upgrade', async (req, socket, head) => {
+  if ((await responsesWs.handleUpgrade(req, socket, head))) return
   if (clusterRoutes.handleUpgrade(req, socket, head)) return
   if (!slotShell.handleUpgrade(req, socket, head)) socket.destroy()
 })
@@ -1239,7 +1237,7 @@ process.on('unhandledRejection', (e) => console.error('[unhandled]', e))
 
 // Graceful shutdown: stop schedulers/watchers, close the DB (WAL checkpoint).
 let _shuttingDown = false
-function shutdown(signal) {
+async function shutdown(signal) {
   if (_shuttingDown) return
   _shuttingDown = true
   console.log(`[shutdown] ${signal} — closing`)
@@ -1284,19 +1282,21 @@ function shutdown(signal) {
     clusterManager.stop()
   } catch {}
   try {
-    server.close(() => {})
+    await new Promise(resolve => server.close(resolve))
+    await requestLog.flush()
   } catch {}
   try {
-    closeDatabase()
+    await requestLog.flush()
+    await closeDatabase()
   } catch {}
   process.exit(0)
 }
-process.on('SIGTERM', () => shutdown('SIGTERM'))
-process.on('SIGINT', () => shutdown('SIGINT'))
+process.on('SIGTERM', async () => (await shutdown('SIGTERM')))
+process.on('SIGINT', async () => (await shutdown('SIGINT')))
 
 await bootApiKernel(cfg)
 
-server.listen(cfg.port, cfg.host, () => {
+server.listen(cfg.port, cfg.host, async () => {
   try {
     vmTestSchedule.start()
   } catch (e) {
@@ -1349,7 +1349,7 @@ server.listen(cfg.port, cfg.host, () => {
   const addr = server.address()
   const boundPort = typeof addr === 'object' && addr ? addr.port : cfg.port
   try {
-    const catalog = fetchWorkerModels()
+    const catalog = (await fetchWorkerModels())
     console.log(
       JSON.stringify({
         event: 'go-worker-model-catalog',

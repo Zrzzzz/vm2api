@@ -1,43 +1,10 @@
-/**
- * Local backup service — sub2api BackupService counterpart (no S3, per user).
- *
- * Backup artifact: data/backups/kin-backup-<stamp>.tar.gz (0600) containing
- *   manifest.json   {version, created_at, kind, includes, sha256s}
- *   db/kin.db       VACUUM INTO online-consistent snapshot (credentials
- *                   already mirrored into the `vms` table)
- *   vms/            slot *.json + active.json (double safety)
- *   config/         routing.json / intercept-rules.json …
- *
- * When `tar` is unavailable the service degrades to a gzipped DB snapshot
- * (kin-backup-<stamp>.db.gz) — still fully restorable because the DB holds
- * the credential mirror (vm files are rebuilt from vms.vm_json). That fallback
- * buffers the whole snapshot in memory, so it only works below ~2 GiB; the
- * tar path has no such limit.
- *
- * Staging lives on the data volume (`<dataDir>/tmp`, override with
- * KIN_BACKUP_TMPDIR), not os.tmpdir(): /tmp is a tmpfs sized to a fraction of
- * RAM and a multi-GB `VACUUM INTO` snapshot fails there with SQLITE_FULL
- * ("database or disk is full") while the real disk still has room.
- *
- * Scheduling (default ON, user requirement):
- *   settings.backup_schedule = { enabled: true, interval_hours: 24, retention: 7 }
- *   env overrides: KIN_BACKUP_DISABLED=1, KIN_BACKUP_INTERVAL_HOURS, KIN_BACKUP_RETENTION
- *   - checker runs every 10 min + a catch-up check shortly after boot
- *   - retention prunes old ok backups (pre_restore keeps newest 3)
- *
- * Restore:
- *   verify manifest/sha256 → automatic pre_restore backup → close DB →
- *   swap kin.db (old one kept as kin.db.pre-restore) → restore vms/ +
- *   config/ files (or rebuild from DB) → reopen + migrate → rebind stores.
- *   `isRestoring` flag lets the server 503 protocol traffic meanwhile.
- */
-
+/** PostgreSQL custom-format snapshots bundled with slot and configuration files. */
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
-import zlib from 'node:zlib'
 import { spawnSync } from 'node:child_process'
-import { getDb, getDbPath, closeDatabase, openDatabase, vacuumInto } from '../db/database.mjs'
+import { getDb, closeDatabase, openDatabase } from '../db/database.mjs'
+import { adapter } from '../db/adapters/index.mjs'
 import { SettingsRepo } from '../db/repos/settings-repo.mjs'
 import { BackupRepo } from '../db/repos/backup-repo.mjs'
 import { reconcileVms } from '../vm/vm-db-sync.mjs'
@@ -121,8 +88,8 @@ export class BackupService {
 
   // ---------- schedule config ----------
 
-  getSchedule() {
-    let cfg = { ...DEFAULT_SCHEDULE, ...(this._settings().get(SCHEDULE_KEY, {}) || {}) }
+  async getSchedule() {
+    let cfg = { ...DEFAULT_SCHEDULE, ...((await this._settings().get(SCHEDULE_KEY, {})) || {}) }
     if (process.env.KIN_BACKUP_DISABLED === '1') cfg.enabled = false
     if (process.env.KIN_BACKUP_INTERVAL_HOURS) {
       const n = Number(process.env.KIN_BACKUP_INTERVAL_HOURS)
@@ -135,8 +102,8 @@ export class BackupService {
     return cfg
   }
 
-  updateSchedule(patch = {}) {
-    const cur = { ...DEFAULT_SCHEDULE, ...(this._settings().get(SCHEDULE_KEY, {}) || {}) }
+  async updateSchedule(patch = {}) {
+    const cur = { ...DEFAULT_SCHEDULE, ...((await this._settings().get(SCHEDULE_KEY, {})) || {}) }
     if (patch.enabled != null) cur.enabled = !!patch.enabled
     if (patch.interval_hours != null) {
       const n = Number(patch.interval_hours)
@@ -152,14 +119,14 @@ export class BackupService {
       }
       cur.retention = n
     }
-    this._settings().set(SCHEDULE_KEY, cur)
-    return this.getSchedule()
+    await this._settings().set(SCHEDULE_KEY, cur)
+    return (await this.getSchedule())
   }
 
-  nextAutoAt() {
-    const cfg = this.getSchedule()
+  async nextAutoAt() {
+    const cfg = (await this.getSchedule())
     if (!cfg.enabled) return null
-    const last = this._repo().lastSuccessful({})
+    const last = (await this._repo().lastSuccessful({}))
     const base = last ? Date.parse(last.created_at) : 0
     return new Date(Math.max(Date.now(), base + cfg.interval_hours * 3600_000)).toISOString()
   }
@@ -167,7 +134,7 @@ export class BackupService {
   // ---------- create ----------
 
   /** @returns backup record */
-  createBackup({ kind = 'manual', note = null } = {}) {
+  async createBackup({ kind = 'manual', note = null } = {}) {
     if (this._running) throw Object.assign(new Error('backup already in progress'), { code: 'backup_in_progress' })
     this._running = true
     const id = 'bak_' + crypto.randomBytes(6).toString('hex')
@@ -181,13 +148,13 @@ export class BackupService {
       tmp = this._mkdtemp('kin-backup-')
 
       // 1. online-consistent DB snapshot (WAL-safe)
-      const dbSnap = path.join(tmp, 'db', 'kin.db')
-      vacuumInto(getDb(), dbSnap)
+      const dbSnap = path.join(tmp, 'db', 'database.dump')
+      await adapter.backup.dumpPostgres(dbSnap)
       const dbBytes = fs.statSync(dbSnap).size
 
       // 2. vm files + config files
       const includes = { db: true, vms: 0, config: 0 }
-      const sha256s = { 'db/kin.db': sha256File(dbSnap) }
+      const sha256s = { 'db/database.dump': sha256File(dbSnap) }
       const vmsDir = this.projectRoot ? path.join(this.projectRoot, 'vms') : null
       if (vmsDir && fs.existsSync(vmsDir)) {
         const outVms = path.join(tmp, 'vms')
@@ -221,7 +188,8 @@ export class BackupService {
 
       // 3. manifest
       const manifest = {
-        version: 1,
+        version: 2,
+        engine: 'postgresql',
         tool: 'kin-gateway',
         created_at: createdAt,
         kind,
@@ -230,30 +198,18 @@ export class BackupService {
       }
       fs.writeFileSync(path.join(tmp, 'manifest.json'), JSON.stringify(manifest, null, 2))
 
-      // 4. archive (tar.gz preferred; gzipped db fallback)
-      let filePath,
-        fileName,
-        noteOut = note
-      if (tarAvailable()) {
-        fileName = `kin-backup-${stamp(new Date(createdAt))}.tar.gz`
-        filePath = path.join(this.backupDir, fileName)
-        const r = spawnSync('tar', ['-czf', filePath, '-C', tmp, '.'], { stdio: 'pipe' })
-        if (r.status !== 0) {
-          throw new Error(`tar failed: ${String(r.stderr || '').slice(0, 300)}`)
-        }
-      } else {
-        fileName = `kin-backup-${stamp(new Date(createdAt))}.db.gz`
-        filePath = path.join(this.backupDir, fileName)
-        fs.writeFileSync(filePath, zlib.gzipSync(fs.readFileSync(dbSnap)))
-        noteOut = [note, 'tar unavailable — db-only gzip snapshot (vm files rebuilt from DB on restore)']
-          .filter(Boolean)
-          .join(' | ')
-      }
+      // The archive format is mandatory; failures are reported to the caller.
+      if (!tarAvailable()) throw new Error('tar is required for PostgreSQL backups')
+      const fileName = `kin-backup-${stamp(new Date(createdAt))}.tar.gz`
+      const filePath = path.join(this.backupDir, fileName)
+      const noteOut = note
+      const archived = spawnSync('tar', ['-czf', filePath, '-C', tmp, '.'], { stdio: 'pipe' })
+      if (archived.status !== 0) throw new Error('Backup archive creation failed')
       try {
         fs.chmodSync(filePath, 0o600)
       } catch {}
 
-      const rec = this._repo().insert({
+      const rec = (await this._repo().insert({
         id,
         created_at: createdAt,
         kind,
@@ -266,12 +222,12 @@ export class BackupService {
         includes,
         error: null,
         note: noteOut,
-      })
-      this.applyRetention()
+      }))
+      await this.applyRetention()
       return rec
     } catch (e) {
       try {
-        this._repo().insert({
+        await this._repo().insert({
           id,
           created_at: createdAt,
           kind,
@@ -299,16 +255,16 @@ export class BackupService {
 
   // ---------- retention ----------
 
-  applyRetention() {
-    const cfg = this.getSchedule()
+  async applyRetention() {
+    const cfg = (await this.getSchedule())
     const repo = this._repo()
-    const drop = [...repo.beyondRetention(cfg.retention), ...repo.preRestoreBeyond(3)]
+    const drop = [...(await repo.beyondRetention(cfg.retention)), ...(await repo.preRestoreBeyond(3))]
     for (const rec of drop) {
       try {
         if (rec.file_path && fs.existsSync(rec.file_path)) fs.rmSync(rec.file_path, { force: true })
       } catch {}
       try {
-        repo.remove(rec.id)
+        await repo.remove(rec.id)
       } catch {}
     }
     return drop.length
@@ -316,26 +272,26 @@ export class BackupService {
 
   // ---------- list / delete ----------
 
-  list({ limit = 100 } = {}) {
-    return this._repo()
-      .list({ limit })
+  async list({ limit = 100 } = {}) {
+    return (await this._repo()
+      .list({ limit }))
       .map((r) => ({
         ...r,
         file_exists: !!(r.file_path && fs.existsSync(r.file_path)),
       }))
   }
 
-  get(id) {
-    return this._repo().get(id)
+  async get(id) {
+    return (await this._repo().get(id))
   }
 
-  remove(id) {
-    const rec = this._repo().get(id)
+  async remove(id) {
+    const rec = (await this._repo().get(id))
     if (!rec) return false
     try {
       if (rec.file_path && fs.existsSync(rec.file_path)) fs.rmSync(rec.file_path, { force: true })
     } catch {}
-    return this._repo().remove(id)
+    return (await this._repo().remove(id))
   }
 
   // ---------- restore ----------
@@ -344,8 +300,8 @@ export class BackupService {
    * Restore from a recorded backup. Automatically snapshots the current
    * state first (kind=pre_restore). Re-binds stores via onRestored callback.
    */
-  restoreBackup(id) {
-    const rec = this._repo().get(id)
+  async restoreBackup(id) {
+    const rec = (await this._repo().get(id))
     if (!rec) throw Object.assign(new Error('backup not found'), { code: 'backup_not_found' })
     if (rec.status !== 'ok')
       throw Object.assign(new Error('backup record is not restorable'), { code: 'backup_not_ok' })
@@ -364,49 +320,21 @@ export class BackupService {
     let tmp = null
     try {
       // 0. safety net snapshot of the current state
-      const pre = this.createBackup({ kind: 'pre_restore', note: `before restore of ${rec.id}` })
+      const pre = (await this.createBackup({ kind: 'pre_restore', note: `before restore of ${rec.id}` }))
 
-      // 1. extract / decompress
+      // Only verified PostgreSQL archives can be restored.
       tmp = this._mkdtemp('kin-restore-')
-      let dbFile
-      let manifest = null
-      if (rec.file_name?.endsWith('.tar.gz')) {
-        const r = spawnSync('tar', ['-xzf', rec.file_path, '-C', tmp], { stdio: 'pipe' })
-        if (r.status !== 0) throw new Error(`tar extract failed: ${String(r.stderr || '').slice(0, 300)}`)
-        dbFile = path.join(tmp, 'db', 'kin.db')
-        try {
-          manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'manifest.json'), 'utf8'))
-        } catch {}
-        if (manifest?.sha256s?.['db/kin.db']) {
-          if (sha256File(dbFile) !== manifest.sha256s['db/kin.db']) {
-            throw Object.assign(new Error('db snapshot sha256 mismatch inside archive'), { code: 'backup_corrupt' })
-          }
-        }
-      } else {
-        dbFile = path.join(tmp, 'kin.db')
-        fs.writeFileSync(dbFile, zlib.gunzipSync(fs.readFileSync(rec.file_path)))
+      if (!rec.file_name?.endsWith('.tar.gz')) throw new Error('Not a PostgreSQL backup archive')
+      const extracted = spawnSync('tar', ['-xzf', rec.file_path, '-C', tmp], { stdio: 'pipe' })
+      if (extracted.status !== 0) throw new Error('Backup extraction failed')
+      const manifest = JSON.parse(fs.readFileSync(path.join(tmp, 'manifest.json'), 'utf8'))
+      if (manifest.version !== 2 || manifest.engine !== 'postgresql') throw new Error('Not a PostgreSQL backup archive')
+      const dbFile = path.join(tmp, 'db', 'database.dump')
+      if (!manifest.sha256s?.['db/database.dump'] || sha256File(dbFile) !== manifest.sha256s['db/database.dump']) {
+        throw Object.assign(new Error('Database snapshot checksum mismatch'), {code:'backup_corrupt'})
       }
-      if (!fs.existsSync(dbFile)) throw new Error('no db snapshot inside backup')
-
-      // 2. swap the live database
-      const dbPath = getDbPath()
-      closeDatabase()
-      const keep = `${dbPath}.pre-restore`
-      try {
-        fs.rmSync(keep, { force: true })
-      } catch {}
-      try {
-        fs.renameSync(dbPath, keep)
-      } catch {}
-      for (const suffix of ['-wal', '-shm']) {
-        try {
-          fs.rmSync(dbPath + suffix, { force: true })
-        } catch {}
-      }
-      fs.copyFileSync(dbFile, dbPath)
-      try {
-        fs.chmodSync(dbPath, 0o600)
-      } catch {}
+      await closeDatabase()
+      await adapter.backup.restorePostgres(dbFile)
 
       // 3. restore vm + config files from the archive (tar flavor only)
       const vmsDirSrc = path.join(tmp, 'vms')
@@ -437,18 +365,18 @@ export class BackupService {
       }
 
       // 4. reopen + migrate (old backups upgrade automatically)
-      const db = openDatabase({ dataDir: this.dataDir, dbPath })
+      const db = await openDatabase()
 
       // 5. db-only backups: rebuild vm files from the credential mirror
       if (this.projectRoot) {
         invalidateReadCache()
         try {
-          reconcileVms(this.projectRoot)
+          await reconcileVms(this.projectRoot)
           try {
-            repairVmProxyCliEnabled(this.projectRoot)
+            await repairVmProxyCliEnabled(this.projectRoot)
           } catch {}
           try {
-            repairSlotSmbios(this.projectRoot)
+            await repairSlotSmbios(this.projectRoot)
           } catch {}
         } catch {}
       }
@@ -457,13 +385,13 @@ export class BackupService {
       //    pre_restore snapshot (and any other on-disk archives) so the
       //    user can still see/undo from the panel.
       try {
-        this._registerOrphanArchives([pre, rec])
+        await this._registerOrphanArchives([pre, rec])
       } catch {}
 
       // 7. re-bind stores to the fresh connection. A failed rebind leaves the
       //    process partially attached to the closed database, so it must make
       //    the restore fail instead of reporting a false success.
-      if (this._rebindStores) this._rebindStores(db)
+      if (this._rebindStores) await this._rebindStores(db)
 
       return { ok: true, restored: rec.id, pre_restore: pre.id }
     } finally {
@@ -481,13 +409,13 @@ export class BackupService {
    * record in the (freshly restored) DB. `known` records are inserted
    * verbatim; remaining orphans get kind='imported'.
    */
-  _registerOrphanArchives(known = []) {
+  async _registerOrphanArchives(known = []) {
     const repo = this._repo()
-    const existing = new Set(repo.list({ limit: 500 }).map((r) => r.file_name))
+    const existing = new Set((await repo.list({ limit: 500 })).map((r) => r.file_name))
     for (const rec of known) {
       if (rec?.file_name && !existing.has(rec.file_name) && rec.file_path && fs.existsSync(rec.file_path)) {
         try {
-          repo.insert(rec)
+          await repo.insert(rec)
           existing.add(rec.file_name)
         } catch {}
       }
@@ -498,7 +426,7 @@ export class BackupService {
       const fp = path.join(this.backupDir, f)
       try {
         const st = fs.statSync(fp)
-        repo.insert({
+        await repo.insert({
           id: 'bak_' + crypto.randomBytes(6).toString('hex'),
           created_at: st.mtime.toISOString(),
           kind: 'imported',
@@ -522,10 +450,10 @@ export class BackupService {
   /** Auto-backup checker: every checkIntervalMs + a catch-up run at boot. */
   startScheduler() {
     this.stopScheduler()
-    const check = () => {
+    const check = async () => {
       try {
-        if (this.shouldRunScheduled()) {
-          this.createBackup({ kind: 'scheduled' })
+        if ((await this.shouldRunScheduled())) {
+          await this.createBackup({ kind: 'scheduled' })
           console.log('[backup] scheduled backup completed')
         }
       } catch (e) {
@@ -539,10 +467,10 @@ export class BackupService {
     if (typeof this._bootTimer.unref === 'function') this._bootTimer.unref()
   }
 
-  shouldRunScheduled(now = Date.now()) {
-    const cfg = this.getSchedule()
+  async shouldRunScheduled(now = Date.now()) {
+    const cfg = (await this.getSchedule())
     if (!cfg.enabled || this._running || this.isRestoring) return false
-    const last = this._repo().lastSuccessful({})
+    const last = (await this._repo().lastSuccessful({}))
     if (!last) return true
     return now - Date.parse(last.created_at) >= cfg.interval_hours * 3600_000
   }

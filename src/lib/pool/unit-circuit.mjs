@@ -29,17 +29,17 @@ export class UnitCircuit {
     if (openMs != null) this.openMs = Math.max(1000, Number(openMs) || 30_000)
   }
 
-  snapshot(accountId) {
-    return this.units.get(accountId) || this._load(accountId)
+  async snapshot(accountId) {
+    return this.units.get(accountId) || (await this._load(accountId))
   }
 
   /**
    * Read the gate without taking the half-open probe. Eligibility scans every
    * VM; only reserve() may call admit().
    */
-  inspect(accountId, now = this.now()) {
+  async inspect(accountId, now = this.now()) {
     if (!accountId) return { ok: true, state: 'closed' }
-    const unit = this._ensure(accountId, now)
+    const unit = (await this._ensure(accountId, now))
     if (unit.state === 'closed') return { ok: true, state: 'closed' }
     if (unit.state === 'open') {
       return { ok: false, reason: 'circuit_open', until: unit.openUntil, state: 'open' }
@@ -51,11 +51,11 @@ export class UnitCircuit {
   }
 
   /**
-   * @returns {{ ok: true, state: string, probe?: boolean } | { ok: false, reason: string, until: number, state: string }}
+   * @returns {Promise<{ ok: true, state: string, probe?: boolean } | { ok: false, reason: string, until: number, state: string }>}
    */
-  admit(accountId, now = this.now()) {
+  async admit(accountId, now = this.now()) {
     if (!accountId) return { ok: true, state: 'closed' }
-    const unit = this._ensure(accountId, now)
+    const unit = (await this._ensure(accountId, now))
     if (unit.state === 'closed') return { ok: true, state: 'closed' }
     if (unit.state === 'open') {
       if (now < unit.openUntil) {
@@ -63,19 +63,19 @@ export class UnitCircuit {
       }
       unit.state = 'half_open'
       unit.probeHeld = false
-      this._save(accountId, unit)
+      await this._save(accountId, unit)
     }
     if (unit.probeHeld) {
       return { ok: false, reason: 'circuit_probe', until: now + this.openMs, state: 'half_open' }
     }
     unit.probeHeld = true
-    this._save(accountId, unit)
+    await this._save(accountId, unit)
     return { ok: true, state: 'half_open', probe: true }
   }
 
-  recordFailure(accountId, now = this.now()) {
+  async recordFailure(accountId, now = this.now()) {
     if (!accountId) return null
-    const unit = this._ensure(accountId, now)
+    const unit = (await this._ensure(accountId, now))
     if (unit.state === 'open' && now < unit.openUntil) return unit
     unit.failures += 1
     unit.probeHeld = false
@@ -84,7 +84,7 @@ export class UnitCircuit {
       unit.openUntil = now + this.openMs
       unit.failures = this.failureThreshold
     }
-    this._save(accountId, unit)
+    await this._save(accountId, unit)
     return { ...unit }
   }
 
@@ -95,27 +95,27 @@ export class UnitCircuit {
     this.units.set(accountId, unit)
   }
 
-  recordSuccess(accountId) {
+  async recordSuccess(accountId) {
     if (!accountId) return null
-    const unit = this._ensure(accountId, this.now())
+    const unit = (await this._ensure(accountId, this.now()))
     if (unit.state === 'half_open' || unit.probeHeld) {
       unit.state = 'closed'
       unit.failures = 0
       unit.openUntil = 0
       unit.probeHeld = false
-      this._save(accountId, unit)
+      await this._save(accountId, unit)
       return { ...unit }
     }
     if (unit.failures) {
       unit.failures = 0
-      this._save(accountId, unit)
+      await this._save(accountId, unit)
     }
     return { ...unit }
   }
 
   /** Panel view. Reads without taking the probe; open past its window reads as half_open. */
-  view(accountId, now = this.now()) {
-    const unit = accountId ? this._ensure(accountId, now) : { state: 'closed', failures: 0, openUntil: 0 }
+  async view(accountId, now = this.now()) {
+    const unit = accountId ? (await this._ensure(accountId, now)) : { state: 'closed', failures: 0, openUntil: 0 }
     return {
       state: unit.state,
       failures: unit.failures,
@@ -126,16 +126,16 @@ export class UnitCircuit {
   }
 
   /** Operator reset: close the unit and clear the failure streak. */
-  reset(accountId) {
+  async reset(accountId) {
     if (!accountId) return null
     const unit = { state: 'closed', failures: 0, openUntil: 0, probeHeld: false }
-    this._save(accountId, unit)
+    await this._save(accountId, unit)
     return { ...unit }
   }
 
-  _ensure(accountId, now) {
+  async _ensure(accountId, now) {
     let unit = this.units.get(accountId)
-    if (!unit) unit = this._load(accountId)
+    if (!unit) unit = (await this._load(accountId))
     if (unit.state === 'open' && unit.openUntil && now >= unit.openUntil) {
       unit.state = 'half_open'
       unit.probeHeld = false
@@ -144,10 +144,10 @@ export class UnitCircuit {
     return unit
   }
 
-  _load(accountId) {
+  async _load(accountId) {
     const blank = { state: 'closed', failures: 0, openUntil: 0, probeHeld: false }
     try {
-      const row = this.repo?.get?.(accountId)
+      const row = (await this.repo?.get?.(accountId))
       const saved = row?.model_states?.[CIRCUIT_KEY]
       if (!saved || typeof saved !== 'object') return { ...blank }
       return {
@@ -161,11 +161,11 @@ export class UnitCircuit {
     }
   }
 
-  _save(accountId, unit) {
+  async _save(accountId, unit) {
     this.units.set(accountId, unit)
     if (!this.repo?.get || !this.repo?.upsert) return
     try {
-      const row = this.repo.get(accountId)
+      const row = (await this.repo.get(accountId))
       if (!row?.vm_id) return
       const model_states = { ...(row.model_states || {}) }
       model_states[CIRCUIT_KEY] = {
@@ -173,7 +173,7 @@ export class UnitCircuit {
         failures: unit.failures,
         openUntil: unit.openUntil || 0,
       }
-      this.repo.upsert({
+      await this.repo.upsert({
         account_id: accountId,
         vm_id: row.vm_id,
         model_states,

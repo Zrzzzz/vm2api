@@ -138,16 +138,16 @@ export function loadVmIdentity(exec = {}) {
   }
 }
 
-export function persistVmSettings(exec, identity) {
+export async function persistVmSettings(exec, identity) {
   if (!exec?.homeDir || !identity) return { wrote: false }
   const claudeDir = path.join(exec.homeDir, '.claude')
   fs.mkdirSync(claudeDir, { recursive: true })
   // Only settings.json affects CLI behavior — skip rewrite when unchanged (T7).
-  const wrote = writeJsonIfChanged(path.join(claudeDir, 'settings.json'), identity.settings)
+  const wrote = (await writeJsonIfChanged(path.join(claudeDir, 'settings.json'), identity.settings))
   // Descriptive sidecars carry timestamps; write atomically only when settings changed
   // to avoid per-request churn.
   if (wrote) {
-    atomicWriteJson(path.join(claudeDir, 'kin-identity.json'), {
+    await atomicWriteJson(path.join(claudeDir, 'kin-identity.json'), {
       vm_id: identity.vmId,
       cli_version: identity.cliVersion,
       timezone: identity.timezone,
@@ -159,7 +159,7 @@ export function persistVmSettings(exec, identity) {
       session_id: identity.sessionId,
       written_at: new Date().toISOString(),
     })
-    atomicWriteJson(
+    await atomicWriteJson(
       path.join(claudeDir, 'kin-seed.json'),
       buildKinSeedJson(
         {
@@ -182,7 +182,7 @@ export function persistVmSettings(exec, identity) {
 }
 
 /** Persist fingerprint onto vm.json only. Never touches oauth tokens. */
-export function persistVmFingerprint(exec, identity) {
+export async function persistVmFingerprint(exec, identity) {
   if (!exec?.vmPath || !identity?.fingerprint) return { wrote: false }
   let vm
   try {
@@ -210,7 +210,7 @@ export function persistVmFingerprint(exec, identity) {
   merged.updated_at = new Date().toISOString()
   vm.fingerprint = merged
   if (identity.cliVersion) vm.claude_code_version = identity.cliVersion
-  atomicWriteJson(exec.vmPath, vm)
+  await atomicWriteJson(exec.vmPath, vm)
   if (exec.vm) {
     exec.vm.fingerprint = vm.fingerprint
     if (identity.cliVersion) exec.vm.claude_code_version = identity.cliVersion

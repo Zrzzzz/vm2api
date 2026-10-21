@@ -73,7 +73,7 @@ export function discardLeftoverClaudeJson(homeDir) {
   }
 }
 
-export function applyOfficialFingerprintToVm(vmPath, homeDir) {
+export async function applyOfficialFingerprintToVm(vmPath, homeDir) {
   const official = readOfficialCcIdentity(homeDir)
   const leftover = discardLeftoverClaudeJson(homeDir)
   if (!vmPath || !fs.existsSync(vmPath)) {
@@ -93,7 +93,7 @@ export function applyOfficialFingerprintToVm(vmPath, homeDir) {
         if (official.account_uuid) ident.account_uuid = official.account_uuid
         ident.source = OFFICIAL_IDENTITY_SOURCE
         ident.written_at = new Date().toISOString()
-        atomicWriteJson(identityPath, ident)
+        await atomicWriteJson(identityPath, ident)
         identityWrote = true
       }
     } catch {}
@@ -119,7 +119,7 @@ export function applyOfficialFingerprintToVm(vmPath, homeDir) {
   if (changed) {
     vm.fingerprint = next
     vm.updated_at = new Date().toISOString()
-    atomicWriteJson(vmPath, vm, { mode: 0o600 })
+    await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   }
   return {
     wrote: changed || leftover.removed || identityWrote,
@@ -129,7 +129,7 @@ export function applyOfficialFingerprintToVm(vmPath, homeDir) {
   }
 }
 
-export function reconcileOfficialFingerprints(projectRoot) {
+export async function reconcileOfficialFingerprints(projectRoot) {
   const vmsDir = path.join(projectRoot, 'vms')
   const summary = { scanned: 0, reconciled: 0, leftover_removed: 0, replaced_device: 0, skipped: 0 }
   if (!fs.existsSync(vmsDir)) return summary
@@ -138,7 +138,7 @@ export function reconcileOfficialFingerprints(projectRoot) {
     const vmPath = path.join(vmsDir, name)
     const homeDir = path.join(vmsDir, vmId, 'cli-home')
     summary.scanned += 1
-    const result = applyOfficialFingerprintToVm(vmPath, homeDir)
+    const result = (await applyOfficialFingerprintToVm(vmPath, homeDir))
     if (result.leftover?.removed) summary.leftover_removed += 1
     if (result.replaced_device) summary.replaced_device += 1
     if (result.wrote) summary.reconciled += 1

@@ -24,9 +24,9 @@ export function readCodexAccounts(projectRoot, vmId) {
   }
 }
 
-export function writeCodexAccounts(projectRoot, vmId, accounts) {
+export async function writeCodexAccounts(projectRoot, vmId, accounts) {
   if (!projectRoot || !vmId) throw new Error('projectRoot and vmId required')
-  atomicWriteJson(
+  await atomicWriteJson(
     codexCredentialPath(projectRoot, vmId),
     { accounts: Array.isArray(accounts) ? accounts.map(enrichCodexAccountIdentity) : [] },
     { mode: 0o600 },
@@ -258,7 +258,7 @@ export function enrichCodexAccountIdentity(account = {}) {
   return next
 }
 
-export function upsertCodexAccount(projectRoot, vmId, patch = {}, { replaceCredentials = false } = {}) {
+export async function upsertCodexAccount(projectRoot, vmId, patch = {}, { replaceCredentials = false } = {}) {
   const accounts = readCodexAccounts(projectRoot, vmId)
   const previous = { ...(accounts[0] || {}) }
   // Importing another account must not inherit the previous account's tokens or identity.
@@ -280,11 +280,11 @@ export function upsertCodexAccount(projectRoot, vmId, patch = {}, { replaceCrede
   if (!cur.id) cur.id = cur.email || cur.chatgpt_account_id || 'codex'
   if (!accounts.length) accounts.push(cur)
   else accounts[0] = cur
-  writeCodexAccounts(projectRoot, vmId, accounts)
+  await writeCodexAccounts(projectRoot, vmId, accounts)
   return cur
 }
 
-export function persistCodexQuotaSnapshot(projectRoot, vmId, { extra, resetCredits, credits, planType } = {}) {
+export async function persistCodexQuotaSnapshot(projectRoot, vmId, { extra, resetCredits, credits, planType } = {}) {
   if (!projectRoot || !vmId) throw new Error('projectRoot and vmId required')
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
   let vm
@@ -321,7 +321,7 @@ export function persistCodexQuotaSnapshot(projectRoot, vmId, { extra, resetCredi
     }
   }
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 

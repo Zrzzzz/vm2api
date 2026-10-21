@@ -287,11 +287,11 @@ export function normalizeOpenAIToolsOnMessages(body) {
   return out
 }
 
-export function toClaudeMessages(protocol, body, opts = { rewrite: false, model_map: true }) {
+export async function toClaudeMessages(protocol, body, opts = { rewrite: false, model_map: true }) {
   if (protocol === 'anthropic.messages' && !opts.rewrite) {
     const normalized = normalizeOpenAIToolsOnMessages(body)
-    const out = sanitizeAnthropicBody(normalized, { strictPassthrough: opts.strict_passthrough })
-    if (!out.max_tokens) out.max_tokens = defaultMaxTokensForModel(out.model)
+    const out = (await sanitizeAnthropicBody(normalized, { strictPassthrough: opts.strict_passthrough }))
+    if (!out.max_tokens) out.max_tokens = (await defaultMaxTokensForModel(out.model))
     return { claude: withUpstreamStream(out), mode: inboundHasOpenAIToolShape(body) ? 'convert' : 'passthrough' }
   }
 
@@ -307,10 +307,10 @@ export function toClaudeMessages(protocol, body, opts = { rewrite: false, model_
   }
 
   if (protocol === 'openai.chat') {
-    return { claude: withUpstreamStream(openaiToClaude(body, opts)), mode: opts.rewrite ? 'rewrite' : 'convert' }
+    return { claude: withUpstreamStream((await openaiToClaude(body, opts))), mode: opts.rewrite ? 'rewrite' : 'convert' }
   }
   if (protocol === 'openai.completions') {
-    return { claude: withUpstreamStream(completionsToClaude(body, opts)), mode: opts.rewrite ? 'rewrite' : 'convert' }
+    return { claude: withUpstreamStream((await completionsToClaude(body, opts))), mode: opts.rewrite ? 'rewrite' : 'convert' }
   }
   if (protocol === 'openai.responses') {
     return { claude: withUpstreamStream(responsesToClaude(body, opts)), mode: opts.rewrite ? 'rewrite' : 'convert' }
@@ -318,11 +318,11 @@ export function toClaudeMessages(protocol, body, opts = { rewrite: false, model_
   throw new Error(`unsupported protocol: ${protocol}`)
 }
 
-function openaiToClaude(body, opts) {
+async function openaiToClaude(body, opts) {
   const { systemParts, messages } = openaiMessagesToClaude(body.messages || [])
   const out = {
     model: mapModel(body.model, { allowMap: opts.model_map !== false }),
-    max_tokens: body.max_tokens || body.max_completion_tokens || defaultMaxTokensForModel(body.model),
+    max_tokens: body.max_tokens || body.max_completion_tokens || (await defaultMaxTokensForModel(body.model)),
     messages,
   }
   if (systemParts.length) out.system = systemParts.map((text) => ({ type: 'text', text }))
@@ -342,7 +342,7 @@ function openaiToClaude(body, opts) {
 }
 
 /** Legacy OpenAI /v1/completions (prompt, not messages). */
-function completionsToClaude(body, opts) {
+async function completionsToClaude(body, opts) {
   const prompt = Array.isArray(body.prompt)
     ? body.prompt.map((p) => (typeof p === 'string' ? p : String(p ?? ''))).join('\n')
     : body.prompt == null
@@ -350,13 +350,13 @@ function completionsToClaude(body, opts) {
       : String(body.prompt)
   const suffix = body.suffix ? String(body.suffix) : ''
   const user = suffix ? `${prompt}${suffix}` : prompt
-  return openaiToClaude(
+  return (await openaiToClaude(
     {
       ...body,
       messages: [{ role: 'user', content: user || 'Hello' }],
     },
     opts,
-  )
+  ))
 }
 
 function responsesToClaude(body, opts) {

@@ -1,0 +1,360 @@
+[
+  {
+    "file": "account-runtime-repo.mjs",
+    "edits": 21,
+    "unresolved": []
+  },
+  {
+    "file": "accounts-repo.mjs",
+    "edits": 31,
+    "unresolved": [
+      {
+        "line": 176,
+        "kind": "query_result_binding",
+        "name": "info"
+      }
+    ]
+  },
+  {
+    "file": "api-endpoints-repo.mjs",
+    "edits": 43,
+    "unresolved": [
+      {
+        "line": 150,
+        "kind": "dynamic_prepare"
+      }
+    ]
+  },
+  {
+    "file": "api-keys-repo.mjs",
+    "edits": 23,
+    "unresolved": [
+      {
+        "line": 148,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 154,
+        "kind": "query_result_binding",
+        "name": "info"
+      }
+    ]
+  },
+  {
+    "file": "backup-repo.mjs",
+    "edits": 13,
+    "unresolved": []
+  },
+  {
+    "file": "cluster-nodes-repo.mjs",
+    "edits": 28,
+    "unresolved": []
+  },
+  {
+    "file": "groups-repo.mjs",
+    "edits": 9,
+    "unresolved": [
+      {
+        "line": 60,
+        "kind": "dynamic_prepare"
+      }
+    ]
+  },
+  {
+    "file": "proxies-repo.mjs",
+    "edits": 8,
+    "unresolved": []
+  },
+  {
+    "file": "redeem-codes-repo.mjs",
+    "edits": 19,
+    "unresolved": [
+      {
+        "line": 61,
+        "kind": "query_result_binding",
+        "name": "info"
+      },
+      {
+        "line": 84,
+        "kind": "query_result_binding",
+        "name": "info"
+      }
+    ]
+  },
+  {
+    "file": "refusal-device-blocks-repo.mjs",
+    "edits": 23,
+    "unresolved": []
+  },
+  {
+    "file": "refusal-guards-repo.mjs",
+    "edits": 26,
+    "unresolved": []
+  },
+  {
+    "file": "request-attempts-repo.mjs",
+    "edits": 13,
+    "unresolved": []
+  },
+  {
+    "file": "settings-repo.mjs",
+    "edits": 14,
+    "unresolved": []
+  },
+  {
+    "file": "statistics-repo.mjs",
+    "edits": 0,
+    "unresolved": [
+      {
+        "line": 119,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 179,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 272,
+        "kind": "dynamic_prepare"
+      }
+    ]
+  },
+  {
+    "file": "sticky-repo.mjs",
+    "edits": 27,
+    "unresolved": []
+  },
+  {
+    "file": "usage-log-preds.mjs",
+    "edits": 0,
+    "unresolved": []
+  },
+  {
+    "file": "usage-logs-repo.mjs",
+    "edits": 53,
+    "unresolved": [
+      {
+        "line": 300,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 310,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 370,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 470,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 478,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 479,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 501,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 522,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 559,
+        "kind": "prepare_context"
+      },
+      {
+        "line": 567,
+        "kind": "prepare_context"
+      },
+      {
+        "line": 671,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 705,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 724,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 761,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 812,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 893,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 923,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 962,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 975,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 988,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1164,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1212,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1224,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1280,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1320,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1335,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1339,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1344,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1423,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1451,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 1472,
+        "kind": "dynamic_prepare"
+      }
+    ]
+  },
+  {
+    "file": "usage-logs-view.mjs",
+    "edits": 8,
+    "unresolved": [
+      {
+        "line": 88,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 413,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 461,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 495,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 516,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 584,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 586,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 594,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 608,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 674,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 683,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 703,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 708,
+        "kind": "dynamic_prepare"
+      },
+      {
+        "line": 779,
+        "kind": "dynamic_prepare"
+      }
+    ]
+  },
+  {
+    "file": "users-repo.mjs",
+    "edits": 22,
+    "unresolved": [
+      {
+        "line": 104,
+        "kind": "dynamic_prepare"
+      }
+    ]
+  },
+  {
+    "file": "vm-pools-repo.mjs",
+    "edits": 37,
+    "unresolved": [
+      {
+        "line": 79,
+        "kind": "query_result_binding",
+        "name": "info"
+      },
+      {
+        "line": 88,
+        "kind": "query_result_binding",
+        "name": "info"
+      },
+      {
+        "line": 119,
+        "kind": "query_result_binding",
+        "name": "info"
+      }
+    ]
+  },
+  {
+    "file": "vms-repo.mjs",
+    "edits": 17,
+    "unresolved": []
+  }
+]

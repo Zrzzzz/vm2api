@@ -176,7 +176,7 @@ async function egressCheck(vm, projectRoot, probes) {
   const label = '出口代理 / 出口桥'
   const proxy = vm.proxy
   if (!hasBoundExit(proxy)) return check('egress', label, 'error', 'proxy_required', '未绑定出口代理')
-  const blocked = proxyBlockedReason(proxy)
+  const blocked = (await proxyBlockedReason(proxy))
   if (blocked) return check('egress', label, 'error', 'proxy_blocked', `出口被策略禁用：${blocked}`)
   const local = isLocalEgressProxy(proxy)
   if (vmNodeId(vm)) {
@@ -368,11 +368,11 @@ export async function powerOnSlot({ projectRoot, id, proxyPool, routing = {}, fi
   } catch (error) {
     return { ok: false, status: 400, code: error.code, error: error.message }
   }
-  const bound = proxyPool.ensureBoundToVm(id, vm.proxy?.id || null)
+  const bound = (await proxyPool.ensureBoundToVm(id, vm.proxy?.id || null))
   if (!bound) {
     return { ok: false, status: 409, code: 'proxy_required', error: 'No SOCKS5 is bound or free for this VM' }
   }
-  bindVmProxy(projectRoot, id, bound)
+  await bindVmProxy(projectRoot, id, bound)
   await (fillTimezone || ((vmId) => fillVmTimezoneFromExit(projectRoot, proxyPool, vmId)))(id)
   vm = getVm(projectRoot, id) || vm
   const runtimeBeforeBoot = structuredClone(vm.runtime || {})
@@ -389,7 +389,7 @@ export async function powerOnSlot({ projectRoot, id, proxyPool, routing = {}, fi
   const hasCred = vmHasSchedulableCredential(vm, projectRoot)
   const runtime = boot.runtime || boot.docker?.runtime
   vm =
-    patchVmRecord(projectRoot, id, (record) => {
+    (await patchVmRecord(projectRoot, id, (record) => {
       const next = {
         status: 'running',
         schedulable: hasCred,
@@ -406,7 +406,7 @@ export async function powerOnSlot({ projectRoot, id, proxyPool, routing = {}, fi
         }
       }
       return next
-    }) || vm
+    })) || vm
   return { ok: true, vm, bound, boot }
 }
 
@@ -641,7 +641,7 @@ export function createSlotBridgeHealer({
       }
       // Watchdog targets are panel summaries; kin-egress needs the record's credentialed proxy.
       const proxy = (ops.getVm || getVm)(projectRoot, vm.id)?.proxy
-      if (isCodexVm(vm) || !hasBoundExit(proxy) || isLocalEgressProxy(proxy) || proxyBlockedReason(proxy)) continue
+      if (isCodexVm(vm) || !hasBoundExit(proxy) || isLocalEgressProxy(proxy) || (await proxyBlockedReason(proxy))) continue
       if (seenProxies.has(proxy.id)) continue
       seenProxies.add(proxy.id)
       if (egressAlive(proxy.id) || !due(`egress:${proxy.id}`)) continue

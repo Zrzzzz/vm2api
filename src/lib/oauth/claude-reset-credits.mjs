@@ -259,9 +259,9 @@ function readState(file) {
   }
 }
 
-function writeState(file, state) {
+async function writeState(file, state) {
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
-  atomicWriteJson(file, state, { mode: 0o600 })
+  await atomicWriteJson(file, state, { mode: 0o600 })
 }
 
 async function mutateState(projectRoot, fn) {
@@ -272,7 +272,7 @@ async function mutateState(projectRoot, fn) {
     const result = await fn(state)
     if (result?.write) {
       try {
-        writeState(file, state)
+        await writeState(file, state)
       } catch {
         return fail('CLAUDE_RESET_STORE_UNAVAILABLE', '重置状态无法保存', 503)
       }
@@ -441,7 +441,7 @@ async function persistCredits(projectRoot, vmId, credits) {
     }
     vm.claude_reset_credits = persistedCredits(credits)
     vm.updated_at = new Date().toISOString()
-    atomicWriteJson(file, vm, { mode: 0o600 })
+    await atomicWriteJson(file, vm, { mode: 0o600 })
   })
 }
 

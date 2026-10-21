@@ -54,10 +54,10 @@ export function codexKernelRequestOptions(routing = {}) {
   }
 }
 
-export function writeCodexKernelConfig(projectRoot, vm, { token, proxyUrl, proxyRequired, routing } = {}) {
+export async function writeCodexKernelConfig(projectRoot, vm, { token, proxyUrl, proxyRequired, routing } = {}) {
   if (!projectRoot || !vm?.id) return null
-  assertProxyAllowed(vm.proxy)
-  if (proxyUrl) assertProxyAllowed({ url: proxyUrl })
+  await assertProxyAllowed(vm.proxy)
+  if (proxyUrl) await assertProxyAllowed({ url: proxyUrl })
   const runDir = path.join(projectRoot, 'vms', vm.id, 'run')
   fs.mkdirSync(runDir, { recursive: true, mode: 0o700 })
   const socketPath = path.join(runDir, 'codex-kernel.sock')
@@ -76,7 +76,7 @@ export function writeCodexKernelConfig(projectRoot, vm, { token, proxyUrl, proxy
   // Only a slot on this host treats local egress as the deployment proxy.
   // A node slot is handed that node's forwarder; replacing it would exit from here.
   const hostLocal = local && !vmNodeId(vm)
-  const proxy = hostLocal ? localEgressProxyUrl() : String(proxyUrl || boundProxyUrl(vm?.proxy) || '').trim()
+  const proxy = hostLocal ? localEgressProxyUrl() : String(proxyUrl || (await boundProxyUrl(vm?.proxy)) || '').trim()
   // A configured deployment proxy is this slot's exit: fail closed instead of going direct.
   const required = hostLocal ? !!proxy : proxyRequired == null ? !!proxy : !!proxyRequired
   const installationPath = path.join(runDir, 'codex-installation-id')

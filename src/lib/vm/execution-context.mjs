@@ -35,15 +35,15 @@ export function vmCliHomePath(projectRoot, vmId) {
   return path.join(projectRoot, 'vms', vmId || 'default', 'cli-home')
 }
 
-export function resolveVmProxyUrl(vm) {
+export async function resolveVmProxyUrl(vm) {
   if (!vm?.proxy_cli_enabled) return null
   const p = vm.proxy
   if (!p) return null
   if (isLocalEgressProxy(p)) return ''
-  return boundProxyUrl(p) || null
+  return (await boundProxyUrl(p)) || null
 }
 
-export function pickSchedulableVmId(projectRoot, preferredId = null) {
+export async function pickSchedulableVmId(projectRoot, preferredId = null) {
   const seen = new Set()
   const order = []
   const push = (id) => {
@@ -59,7 +59,7 @@ export function pickSchedulableVmId(projectRoot, preferredId = null) {
     if (!vm) continue
     if (!isVmScheduleReady(vm)) continue
     if (!vm.proxy_cli_enabled || !hasBoundExit(vm.proxy)) continue
-    if (proxyBlockedReason(vm.proxy)) continue
+    if ((await proxyBlockedReason(vm.proxy))) continue
     return id
   }
   return null

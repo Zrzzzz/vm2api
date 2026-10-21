@@ -20,12 +20,12 @@ export const REFUSAL_SIMILARITY_VALUE_SETTING = 'refusal_similarity'
 export const REFUSAL_DEVICE_BLOCK_SETTING = 'refusal_device_block_enabled'
 export const REFUSAL_SIMILARITY_CHOICES = Object.freeze([80, 85, 90, 95])
 
-export function isRefusalGuardEnabled(readSetting) {
+export async function isRefusalGuardEnabled(readSetting) {
   const flag = process.env.VM2API_REFUSAL_GUARD || process.env.REFUSAL_GUARD || process.env.KIN_REFUSAL_GUARD
   if (flag === '0' || flag === 'false') return false
   if (typeof readSetting === 'function') {
     try {
-      const v = readSetting(REFUSAL_GUARD_SETTING, true)
+      const v = await readSetting(REFUSAL_GUARD_SETTING, true)
       if (v === false || v === 0 || v === '0' || v === 'false') return false
     } catch {
       /* sqlite missing → default on */
@@ -168,15 +168,15 @@ function flagOn(value) {
 }
 
 /** Panel policy. Missing settings stay on, with similarity at 90. */
-export function refusalGuardPolicy(readSetting) {
+export async function refusalGuardPolicy(readSetting) {
   const read = typeof readSetting === 'function' ? readSetting : () => undefined
-  const raw = read(REFUSAL_SIMILARITY_VALUE_SETTING, 90)
+  const raw = await read(REFUSAL_SIMILARITY_VALUE_SETTING, 90)
   const similarity = REFUSAL_SIMILARITY_CHOICES.includes(Number(raw)) ? Number(raw) : 90
   return {
-    enabled: isRefusalGuardEnabled(readSetting),
-    similarity_enabled: flagOn(read(REFUSAL_SIMILARITY_SETTING, true)),
+    enabled: await isRefusalGuardEnabled(readSetting),
+    similarity_enabled: flagOn(await read(REFUSAL_SIMILARITY_SETTING, true)),
     similarity,
-    device_block_enabled: flagOn(read(REFUSAL_DEVICE_BLOCK_SETTING, true)),
+    device_block_enabled: flagOn(await read(REFUSAL_DEVICE_BLOCK_SETTING, true)),
   }
 }
 
@@ -186,7 +186,7 @@ export function normalizeRefusalSimilarity(value) {
 }
 
 /** Apply a panel PUT. Unknown similarity values are rejected, not coerced. */
-export function applyRefusalGuardPatch(settings, body = {}) {
+export async function applyRefusalGuardPatch(settings, body = {}) {
   const problems = []
   if (Object.hasOwn(body, 'enabled') && typeof body.enabled !== 'boolean') problems.push('enabled 必须是布尔')
   if (Object.hasOwn(body, 'similarity_enabled') && typeof body.similarity_enabled !== 'boolean') {
@@ -199,13 +199,13 @@ export function applyRefusalGuardPatch(settings, body = {}) {
     problems.push('similarity 只能是 80、85、90、95')
   }
   if (problems.length) return { ok: false, problems }
-  if (typeof body.enabled === 'boolean') settings.set(REFUSAL_GUARD_SETTING, body.enabled)
-  if (typeof body.similarity_enabled === 'boolean') settings.set(REFUSAL_SIMILARITY_SETTING, body.similarity_enabled)
+  if (typeof body.enabled === 'boolean') await settings.set(REFUSAL_GUARD_SETTING, body.enabled)
+  if (typeof body.similarity_enabled === 'boolean') await settings.set(REFUSAL_SIMILARITY_SETTING, body.similarity_enabled)
   if (typeof body.device_block_enabled === 'boolean') {
-    settings.set(REFUSAL_DEVICE_BLOCK_SETTING, body.device_block_enabled)
+    await settings.set(REFUSAL_DEVICE_BLOCK_SETTING, body.device_block_enabled)
   }
   if (Object.hasOwn(body, 'similarity')) {
-    settings.set(REFUSAL_SIMILARITY_VALUE_SETTING, normalizeRefusalSimilarity(body.similarity))
+    await settings.set(REFUSAL_SIMILARITY_VALUE_SETTING, normalizeRefusalSimilarity(body.similarity))
   }
   return { ok: true }
 }
@@ -214,7 +214,7 @@ export function applyRefusalGuardPatch(settings, body = {}) {
  * Pre-hop decision. Device ban wins, then the exact fingerprint, then a
  * user-text signature at or above the configured similarity. Does not write.
  */
-export function matchStoredRefusal({
+export async function matchStoredRefusal({
   inbound,
   body = inbound,
   headers,
@@ -226,17 +226,17 @@ export function matchStoredRefusal({
 } = {}) {
   const deviceId = inboundRefusalDeviceId({ inbound, body, headers })
   if (deviceBlockEnabled && deviceId && typeof devices?.get === 'function') {
-    const banned = devices.get(deviceId)
+    const banned = await devices.get(deviceId)
     if (banned) return { kind: 'device', deviceId, row: banned }
   }
   if (!repo || typeof repo.get !== 'function') return null
   const fingerprint = refusalFingerprint(body, inbound)
-  const exact = repo.get(fingerprint)
+  const exact = await repo.get(fingerprint)
   if (exact) return { kind: 'exact', deviceId, fingerprint, row: exact }
   if (!similarityEnabled || typeof repo.nearest !== 'function') return null
   const signature = refusalSignature(refusalUserDocument(inbound, body))
   if (!signature) return null
-  const near = repo.nearest(signature, similarity)
+  const near = await repo.nearest(signature, similarity)
   if (!near) return null
   return { kind: 'similar', deviceId, fingerprint: near.fingerprint, score: near.score, row: near }
 }

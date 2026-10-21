@@ -12,11 +12,11 @@ export function normalizeAllowedModels(raw) {
   return ids.length ? ids : null
 }
 
-function modelKeys(model) {
+async function modelKeys(model) {
   const raw = String(model || '').trim()
   if (!raw) return []
-  const resolved = resolvePolicyModelId(raw) || raw
-  const entry = getModelEntry(raw)
+  const resolved = (await resolvePolicyModelId(raw)) || raw
+  const entry = (await getModelEntry(raw))
   return [
     ...new Set(
       [
@@ -45,23 +45,23 @@ function keysIntersect(left, right) {
   return false
 }
 
-export function modelMatchesAllowlist(model, allowed) {
+export async function modelMatchesAllowlist(model, allowed) {
   const list = normalizeAllowedModels(allowed)
   if (!list) return true
-  const requestKeys = modelKeys(model)
+  const requestKeys = (await modelKeys(model))
   if (!requestKeys.length) return false
   for (const item of list) {
-    if (keysIntersect(requestKeys, modelKeys(item))) return true
+    if (keysIntersect(requestKeys, (await modelKeys(item)))) return true
   }
   return false
 }
 
-export function parseAllowedModelsPatch(raw, opts = {}) {
+export async function parseAllowedModelsPatch(raw, opts = {}) {
   if (raw == null) return { ok: true, value: null }
   if (!Array.isArray(raw)) return { ok: false, error: 'allowed_models must be an array' }
   const gpt = opts.platform === 'openai' || opts.platform === 'gpt' || opts.platform === 'codex' || isCodexVm(opts.vm)
   const catalog = new Set(
-    (gpt ? getGptPolicyCatalogIds({ enabledOnly: false }) : getPolicyCatalogIds({ enabledOnly: false })).map((id) =>
+    (gpt ? (await getGptPolicyCatalogIds({ enabledOnly: false })) : (await getPolicyCatalogIds({ enabledOnly: false }))).map((id) =>
       id.toLowerCase(),
     ),
   )
@@ -75,8 +75,8 @@ export function parseAllowedModelsPatch(raw, opts = {}) {
       ids.push(value)
       continue
     }
-    const resolved = resolvePolicyModelId(value) || value
-    const entry = getModelEntry(value)
+    const resolved = (await resolvePolicyModelId(value)) || value
+    const entry = (await getModelEntry(value))
     const known =
       catalog.has(resolved.toLowerCase()) ||
       catalog.has(value.toLowerCase()) ||
@@ -126,7 +126,7 @@ export function resolveSlotTier(vm, account = null) {
   ).key
 }
 
-export function slotAllowsModel({ vm, account = null, model } = {}) {
+export async function slotAllowsModel({ vm, account = null, model } = {}) {
   const modelKey = String(model || '').trim()
   if (!modelKey) return { ok: true }
   if (isCodexVm(vm)) {
@@ -134,14 +134,14 @@ export function slotAllowsModel({ vm, account = null, model } = {}) {
   } else if (isCodexCatalogModel(modelKey)) {
     return { ok: false, reason: 'claude_model_required' }
   }
-  const canonical = resolvePolicyModelId(modelKey) || modelKey
+  const canonical = (await resolvePolicyModelId(modelKey)) || modelKey
   const deniedUntil = Number(account?.unified?.model_denied_until?.[canonical]) || 0
   if (deniedUntil > Date.now()) return { ok: false, reason: 'model_not_supported' }
   if (isFableModel(modelKey) && resolveSlotTier(vm, account) !== 'max') {
     return { ok: false, reason: 'fable_requires_max' }
   }
   const allowed = normalizeAllowedModels(vm?.policy?.allowed_models)
-  if (allowed && !modelMatchesAllowlist(modelKey, allowed)) {
+  if (allowed && !(await modelMatchesAllowlist(modelKey, allowed))) {
     return { ok: false, reason: 'model_not_allowed' }
   }
   return { ok: true }

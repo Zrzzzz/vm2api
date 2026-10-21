@@ -278,13 +278,13 @@ export function reloadActiveVm(cfg) {
   return hydrateVmCfg(cfg, readActiveVmRecord(project), project)
 }
 
-export function saveVmPatch(vmPath, patch) {
+export async function saveVmPatch(vmPath, patch) {
   const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
   Object.assign(vm, patch)
   if (patch.claude_code_version) {
     vm.claude_code_version = patch.claude_code_version
     vm.claude_code_updated_at = new Date().toISOString()
   }
-  atomicWriteJson(vmPath, vm, { mode: 0o600 })
+  await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   return vm
 }

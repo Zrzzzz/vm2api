@@ -1,23 +1,15 @@
 export type DatabaseRuntimeMetrics = {
   ok: boolean
-  engine: 'sqlite'
+  engine: 'postgresql'
+  version: string
   probe_latency_ms: number | null
-  journal_mode: string | null
-  synchronous: number | null
-  foreign_keys: boolean | null
-  busy_timeout_ms: number | null
   file_size_bytes: number | null
-  wal_size_bytes: number | null
-  shm_size_bytes: number | null
-  page_size_bytes: number | null
-  page_count: number | null
-  freelist_pages: number | null
-  used_pages: number | null
-  used_bytes: number | null
-  free_ratio: number | null
+  connections: number
+  pool_max: number
+  pool_total: number
+  pool_idle: number
+  pool_waiting: number
   migration_count: number | null
-  latest_migration: string | null
-  latest_migration_at: string | null
 }
 
 export type UsageCacheMetrics = {

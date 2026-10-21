@@ -1,3 +1,4 @@
+import { asyncFilter } from '../core/async-collections.mjs'
 /**
  * Periodic OAuth refresh for every slot that still has a refresh token,
  * including operator 调度关. Inference no longer reaches those workers, so
@@ -44,20 +45,20 @@ export function normalizeCredentialRefreshConfig(raw = {}) {
   }
 }
 
-export function vmHasProxyPath(vm) {
+export async function vmHasProxyPath(vm) {
   if (!vm) return false
-  if (proxyBlockedReason(vm.proxy)) return false
+  if ((await proxyBlockedReason(vm.proxy))) return false
   if (isLocalEgressProxy(vm.proxy)) return true
   if (vm.proxy_cli_enabled && (vm.proxy?.url || vm.proxy?.host || vm.proxy_id)) return true
   return !!(vm.proxy?.url || (vm.proxy?.host && vm.proxy?.port))
 }
 
-export function isCredentialRefreshTarget(vm) {
+export async function isCredentialRefreshTarget(vm) {
   if (!vm?.id) return false
   if (!hasRefreshPresence(vm.claude) && !vm.has_refresh) return false
   const status = String(vm.status || '').toLowerCase()
   if (HARD_DOWN.has(status)) return false
-  if (!vmHasProxyPath(vm)) return false
+  if (!(await vmHasProxyPath(vm))) return false
   return true
 }
 
@@ -100,16 +101,16 @@ export function createCredentialRefreshMonitor(opts = {}) {
   let lastRun = null
   const nowFn = opts.now || (() => Date.now())
 
-  const listDue = () => {
-    const vms = typeof opts.listTargets === 'function' ? opts.listTargets() || [] : []
-    return vms.filter((vm) => isCredentialRefreshTarget(vm) && needsScheduledRefresh(vm, nowFn()))
+  const listDue = async () => {
+    const vms = typeof opts.listTargets === 'function' ? (await opts.listTargets()) || [] : []
+    return (await asyncFilter(vms, async (vm) => (await isCredentialRefreshTarget(vm)) && needsScheduledRefresh(vm, nowFn())))
   }
 
   const runOnce = async () => {
     if (inflight) return inflight
     inflight = (async () => {
       const started = nowFn()
-      const due = listDue()
+      const due = (await listDue())
       const items = []
       if (due.length && typeof opts.refreshOne === 'function') {
         await mapPool(due, config.concurrency, async (vm) => {

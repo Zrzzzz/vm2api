@@ -166,8 +166,8 @@ function assertCron(cron, timezone) {
   }
 }
 
-function defaultDialogParams(vm) {
-  const models = listTestableModels(isCodexVm(vm) ? 'openai' : 'anthropic')
+async function defaultDialogParams(vm) {
+  const models = (await listTestableModels(isCodexVm(vm) ? 'openai' : 'anthropic'))
   const model = models[0]?.id || ''
   if (!model) {
     throw new VmTestScheduleError('no test model available for this vm', 'test_model_missing', 400)
@@ -483,7 +483,7 @@ export class VmTestScheduleRunner {
     return this.get(vmId)
   }
 
-  applyScheduleStructure(vmId, structure, { preserveDialog = true } = {}) {
+  async applyScheduleStructure(vmId, structure, { preserveDialog = true } = {}) {
     if (!isValidVmId(vmId)) throw new VmTestScheduleError('invalid vm id', 'invalid_vm_id')
     const vm = this._vm(vmId)
     if (!vm) throw new VmTestScheduleError('vm not found', 'vm_not_found', 404)
@@ -500,7 +500,7 @@ export class VmTestScheduleRunner {
         reasoning_effort: previous.reasoning_effort ?? null,
       }
     } else {
-      dialog = defaultDialogParams(vm)
+      dialog = (await defaultDialogParams(vm))
     }
     const enabled = previous.enabled === true
     const config = normalizeVmTestSchedule(
@@ -526,7 +526,7 @@ export class VmTestScheduleRunner {
    * A slot of the other kind (Claude vs Codex) keeps its own dialog params, since
    * a model of one kind cannot run on the other; switch and timing still apply.
    */
-  syncSchedules({ scope, vmIds = [], schedule, test = null }) {
+  async syncSchedules({ scope, vmIds = [], schedule, test = null }) {
     const structure = normalizeScheduleStructure(schedule)
     const full = test == null ? null : normalizeSyncTest(test, structure)
     let targets = []
@@ -547,12 +547,12 @@ export class VmTestScheduleRunner {
         continue
       }
       if (full) {
-        this._applyFullTest(vmId, structure, full)
+        await this._applyFullTest(vmId, structure, full)
         updated.push(vmId)
         continue
       }
       const hadPlan = !!this._settings().get(keyFor(vmId))
-      this.applyScheduleStructure(vmId, structure, { preserveDialog: hadPlan })
+      await this.applyScheduleStructure(vmId, structure, { preserveDialog: hadPlan })
       if (!hadPlan) {
         const stored = this._settings().get(keyFor(vmId))
         if (stored) {
@@ -566,7 +566,7 @@ export class VmTestScheduleRunner {
     return { updated, missing, schedule: structure }
   }
 
-  _applyFullTest(vmId, structure, full) {
+  async _applyFullTest(vmId, structure, full) {
     const vm = this._vm(vmId)
     const previous = this._settings().get(keyFor(vmId)) || {}
     let dialog
@@ -578,7 +578,7 @@ export class VmTestScheduleRunner {
         max_tokens: previous.max_tokens ?? null,
         reasoning_effort: previous.reasoning_effort ?? null,
       }
-    } else dialog = defaultDialogParams(vm)
+    } else dialog = (await defaultDialogParams(vm))
     const config = normalizeVmTestSchedule({ enabled: full.enabled, ...structure, ...dialog }, vm)
     this._settings().set(keyFor(vmId), { ...config, ...savedResult(previous), revision: randomUUID() })
     if (this.started) this._syncJob(vmId, config)

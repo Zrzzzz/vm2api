@@ -281,14 +281,14 @@ export function inspectOfficialCcResident(vmId, vm) {
   }
 }
 
-export function persistSlotRuntimeMemory(projectRoot, vmId, memory) {
+export async function persistSlotRuntimeMemory(projectRoot, vmId, memory) {
   if (!projectRoot || !vmId || !memory) return false
   const vmPath = path.join(projectRoot, 'vms', `${vmId}.json`)
   try {
     const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
     vm.runtime = { ...(vm.runtime || {}), memory: String(memory) }
     vm.updated_at = new Date().toISOString()
-    atomicWriteJson(vmPath, vm, { mode: 0o600 })
+    await atomicWriteJson(vmPath, vm, { mode: 0o600 })
     return true
   } catch {
     return false
@@ -363,7 +363,7 @@ export async function keepOfficialCcResidentAfterHello({
   vm,
 }) {
   restoreSlotMemoryAfterOfficialCc(vmId, idleMemory, { keepCli: true, vm })
-  persistSlotRuntimeMemory(projectRoot, vmId, idleMemory)
+  await persistSlotRuntimeMemory(projectRoot, vmId, idleMemory)
   const started = startOfficialCcResidentProcess({
     vmId,
     projectRoot,
@@ -923,8 +923,8 @@ export async function runOfficialCcTurn({
   }
 }
 
-function persistOfficialCcFingerprint(vmPath, homeDir) {
-  return applyOfficialFingerprintToVm(vmPath, homeDir)
+async function persistOfficialCcFingerprint(vmPath, homeDir) {
+  return (await applyOfficialFingerprintToVm(vmPath, homeDir))
 }
 
 /**
@@ -958,10 +958,10 @@ export async function finalizeOfficialCcTelemetry(
   })
   vm.seed_policy = seed
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm, { mode: 0o600 })
+  await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   const homeDir = officialCcHome(projectRoot, vmId)
   applySeedAfterOfficialInit(homeDir, vm, seed, projectRoot)
-  const tel = writeOfficialCcTelemetry(projectRoot, vmId)
+  const tel = (await writeOfficialCcTelemetry(projectRoot, vmId))
   let reloaded = false
   if (reload && tel.enabled) {
     try {
@@ -988,12 +988,12 @@ export async function finalizeOfficialCcTelemetry(
 }
 
 /** Fingerprint + kin-identity + worker.json.telemetry from official ~/.claude.json. */
-export function writeOfficialCcTelemetry(projectRoot, vmId) {
+export async function writeOfficialCcTelemetry(projectRoot, vmId) {
   if (!projectRoot || !vmId) return { wrote: false, enabled: false, official: false }
   const vmPath = path.join(projectRoot, 'vms', `${vmId}.json`)
   if (!fs.existsSync(vmPath)) return { wrote: false, enabled: false, official: false }
   const homeDir = officialCcHome(projectRoot, vmId)
-  const fingerprint = persistOfficialCcFingerprint(vmPath, homeDir)
+  const fingerprint = (await persistOfficialCcFingerprint(vmPath, homeDir))
   let vm
   try {
     vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
@@ -1300,7 +1300,7 @@ export async function runOfficialCcBootstrap(rawOpts = {}) {
         applySeedAfterOfficialInit(homeDir, vm)
       } catch {}
     }
-    if (reconcileFingerprint !== false) persistOfficialCcFingerprint(vmPath, homeDir)
+    if (reconcileFingerprint !== false) await persistOfficialCcFingerprint(vmPath, homeDir)
     if (typeof collectIdentity === 'function') {
       try {
         await collectIdentity(projectRoot, JSON.parse(fs.readFileSync(vmPath, 'utf8')))
@@ -1325,7 +1325,7 @@ export async function runOfficialCcBootstrap(rawOpts = {}) {
     const telemetry =
       syncTelemetry !== false && hello.ok
         ? await finalizeOfficialCcTelemetry(projectRoot, vmId, { reload: true, enable: true, routing })
-        : writeOfficialCcTelemetry(projectRoot, vmId)
+        : (await writeOfficialCcTelemetry(projectRoot, vmId))
 
     const homeAfter = summarizeOfficialCcHome(homeDir)
     const ok = !!(hello.ok && usageOk)

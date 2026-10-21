@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { createTestDatabase } from '../postgres/isolated-db.mjs'
 import { FailoverRunner } from '../../src/lib/pool/failover-runner.mjs'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -908,12 +909,10 @@ test('aborted signal stops before another account is tried', async () => {
 
 for (const cancellation of ['result', 'throw']) {
   test(`client cancellation via ${cancellation} preserves outbound session beyond fifty turns`, async (t) => {
-    const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kin-cancel-session-'))
-    const sticky = new StickyRouter({ dataDir, config: { sticky: { enabled: true } } })
-    t.after(() => {
-      sticky.db.close()
-      fs.rmSync(dataDir, { recursive: true, force: true })
-    })
+    const db = await createTestDatabase()
+    const sticky = new StickyRouter({ db, config: { sticky: { enabled: true } } })
+    await sticky.initialize()
+    t.after(() => db.close())
     const scheduler = new Scheduler([{ ...candidate(1), slotIndex: 3 }])
     const runner = new FailoverRunner({ scheduler, stickyRouter: sticky })
     const callerSession = 'cancelled-caller'
@@ -950,7 +949,7 @@ for (const cancellation of ['result', 'throw']) {
       })
       assert.equal(result.status, turn === 50 ? 499 : 200)
       if (turn === 50) assert.equal(result.body.error.code, 'client_cancelled')
-      const bound = sticky.resolve(stickyKey)
+      const bound = await sticky.resolve(stickyKey)
       assert.equal(bound.sessionId, originalSession, `persisted session changed at turn ${turn}`)
       assert.equal(bound.slotIndex, 3, `cancellation dropped the seat at turn ${turn}`)
     }

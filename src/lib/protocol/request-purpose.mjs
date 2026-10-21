@@ -69,8 +69,8 @@ function incompatible(message, code = 'classifier_model_incompatible') {
 }
 
 /** Both transports use this policy; repeated assembly never adds headroom twice. */
-export function prepareClassifierBody(input, { stream = true } = {}) {
-  const entry = getModelEntry(input.model)
+export async function prepareClassifierBody(input, { stream = true } = {}) {
+  const entry = (await getModelEntry(input.model))
   if (entry._heuristic) incompatible('Classifier model capabilities are unknown; specify a supported model explicitly.')
   if (input.max_tokens != null && (!Number.isInteger(input.max_tokens) || input.max_tokens <= 0))
     incompatible('Classifier max_tokens must be a positive integer.')

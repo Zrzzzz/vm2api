@@ -4,8 +4,8 @@ import { getGptPolicyCatalogIds } from '../protocol/gpt-model-policy.mjs'
 import { readCatalogSync } from './catalog-monitor.mjs'
 import { getModelsDevStatus, listPriceCatalog, listPriceOverrides, resolvePrice } from './price-catalog.mjs'
 
-function policyPrices() {
-  const ids = [...getPolicyCatalogIds(), ...getGptPolicyCatalogIds()]
+async function policyPrices() {
+  const ids = [...(await getPolicyCatalogIds()), ...(await getGptPolicyCatalogIds())]
   const out = {}
   for (const id of ids) {
     const hit = resolvePrice(id)
@@ -14,12 +14,12 @@ function policyPrices() {
   return out
 }
 
-export function buildPricing({ requestLog = null } = {}) {
-  const policy = policyPrices()
+export async function buildPricing({ requestLog = null } = {}) {
+  const policy = (await policyPrices())
   const inPolicy = new Set(Object.values(policy).flatMap((row) => (row ? [row.id] : [])))
   let unpriced = []
   try {
-    unpriced = requestLog?.repo?.unpricedModels?.() || []
+    unpriced = (await requestLog?.repo?.unpricedModels?.()) || []
   } catch {
     unpriced = []
   }
@@ -29,6 +29,6 @@ export function buildPricing({ requestLog = null } = {}) {
     overrides: listPriceOverrides(),
     unpriced,
     policy,
-    catalog_sync: readCatalogSync(),
+    catalog_sync: (await readCatalogSync()),
   }
 }

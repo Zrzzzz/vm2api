@@ -309,9 +309,9 @@ function workerRuntimeExtra(worker) {
   }
 }
 
-function workerProxyUrl(vm) {
+async function workerProxyUrl(vm) {
   if (!vmWantsOuterSocks(vm)) return null
-  return boundProxyUrl(vm.proxy) || null
+  return (await boundProxyUrl(vm.proxy)) || null
 }
 
 /** host:port only — never include userinfo. */
@@ -402,9 +402,9 @@ export async function reloadSlotWorker(vm, projectRoot, { routing } = {}) {
   const name = containerName(vm.id)
   let worker
   try {
-    if (!isLocalEgressProxy(vm.proxy) && vm.proxy_required !== false && !workerProxyUrl(vm))
+    if (!isLocalEgressProxy(vm.proxy) && vm.proxy_required !== false && !(await workerProxyUrl(vm)))
       throw new Error('slot SOCKS5 proxy is required')
-    worker = writeWorkerFiles(vm, projectRoot, { routing })
+    worker = (await writeWorkerFiles(vm, projectRoot, { routing }))
   } catch (error) {
     if (!fs.existsSync(paths.config) || !fs.existsSync(paths.token)) {
       return { ok: false, error: String(error.message || error) }
@@ -505,8 +505,8 @@ function resolveSlotRouting(projectRoot, routing) {
   return readProjectRouting(projectRoot) || {}
 }
 
-export function writeWorkerFiles(vm, projectRoot, { transparent, routing } = {}) {
-  assertProxyAllowed(vm.proxy)
+export async function writeWorkerFiles(vm, projectRoot, { transparent, routing } = {}) {
+  await assertProxyAllowed(vm.proxy)
   const paths = workerPaths(projectRoot, vm.id)
   const uid = runtimeUidNum(vm)
   const gid = Number(GID)
@@ -522,7 +522,7 @@ export function writeWorkerFiles(vm, projectRoot, { transparent, routing } = {})
   const onEgress =
     transparent === true || (transparent !== false && (wantNet.startsWith('kin-eg-') || liveNet.startsWith('kin-eg-')))
   const local = isLocalEgressProxy(vm.proxy)
-  const proxyUrl = onEgress || local ? '' : workerProxyUrl(vm) || ''
+  const proxyUrl = onEgress || local ? '' : (await workerProxyUrl(vm)) || ''
   if (!onEgress && !local && vm.proxy_required !== false && !proxyUrl) throw new Error('slot SOCKS5 proxy is required')
   const testEndpoints = process.env.KIN_WORKER_TEST_ENDPOINTS === '1'
   const resolvedRouting = resolveSlotRouting(projectRoot, routing)
@@ -955,7 +955,7 @@ export async function startVmRuntime(vm, projectRoot, { recreate = false, routin
 
   let worker
   try {
-    worker = writeWorkerFiles(vm, projectRoot, { transparent: true, routing: resolvedRouting })
+    worker = (await writeWorkerFiles(vm, projectRoot, { transparent: true, routing: resolvedRouting }))
   } catch (error) {
     return { ok: false, error: String(error.message || error) }
   }
@@ -997,8 +997,8 @@ export async function startVmRuntime(vm, projectRoot, { recreate = false, routin
   }
   let computer
   try {
-    computer = ensureSlotComputer(projectRoot, vm)
-    rememberComputer(projectRoot, vm, computer)
+    computer = (await ensureSlotComputer(projectRoot, vm))
+    await rememberComputer(projectRoot, vm, computer)
   } catch (e) {
     return { ok: false, error: e.message || 'computer identity failed' }
   }

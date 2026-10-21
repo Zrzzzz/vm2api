@@ -685,7 +685,7 @@ function rectifyMessageContent(content, role) {
 }
 
 /** Convert every thinking block to text and disable top-level thinking (sub2api retry). */
-export function repairAnthropicRequest(body = {}, policy = {}) {
+export async function repairAnthropicRequest(body = {}, policy = {}) {
   if (policy.action !== 'repair-and-retry') return body
   const reason = String(policy.reason || '')
   if (reason === 'prefill_repairable' || reason === 'tool_pair_repairable' || reason === 'schema_repairable') {
@@ -696,7 +696,7 @@ export function repairAnthropicRequest(body = {}, policy = {}) {
   }
   if (reason === 'thinking_repairable') {
     const next = structuredClone(body)
-    normalizeThinkingForModel(next)
+    await normalizeThinkingForModel(next)
     return next
   }
   const out = structuredClone(body)

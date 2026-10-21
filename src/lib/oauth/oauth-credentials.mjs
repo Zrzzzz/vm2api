@@ -324,7 +324,7 @@ function sealSlotCredentialFile(file) {
 
 /** Write slot credentials.json for imports and worker-owned credential updates. */
 
-export function writeWorkerCredentialFile(homeDir, cred) {
+export async function writeWorkerCredentialFile(homeDir, cred) {
   const file = slotWorkerCredentialPath(homeDir)
   if (!file) return null
   const mode = credentialModeFromOauth(cred)
@@ -337,7 +337,7 @@ export function writeWorkerCredentialFile(homeDir, cred) {
     try {
       if (fs.existsSync(file)) fs.chmodSync(file, 0o600)
     } catch {}
-    atomicWriteJson(
+    await atomicWriteJson(
       file,
       {
         type: 'apikey',
@@ -396,7 +396,7 @@ export function writeWorkerCredentialFile(homeDir, cred) {
   try {
     if (fs.existsSync(file)) fs.chmodSync(file, 0o600)
   } catch {}
-  atomicWriteJson(file, { type: mode, authScheme, kinGeneration: generation, claudeAiOauth: oauth }, { mode: 0o600 })
+  await atomicWriteJson(file, { type: mode, authScheme, kinGeneration: generation, claudeAiOauth: oauth }, { mode: 0o600 })
   chownSlotCredentialFile(homeDir, file)
   sealSlotCredentialFile(file)
   ensureOfficialCredentialLink(homeDir)
@@ -407,7 +407,7 @@ export function writeWorkerCredentialFile(homeDir, cred) {
  * Old slot files predate subscriptionType. Fill from the identified plan,
  * otherwise pro; repair the legacy pro fallback for an identified Max slot.
  */
-export function ensureSlotSubscriptionType(homeDir, accountTier = null) {
+export async function ensureSlotSubscriptionType(homeDir, accountTier = null) {
   const file = slotWorkerCredentialPath(homeDir)
   if (!file || !fs.existsSync(file)) return { wrote: false, reason: 'missing' }
   let doc
@@ -432,12 +432,12 @@ export function ensureSlotSubscriptionType(homeDir, accountTier = null) {
   try {
     fs.chmodSync(file, 0o600)
   } catch {}
-  atomicWriteJson(file, doc, { mode: 0o600 })
+  await atomicWriteJson(file, doc, { mode: 0o600 })
   chownSlotCredentialFile(homeDir, file)
   return { wrote: true, subscriptionType: tier }
 }
 
-export function persistSlotAuthScheme(projectRoot, vmId, rawScheme) {
+export async function persistSlotAuthScheme(projectRoot, vmId, rawScheme) {
   const vmPath = path.join(projectRoot, 'vms', `${vmId}.json`)
   if (!vmPath || !fs.existsSync(vmPath)) return null
   const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
@@ -449,12 +449,12 @@ export function persistSlotAuthScheme(projectRoot, vmId, rawScheme) {
   vm.claude = vm.claude || {}
   vm.claude.auth_scheme = scheme
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm, { mode: 0o600 })
+  await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   const homeDir = path.join(projectRoot, 'vms', vmId, 'cli-home')
   const cred = readWorkerCredentialFile(homeDir)
   if (cred) {
     try {
-      writeWorkerCredentialFile(homeDir, { ...cred, auth_scheme: scheme })
+      await writeWorkerCredentialFile(homeDir, { ...cred, auth_scheme: scheme })
     } catch {}
   }
   return vm
@@ -479,10 +479,10 @@ export function readSlotCredentialIdentity(homeDir) {
 /**
  * After the Go worker rotates tokens, mirror metadata (not secrets) into vm.json.
  */
-export function mirrorWorkerCredentialsToVm(vmPath, homeDir, opts = {}) {
+export async function mirrorWorkerCredentialsToVm(vmPath, homeDir, opts = {}) {
   const cred = readWorkerCredentialFile(homeDir)
   if (!cred?.access_token && !cred?.refresh_token) return null
-  return persistOauthToVm(vmPath, cred, opts)
+  return (await persistOauthToVm(vmPath, cred, opts))
 }
 
 /**
@@ -504,7 +504,7 @@ export function restoreScheduleAfterLiveCredential(vm) {
   return vm
 }
 
-export function persistOauthToVm(vmPath, cred, { acceptLiveGrant = false } = {}) {
+export async function persistOauthToVm(vmPath, cred, { acceptLiveGrant = false } = {}) {
   if (!vmPath || !fs.existsSync(vmPath)) return null
   const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
   const prev = vm.claude || {}
@@ -556,7 +556,7 @@ export function persistOauthToVm(vmPath, cred, { acceptLiveGrant = false } = {})
   if (prevRevoked && !rotated && !acceptLiveGrant) {
     vm.claude.refresh_error = prev.refresh_error || 'oauth_revoked'
     vm.updated_at = new Date().toISOString()
-    atomicWriteJson(vmPath, vm, { mode: 0o600 })
+    await atomicWriteJson(vmPath, vm, { mode: 0o600 })
     return vm
   }
   vm.claude.refresh_error = null
@@ -565,7 +565,7 @@ export function persistOauthToVm(vmPath, cred, { acceptLiveGrant = false } = {})
   clearClaudeAuthCooldown(vm.claude)
   restoreScheduleAfterLiveCredential(vm)
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm, { mode: 0o600 })
+  await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   return vm
 }
 
@@ -581,7 +581,7 @@ function clearClaudeAuthCooldown(claude = {}) {
 }
 
 /** Quota / 429 / account cooldown: same temp_unschedulable_* store as auth park. */
-export function markVmRestriction(vmPath, { until, reason } = {}) {
+export async function markVmRestriction(vmPath, { until, reason } = {}) {
   if (!vmPath || !fs.existsSync(vmPath)) return null
   const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
   vm.claude = { ...(vm.claude || {}) }
@@ -594,12 +594,12 @@ export function markVmRestriction(vmPath, { until, reason } = {}) {
   vm.claude.temp_unschedulable_reason = why
   vm.temp_unschedulable_reason = why
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm)
+  await atomicWriteJson(vmPath, vm)
   return vm
 }
 
 /** Drop quota/429 restriction only. Auth parks stay. */
-export function clearVmQuotaRestriction(vmPath) {
+export async function clearVmQuotaRestriction(vmPath) {
   if (!vmPath || !fs.existsSync(vmPath)) return null
   const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
   const reason = vm.claude?.temp_unschedulable_reason || vm.temp_unschedulable_reason
@@ -610,7 +610,7 @@ export function clearVmQuotaRestriction(vmPath) {
   delete vm.temp_unschedulable_until
   delete vm.temp_unschedulable_reason
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm)
+  await atomicWriteJson(vmPath, vm)
   return vm
 }
 
@@ -624,7 +624,7 @@ function isRecoverableCooldownReason(reason) {
 }
 
 /** Operator recovery: drop quota, RPM, and provider cooldown. Dead grants stay parked. */
-export function clearRecoverableVmCooldown(vmPath) {
+export async function clearRecoverableVmCooldown(vmPath) {
   if (!vmPath || !fs.existsSync(vmPath)) return null
   const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
   const reason = vm.claude?.temp_unschedulable_reason || vm.temp_unschedulable_reason
@@ -635,12 +635,12 @@ export function clearRecoverableVmCooldown(vmPath) {
   delete vm.temp_unschedulable_until
   delete vm.temp_unschedulable_reason
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm)
+  await atomicWriteJson(vmPath, vm)
   return vm
 }
 
 /** First messages 401: park the slot without burning the grant. */
-export function markVmAuthCooldown(
+export async function markVmAuthCooldown(
   vmPath,
   { until, reason = 'authentication_failed_after_refresh', generation = null } = {},
 ) {
@@ -652,12 +652,12 @@ export function markVmAuthCooldown(
   vm.claude.temp_unschedulable_reason = reason || 'authentication_failed_after_refresh'
   if (generation != null && generation !== '') vm.claude.oauth_401_generation = generation
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm, { mode: 0o600 })
+  await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   return vm
 }
 
 /** Panel saw a still-fresh worker ticket: drop leftover 401 park only. Never un-revoke. */
-export function healLeftoverAuthState(vmPath) {
+export async function healLeftoverAuthState(vmPath) {
   if (!vmPath || !fs.existsSync(vmPath)) return null
   const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
   if (!vm.claude) return vm
@@ -672,12 +672,12 @@ export function healLeftoverAuthState(vmPath) {
   vm.claude = stripCredentialSecrets({ ...vm.claude })
   clearClaudeAuthCooldown(vm.claude)
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm, { mode: 0o600 })
+  await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   return vm
 }
 
 /** Ensure / import / later success: drop the 401 park so the next 401 is first-hit again. */
-export function clearVmAuthCooldown(vmPath) {
+export async function clearVmAuthCooldown(vmPath) {
   if (!vmPath || !fs.existsSync(vmPath)) return null
   const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
   if (!vm.claude) return vm
@@ -688,7 +688,7 @@ export function clearVmAuthCooldown(vmPath) {
   vm.claude = stripCredentialSecrets({ ...vm.claude })
   clearClaudeAuthCooldown(vm.claude)
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm, { mode: 0o600 })
+  await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   return vm
 }
 
@@ -727,7 +727,7 @@ export function refreshErrorCodeOf(result) {
 }
 
 /** Persist a fatal/failed refresh onto vm.json. Dead tickets leave the pool even if 调度 was manually on. */
-export function markVmRefreshError(vmPath, result) {
+export async function markVmRefreshError(vmPath, result) {
   if (!vmPath || !fs.existsSync(vmPath)) return null
   const vm = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
   vm.claude = stripCredentialSecrets({ ...(vm.claude || {}) })
@@ -740,6 +740,6 @@ export function markVmRefreshError(vmPath, result) {
   }
 
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(vmPath, vm, { mode: 0o600 })
+  await atomicWriteJson(vmPath, vm, { mode: 0o600 })
   return vm
 }

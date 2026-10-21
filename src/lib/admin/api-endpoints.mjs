@@ -101,19 +101,19 @@ export class ApiEndpointStore {
     this.repo = new ApiEndpointsRepo(db)
   }
 
-  list({ reveal = false } = {}) {
-    return this.repo.listHydrated().map((ep) => publicEndpointView(ep, { reveal }))
+  async list({ reveal = false } = {}) {
+    return (await this.repo.listHydrated()).map((ep) => publicEndpointView(ep, { reveal }))
   }
 
-  listRaw() {
-    return this.repo.listHydrated()
+  async listRaw() {
+    return (await this.repo.listHydrated())
   }
 
-  getRaw(id) {
-    return this.repo.getHydrated(id)
+  async getRaw(id) {
+    return (await this.repo.getHydrated(id))
   }
 
-  create(input = {}) {
+  async create(input = {}) {
     const preset = resolvePreset(input.kind, input)
     const base_url = preset.base_url
     if (!/^https?:\/\//i.test(base_url)) {
@@ -139,16 +139,16 @@ export class ApiEndpointStore {
       created_at: nowIso(),
       updated_at: nowIso(),
     }
-    const stored = this.repo.insertEndpoint(rec)
+    const stored = (await this.repo.insertEndpoint(rec))
     const models = Array.isArray(input.models) ? input.models : []
-    if (models.length) this.replaceModels(stored.id, models)
+    if (models.length) await this.replaceModels(stored.id, models)
     const keys = Array.isArray(input.api_key_entries) ? input.api_key_entries : []
-    for (const k of keys) this.addKey(stored.id, k)
-    return this.repo.getHydrated(stored.id)
+    for (const k of keys) await this.addKey(stored.id, k)
+    return (await this.repo.getHydrated(stored.id))
   }
 
-  update(id, patch = {}) {
-    const rec = this.repo.getHydrated(id)
+  async update(id, patch = {}) {
+    const rec = (await this.repo.getHydrated(id))
     if (!rec) return null
     if (patch.name != null) rec.name = String(patch.name).trim().slice(0, 80) || rec.name
     if (patch.disabled != null) rec.disabled = !!patch.disabled
@@ -173,21 +173,21 @@ export class ApiEndpointStore {
     if (patch.disable_cooling != null) rec.disable_cooling = !!patch.disable_cooling
     if (patch.priority != null) rec.priority = Number(patch.priority) || 0
     rec.updated_at = nowIso()
-    this.repo.updateEndpoint(rec)
-    if (Array.isArray(patch.models)) this.replaceModels(id, patch.models)
-    return this.repo.getHydrated(id)
+    await this.repo.updateEndpoint(rec)
+    if (Array.isArray(patch.models)) await this.replaceModels(id, patch.models)
+    return (await this.repo.getHydrated(id))
   }
 
-  remove(id) {
-    return this.repo.removeEndpoint(id)
+  async remove(id) {
+    return (await this.repo.removeEndpoint(id))
   }
 
-  addKey(endpointId, input = {}) {
-    const ep = this.repo.getHydrated(endpointId)
+  async addKey(endpointId, input = {}) {
+    const ep = (await this.repo.getHydrated(endpointId))
     if (!ep) throw Object.assign(new Error('endpoint not found'), { code: 'endpoint_not_found' })
     const api_key = String(input.api_key || '').trim()
     if (api_key.length < 4) throw Object.assign(new Error('api_key too short'), { code: 'key_too_short' })
-    return this.repo.insertKey({
+    return (await this.repo.insertKey({
       id: nid('ek_'),
       endpoint_id: endpointId,
       api_key,
@@ -196,18 +196,18 @@ export class ApiEndpointStore {
       disabled: !!input.disabled,
       cooldown_until: null,
       created_at: nowIso(),
-    })
+    }))
   }
 
-  removeKey(id) {
-    return this.repo.removeKey(id)
+  async removeKey(id) {
+    return (await this.repo.removeKey(id))
   }
 
-  updateKey(id, patch = {}) {
-    return this.repo.updateKey(id, patch)
+  async updateKey(id, patch = {}) {
+    return (await this.repo.updateKey(id, patch))
   }
 
-  replaceModels(endpointId, models = []) {
+  async replaceModels(endpointId, models = []) {
     const rows = models
       .map((m, i) => ({
         id: m.id || nid('em_'),
@@ -218,17 +218,17 @@ export class ApiEndpointStore {
         thinking: m.thinking,
       }))
       .filter((m) => m.name && m.alias)
-    return this.repo.replaceModels(endpointId, rows)
+    return (await this.repo.replaceModels(endpointId, rows))
   }
 
-  setKeyCooldown(id, untilIso) {
-    this.repo.setKeyCooldown(id, untilIso)
+  async setKeyCooldown(id, untilIso) {
+    await this.repo.setKeyCooldown(id, untilIso)
   }
 
-  mergeFetchedModels(endpointId, fetched = []) {
-    const ep = this.repo.getHydrated(endpointId)
+  async mergeFetchedModels(endpointId, fetched = []) {
+    const ep = (await this.repo.getHydrated(endpointId))
     if (!ep) return null
-    return this.replaceModels(endpointId, mergeModelLists(ep.models, fetched))
+    return (await this.replaceModels(endpointId, mergeModelLists(ep.models, fetched)))
   }
 }
 

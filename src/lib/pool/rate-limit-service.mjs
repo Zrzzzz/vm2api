@@ -100,18 +100,18 @@ export class RateLimitService {
    * An unknown bare 429 writes no hard block: the scope is unproven, so one
    * bounded usage probe decides whether the account window is really spent.
    */
-  handleUpstreamError({ accountId, vmId, result = {}, policy = null, now = Date.now() } = {}) {
+  async handleUpstreamError({ accountId, vmId, result = {}, policy = null, now = Date.now() } = {}) {
     if (!accountId || !this.runtimeRepo || result?.committed) return null
     const reason = String(policy?.reason || '')
     if (policy?.scope === 'account' && reason === 'account_quota_exhausted') {
-      return this.handle429({ accountId, vmId, result, now })
+      return (await this.handle429({ accountId, vmId, result, now }))
     }
     if (reason === 'rate_limited_unknown') {
       this.requestUsageProbe({ accountId, vmId })
       return null
     }
     if (reason === 'provider_overloaded' && Number(result?.status) === 529) {
-      return this.handle529({ accountId, vmId, now })
+      return (await this.handle529({ accountId, vmId, now }))
     }
     return null
   }
@@ -123,13 +123,13 @@ export class RateLimitService {
     } catch {}
   }
 
-  handle429({ accountId, vmId, result = {}, now = Date.now() }) {
+  async handle429({ accountId, vmId, result = {}, now = Date.now() }) {
     const headers = extraHeadersFromLimitError(bodyMessage(result.body), result.headers || {}, now)
     const parsed = anthropic429Reset(headers, now)
     const fallback = !parsed
     const resetAt = parsed?.resetAt || now + this.config.fallback_cooldown_min * 60_000
     const windowEnd = parsed?.fiveHourReset || (parsed?.window === '7d' ? null : resetAt)
-    this.runtimeRepo.updateWindow?.(accountId, {
+    await this.runtimeRepo.updateWindow?.(accountId, {
       vmId,
       rateLimitedAt: now,
       rateLimitResetAt: resetAt,
@@ -137,7 +137,7 @@ export class RateLimitService {
       sessionWindowStatus: 'rejected',
     })
     try {
-      this.accountQuota?.ingestHeaders?.(accountId, headers, null, {
+      await this.accountQuota?.ingestHeaders?.(accountId, headers, null, {
         exhausted: true,
         status: 429,
         countRequest: false,
@@ -147,9 +147,9 @@ export class RateLimitService {
     return { kind: 'rate_limited', until: resetAt, window: parsed?.window || null, fallback }
   }
 
-  handle529({ accountId, vmId, now = Date.now() }) {
+  async handle529({ accountId, vmId, now = Date.now() }) {
     const until = now + this.config.overload_cooldown_min * 60_000
-    this.runtimeRepo.updateWindow?.(accountId, { vmId, overloadUntil: until })
+    await this.runtimeRepo.updateWindow?.(accountId, { vmId, overloadUntil: until })
     return { kind: 'overloaded', until }
   }
 
@@ -157,7 +157,7 @@ export class RateLimitService {
    * sub2api UpdateSessionWindow: every response with live headers.
    * An out-of-range reset is ignored. `allowed` is the only early unblock.
    */
-  updateSessionWindow({ accountId, vmId = null, headers = {}, now = Date.now() } = {}) {
+  async updateSessionWindow({ accountId, vmId = null, headers = {}, now = Date.now() } = {}) {
     if (!accountId || !this.runtimeRepo) return false
     const status = String(header(headers, 'anthropic-ratelimit-unified-5h-status') || '').toLowerCase()
     if (!status) return false
@@ -171,13 +171,13 @@ export class RateLimitService {
       patch.sessionWindowStart = resetMs - WINDOW_5H_MS
       patch.sessionWindowEnd = resetMs
     }
-    const current = this.runtimeRepo.get?.(accountId) || null
+    const current = (await this.runtimeRepo.get?.(accountId)) || null
     const limited = Number(current?.rate_limit_reset_at) > now
     const sevenDayOpen = !isRejected(header(headers, 'anthropic-ratelimit-unified-7d-status'))
     if (status === 'allowed' && sevenDayOpen && limited) {
       patch.rateLimitResetAt = null
     }
-    this.runtimeRepo.updateWindow?.(accountId, patch)
+    await this.runtimeRepo.updateWindow?.(accountId, patch)
     return patch.rateLimitResetAt === null
   }
 }

@@ -13,9 +13,9 @@ import { boundProxyUrl, isLocalEgressProxy } from './egress.mjs'
 import { slotHost } from './slot-host.mjs'
 import { configuredIpv6Enabled, proxyBlockedReason } from './proxy-policy.mjs'
 
-function poolHitForVm(proxyPool, vm) {
+async function poolHitForVm(proxyPool, vm) {
   if (!proxyPool || typeof proxyPool.snapshot !== 'function') return null
-  const list = proxyPool.snapshot()?.proxies || []
+  const list = (await proxyPool.snapshot())?.proxies || []
   const id = vm?.proxy?.id || vm?.proxy_id
   const vmId = vm?.id
   return (
@@ -28,10 +28,10 @@ function poolHitForVm(proxyPool, vm) {
   )
 }
 
-function socksUrlFromVm(vm) {
+async function socksUrlFromVm(vm) {
   const px = vm?.proxy
   if (!px) return null
-  return boundProxyUrl(px) || null
+  return (await boundProxyUrl(px)) || null
 }
 
 export function poolProxyUnavailable(hit) {
@@ -42,10 +42,10 @@ export function poolProxyUnavailable(hit) {
   return !hit.enabled || hit.status === 'dead' || hit.status === 'fail'
 }
 
-export function resolveImportProxy({ vm, proxyPool, overrideUrl = null } = {}) {
-  const hit = poolHitForVm(proxyPool, vm)
-  const ipv6Enabled = proxyPool?.snapshot?.().config?.ipv6_enabled ?? configuredIpv6Enabled()
-  const blocked = proxyBlockedReason(overrideUrl ? { url: overrideUrl } : hit || vm?.proxy, ipv6Enabled)
+export async function resolveImportProxy({ vm, proxyPool, overrideUrl = null } = {}) {
+  const hit = (await poolHitForVm(proxyPool, vm))
+  const ipv6Enabled = (await proxyPool?.snapshot?.()).config?.ipv6_enabled ?? (await configuredIpv6Enabled())
+  const blocked = (await proxyBlockedReason(overrideUrl ? { url: overrideUrl } : hit || vm?.proxy, ipv6Enabled))
   if (blocked || hit?.blocked_reason) {
     return { ok: false, proxyUrl: null, blocked: true, reason: blocked || hit.blocked_reason }
   }
@@ -53,9 +53,9 @@ export function resolveImportProxy({ vm, proxyPool, overrideUrl = null } = {}) {
     return { ok: false, proxyUrl: null, blocked: true, reason: 'proxy_unavailable' }
   }
   if (overrideUrl) {
-    return { ok: true, proxyUrl: boundProxyUrl({ url: overrideUrl }), blocked: false, reason: null }
+    return { ok: true, proxyUrl: (await boundProxyUrl({ url: overrideUrl })), blocked: false, reason: null }
   }
-  const allocated = vm?.id && typeof proxyPool?.getProxyForVm === 'function' ? proxyPool.getProxyForVm(vm.id) : null
+  const allocated = vm?.id && typeof proxyPool?.getProxyForVm === 'function' ? (await proxyPool.getProxyForVm(vm.id)) : null
   if (isLocalEgressProxy(hit) || isLocalEgressProxy(allocated) || isLocalEgressProxy(vm?.proxy)) {
     let proxyUrl
     try {
@@ -74,7 +74,7 @@ export function resolveImportProxy({ vm, proxyPool, overrideUrl = null } = {}) {
       reason: null,
     }
   }
-  const fallback = socksUrlFromVm(vm)
+  const fallback = (await socksUrlFromVm(vm))
   if (fallback) return { ok: true, proxyUrl: fallback, blocked: false, reason: null }
   return { ok: false, proxyUrl: null, blocked: false, reason: 'proxy_required' }
 }

@@ -100,7 +100,7 @@ export function validateDockerMemoryRaise(vm, requestedMemory, routing) {
   return { ok: true, memory: target, previous: configured }
 }
 
-export function raiseDockerSlotMemory(projectRoot, vm, requestedMemory, { routing, execImpl = defaultExec } = {}) {
+export async function raiseDockerSlotMemory(projectRoot, vm, requestedMemory, { routing, execImpl = defaultExec } = {}) {
   const validated = validateDockerMemoryRaise(vm, requestedMemory, routing)
   if (!validated.ok) return validated
 
@@ -137,7 +137,7 @@ export function raiseDockerSlotMemory(projectRoot, vm, requestedMemory, { routin
     }
   }
 
-  const saved = patchVmRecord(projectRoot, vm.id, (record) => {
+  const saved = (await patchVmRecord(projectRoot, vm.id, (record) => {
     const next = {
       machine: { ...(record.machine || {}), memory: inspected.memory },
     }
@@ -145,7 +145,7 @@ export function raiseDockerSlotMemory(projectRoot, vm, requestedMemory, { routin
       next.runtime = { ...record.runtime, memory: inspected.memory }
     }
     return next
-  })
+  }))
   if (!saved) {
     return {
       ok: false,

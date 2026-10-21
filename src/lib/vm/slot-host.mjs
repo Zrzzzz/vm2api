@@ -159,7 +159,7 @@ export function slotHost(vm) {
  * egress the route of the VPS that runs the slot. A local Claude slot's container
  * has no proxy env, so its requests stay direct; a node slot's must not leave from here.
  */
-export function hostProxyUrlForVm(vm) {
-  if (!isLocalEgressProxy(vm?.proxy)) return boundProxyUrl(vm?.proxy)
+export async function hostProxyUrlForVm(vm) {
+  if (!isLocalEgressProxy(vm?.proxy)) return (await boundProxyUrl(vm?.proxy))
   return slotHost(vm).localExitProxyUrl(vm)
 }

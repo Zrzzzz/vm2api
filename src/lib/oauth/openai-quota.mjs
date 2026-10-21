@@ -251,7 +251,7 @@ async function loadSlot(projectRoot, vmId) {
   if (!access && !refresh) {
     return { ok: false, error: 'no_oauth_token', message: 'GPT 槽没有 OAuth 凭证', status: 400 }
   }
-  const proxyUrl = hostProxyUrlForVm(vm)
+  const proxyUrl = (await hostProxyUrlForVm(vm))
   return {
     ok: true,
     vm,
@@ -297,7 +297,7 @@ async function rotateIfNeeded(slot, projectRoot, vmId, fetchImpl) {
     timeoutMs: OPENAI_QUOTA_TIMEOUT_MS,
   })
   if (!tok.ok) return { ...slot, rotateError: tok.error || 'refresh_failed' }
-  upsertCodexAccount(projectRoot, vmId, {
+  await upsertCodexAccount(projectRoot, vmId, {
     access_token: tok.access_token,
     refresh_token: tok.refresh_token,
     id_token: tok.id_token || slot.first.id_token,
@@ -382,13 +382,13 @@ async function queryUpstream(slot, { fetchImpl, rotate = true, projectRoot, vmId
   )
   const persistable = resetCredits.available_count <= 0 || resetCredits.credits.length > 0 ? resetCredits : null
   const credits = normalizeCodexCredits(pack.usage.payload?.credits)
-  persistCodexQuotaSnapshot(projectRoot, vmId, {
+  await persistCodexQuotaSnapshot(projectRoot, vmId, {
     extra,
     credits,
     planType: pack.usage.payload?.plan_type || pack.usage.payload?.planType,
     ...(persistable ? { resetCredits: persistable } : {}),
   })
-  syncCodexQuotaSchedule(projectRoot, getVm(projectRoot, vmId), {
+  await syncCodexQuotaSchedule(projectRoot, getVm(projectRoot, vmId), {
     policy,
   })
   return {

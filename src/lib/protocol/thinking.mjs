@@ -102,10 +102,10 @@ export function modelRequiresAdaptiveThinking(model = '') {
  * - adaptive on unsupported (Haiku / 4.5) -> enabled + budget (keep thinking intent)
  * - enabled is kept on Claude 5 / Fable / Opus 4.7+ (OAuth passthrough)
  */
-export function normalizeThinkingForModel(body = {}) {
+export async function normalizeThinkingForModel(body = {}) {
   // Prefer model-policy matrix; fall back to hardcoded heuristics if policy unavailable
   try {
-    return normalizeThinkingByPolicy(body)
+    return (await normalizeThinkingByPolicy(body))
   } catch {
     /* fall through */
   }
@@ -118,10 +118,10 @@ export function normalizeThinkingForModel(body = {}) {
   if (type === 'adaptive' && !modelSupportsAdaptiveThinking(model)) {
     const budget = Number(thinking.budget_tokens) > 0 ? Number(thinking.budget_tokens) : DEFAULT_FALLBACK_BUDGET
     body.thinking = { type: 'enabled', budget_tokens: budget }
-    return clampEnabledThinkingBudget(body)
+    return (await clampEnabledThinkingBudget(body))
   }
 
-  return clampEnabledThinkingBudget(body)
+  return (await clampEnabledThinkingBudget(body))
 }
 
 const OFFICIAL_THINKING_DISPLAY = 'omitted'
@@ -173,9 +173,9 @@ export function ensureUnofficialAdaptiveThinking(body = {}) {
   return { ...body, thinking: { ...body.thinking, display: OFFICIAL_THINKING_DISPLAY } }
 }
 
-export function modelSupportsEffort(model = '') {
+export async function modelSupportsEffort(model = '') {
   try {
-    return getCapabilities(model)?.supports_effort === true
+    return (await getCapabilities(model))?.supports_effort === true
   } catch {
     const m = String(model || '').toLowerCase()
     if (!m) return false
@@ -186,9 +186,9 @@ export function modelSupportsEffort(model = '') {
 }
 
 /** Haiku / 4.5 reject output_config.effort even with the effort beta. */
-export function stripUnsupportedEffort(body = {}) {
+export async function stripUnsupportedEffort(body = {}) {
   if (!body || typeof body !== 'object') return body
-  if (modelSupportsEffort(body.model)) return body
+  if ((await modelSupportsEffort(body.model))) return body
   let out = body
   if (
     body.output_config &&
@@ -230,12 +230,12 @@ export function stripUnsupportedEffort(body = {}) {
 }
 
 /** Official fill: missing output_config.effort. Never overwrite. Opus 5.5 defaults to medium. */
-export function ensureUnofficialEffortHigh(body = {}) {
+export async function ensureUnofficialEffortHigh(body = {}) {
   if (!body || typeof body !== 'object') return body
-  if (!modelSupportsEffort(body.model)) return stripUnsupportedEffort(body)
+  if (!(await modelSupportsEffort(body.model))) return (await stripUnsupportedEffort(body))
   let effort = 'high'
   try {
-    effort = getModelParams(body.model)?.default_effort || 'high'
+    effort = (await getModelParams(body.model))?.default_effort || 'high'
   } catch {
     effort = 'high'
   }

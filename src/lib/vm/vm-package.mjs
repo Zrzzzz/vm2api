@@ -195,7 +195,7 @@ export function buildVmPackage({
   return doc
 }
 
-function parsePolicy(raw, codex) {
+async function parsePolicy(raw, codex) {
   if (raw == null) return { ok: true, value: {} }
   if (typeof raw !== 'object' || Array.isArray(raw)) return fail('invalid_package', 'vm.policy 必须是对象')
   const value = {}
@@ -248,7 +248,7 @@ function parsePolicy(raw, codex) {
     value.quota = parsed.value
   }
   if (has(raw, 'allowed_models')) {
-    const parsed = parseAllowedModelsPatch(raw.allowed_models, { platform: codex ? 'openai' : 'anthropic' })
+    const parsed = (await parseAllowedModelsPatch(raw.allowed_models, { platform: codex ? 'openai' : 'anthropic' }))
     if (!parsed.ok) return fail('invalid_package', parsed.error || '允许模型无效')
     value.allowed_models = parsed.value
   }
@@ -313,7 +313,7 @@ function parseCredential(raw, codex) {
   return { ok: true, value: { platform: 'anthropic', export: exportDoc, oauth } }
 }
 
-export function parseVmPackage(doc) {
+export async function parseVmPackage(doc) {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return fail('invalid_package', '包必须是 JSON 对象')
   if (doc.type !== VM_PACKAGE_TYPE || doc.version !== VM_PACKAGE_VERSION) {
     return fail('invalid_package', '不是 vm2api 单槽包')
@@ -342,7 +342,7 @@ export function parseVmPackage(doc) {
   if (persona == null) return fail('invalid_package', 'persona_preset 无效')
   const dataplane = parseKernelDataplanePatch(vm.dataplane)
   if (!dataplane.ok) return fail('invalid_package', dataplane.error || 'dataplane 无效')
-  const policy = parsePolicy(vm.policy, codex)
+  const policy = (await parsePolicy(vm.policy, codex))
   if (!policy.ok) return policy
   const proxy = parseProxy(doc.proxy)
   if (!proxy.ok) return proxy
@@ -483,18 +483,18 @@ function credentialPresent(spec, vm) {
   return !!(vm.claude?.has_access || vm.claude?.has_refresh || vm.claude?.has_api_key)
 }
 
-function writeCredential(projectRoot, id, spec) {
+async function writeCredential(projectRoot, id, spec) {
   if (!spec.credential) return { ok: true }
   if (spec.codex) {
     const saved = spec.credential.accounts
-    writeCodexAccounts(projectRoot, id, saved)
+    await writeCodexAccounts(projectRoot, id, saved)
     return { ok: true, account: saved[0] }
   }
   const home = path.join(projectRoot, 'vms', id, 'cli-home')
   const oauth = spec.credential.oauth
-  const file = writeWorkerCredentialFile(home, oauth)
+  const file = (await writeWorkerCredentialFile(home, oauth))
   if (!file) return fail('credential_required', 'Claude 包需要 access_token、refresh_token 或 api_key')
-  persistOauthToVm(path.join(projectRoot, 'vms', `${id}.json`), oauth, { acceptLiveGrant: true })
+  await persistOauthToVm(path.join(projectRoot, 'vms', `${id}.json`), oauth, { acceptLiveGrant: true })
   return { ok: true }
 }
 
@@ -515,13 +515,13 @@ function mirrorCodex(vm, account) {
  * SOCKS rows, never px-local or a platform/other-tenant row with equal credentials.
  * Runs before any file is written so a refused package leaves nothing behind.
  */
-function proxyBindAllowed(spec, vm, role, proxyPool) {
+async function proxyBindAllowed(spec, vm, role, proxyPool) {
   if (!spec.proxy) return true
   let owner = null
   if (spec.proxy.kind === 'local') {
     if (role === 'user') return false
   } else {
-    const found = proxyPool.findSocks?.(spec.proxy)
+    const found = (await proxyPool.findSocks?.(spec.proxy))
     owner = found ? found.owner_user_id : vm.owner_user_id || null
   }
   return canBindProxyToVm({ owner_user_id: owner }, vm, { role })
@@ -529,32 +529,32 @@ function proxyBindAllowed(spec, vm, role, proxyPool) {
 
 async function attachProxy(projectRoot, id, spec, proxyPool, ownerUserId) {
   if (!spec.proxy) {
-    proxyPool.unbindVm?.(id)
-    bindVmProxy(projectRoot, id, null)
+    await proxyPool.unbindVm?.(id)
+    await bindVmProxy(projectRoot, id, null)
     return { ok: true }
   }
   if (spec.proxy.kind === 'local') {
-    const ensured = proxyPool.ensureLocal()
+    const ensured = (await proxyPool.ensureLocal())
     const proxyId = ensured?.proxy?.id
     if (!proxyId) return fail('proxy_import_failed', '本机直连出口不可用')
-    const bound = proxyPool.bind(proxyId, id)
+    const bound = (await proxyPool.bind(proxyId, id))
     if (!bound.ok) return fail(bound.error || 'proxy_bind_failed', '绑定直连出口失败')
     // bind() lands a node slot on its own VPS's local row, not the control plane's.
-    bindVmProxy(projectRoot, id, proxyPool.getProxyByIdWithAuth(bound.proxy?.id || proxyId))
+    await bindVmProxy(projectRoot, id, proxyPool.getProxyByIdWithAuth(bound.proxy?.id || proxyId))
     return { ok: true }
   }
-  const ensured = proxyPool.ensureSocks(spec.proxy, { ownerUserId, label: spec.proxy.label })
+  const ensured = (await proxyPool.ensureSocks(spec.proxy, { ownerUserId, label: spec.proxy.label }))
   if (!ensured.ok) return fail(ensured.error || 'invalid_proxy', 'SOCKS5 无法写入')
-  const bound = proxyPool.bind(ensured.proxy.id, id)
+  const bound = (await proxyPool.bind(ensured.proxy.id, id))
   if (!bound.ok) {
     const message = bound.error === 'proxy_bind_limit' ? 'SOCKS5 绑定数量已满' : '绑定 SOCKS5 失败'
     return fail(bound.error || 'proxy_bind_failed', message)
   }
-  bindVmProxy(projectRoot, id, proxyPool.getProxyByIdWithAuth(ensured.proxy.id))
+  await bindVmProxy(projectRoot, id, proxyPool.getProxyByIdWithAuth(ensured.proxy.id))
   return { ok: true }
 }
 
-function finishControl(projectRoot, id, spec, status) {
+async function finishControl(projectRoot, id, spec, status) {
   const file = path.join(projectRoot, 'vms', `${id}.json`)
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
   applyTraits(vm, spec)
@@ -562,7 +562,7 @@ function finishControl(projectRoot, id, spec, status) {
   vm.status = status
   // Do not reset proxy_cli_enabled: attachProxy/bindVmProxy owns it.
   vm.updated_at = new Date().toISOString()
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm
 }
 
@@ -619,11 +619,11 @@ export async function commitVmPackage({
   let vm
   if (create) {
     const existing = listVms(projectRoot)
-    const generated = assignComputerFingerprint(
+    const generated = (await assignComputerFingerprint(
       projectRoot,
       { id, kernel: spec.vm.kernel, timezone: spec.vm.timezone, locale: spec.vm.locale, runtime: { type: 'docker' } },
       { taken: takenFingerprintKeys(existing) },
-    )
+    ))
     vm = {
       id,
       name: spec.vm.name || id,
@@ -669,12 +669,12 @@ export async function commitVmPackage({
     }
     status = vm.status || 'stopped'
   }
-  if (!proxyBindAllowed(spec, vm, owner.role, proxyPool)) {
+  if (!(await proxyBindAllowed(spec, vm, owner.role, proxyPool))) {
     return { ok: false, status: 403, error: { code: 'proxy_forbidden', message: '无权绑定这个出口' } }
   }
   applyTraits(vm, spec)
   applySchedule(vm, spec, false)
-  atomicWriteJson(file, vm, { mode: 0o600 })
+  await atomicWriteJson(file, vm, { mode: 0o600 })
   if (create) {
     try {
       writeGuestMachineIdFile(projectRoot, id, vm.fingerprint?.guest_machine_id)
@@ -684,21 +684,21 @@ export async function commitVmPackage({
     } catch {}
   }
 
-  const written = writeCredential(projectRoot, id, spec)
+  const written = (await writeCredential(projectRoot, id, spec))
   if (!written.ok) return { ok: false, status: 400, error: written.error }
-  let saved = finishControl(projectRoot, id, spec, status)
+  let saved = (await finishControl(projectRoot, id, spec, status))
   if (written.account) {
     mirrorCodex(saved, written.account)
     saved.updated_at = new Date().toISOString()
-    atomicWriteJson(file, saved, { mode: 0o600 })
+    await atomicWriteJson(file, saved, { mode: 0o600 })
   }
   const attached = await attachProxy(projectRoot, id, spec, proxyPool, saved.owner_user_id || null)
   if (!attached.ok) return { ok: false, status: 400, error: attached.error }
-  saved = finishControl(projectRoot, id, spec, status)
+  saved = (await finishControl(projectRoot, id, spec, status))
   if (written.account) mirrorCodex(saved, written.account)
   // Flag already follows the bound exit from attachProxy.
   saved.updated_at = new Date().toISOString()
-  atomicWriteJson(file, saved, { mode: 0o600 })
+  await atomicWriteJson(file, saved, { mode: 0o600 })
   return { ok: true, status: create ? 201 : 200, vm: saved, renamed_from: renamedFrom }
 }
 

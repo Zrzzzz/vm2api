@@ -209,7 +209,7 @@ export function canReuseRemoteEgress(existing, digest) {
  */
 export async function ensureRemoteEgress(session, vm, { imageRef }) {
   const proxy = vm.proxy
-  const blocked = proxyBlockedReason(proxy)
+  const blocked = (await proxyBlockedReason(proxy))
   if (blocked) return { ok: false, code: blocked, error: blocked }
   if (isLocalEgressProxy(proxy)) {
     const id = proxy?.id || LOCAL_EGRESS_ID
@@ -221,7 +221,7 @@ export async function ensureRemoteEgress(session, vm, { imageRef }) {
     return { ok: true, mode: 'local', network: net.name, egress: null }
   }
   const proxyId = proxy?.id
-  const proxyUrl = boundProxyUrl(proxy)
+  const proxyUrl = (await boundProxyUrl(proxy))
   if (!proxyId || !proxyUrl) {
     return { ok: false, code: 'proxy_required', error: 'bound SOCKS5 id and url required; refusing fallback' }
   }
@@ -241,9 +241,9 @@ export async function ensureRemoteEgress(session, vm, { imageRef }) {
     listen_tcp: `${net.gateway}:${names.ports.tcp}`,
     listen_dns: `${net.gateway}:${names.ports.dns}`,
   }
-  const dnsUpstream = configuredDnsUpstream()
+  const dnsUpstream = (await configuredDnsUpstream())
   if (dnsUpstream) cfg.dns_upstream = dnsUpstream
-  const dnsEmptyTypes = configuredDnsEmptyTypes()
+  const dnsEmptyTypes = (await configuredDnsEmptyTypes())
   if (dnsEmptyTypes.length) cfg.dns_empty_types = dnsEmptyTypes
   const body = `${JSON.stringify(cfg, null, 2)}\n`
   // Beside the slot tree, outside every guest bind: the guest never sees the proxy password.
@@ -280,7 +280,7 @@ export async function setRemoteProxyEgressEnabled(vm, projectRoot, enabled) {
     const current = vm.runtime?.egress_container || slotEgressNames(vm.id).egress
     const legacy = `kin-egress-${proxyKey(vm.proxy?.id)}`
     if (enabled) {
-      const blocked = proxyBlockedReason(vm.proxy)
+      const blocked = (await proxyBlockedReason(vm.proxy))
       if (blocked) return { ok: false, code: blocked, error: blocked }
       const name = vm.runtime?.network === networkName(vm.proxy?.id) ? legacy : current
       const existing = await inspectContainerOrNull(session.docker, name)
@@ -694,7 +694,7 @@ export async function startRemoteSlot(vm, projectRoot, { recreate = false, routi
       await removeContainer(session.docker, name)
       existing = null
     }
-    writeWorkerFiles(vm, projectRoot, { transparent: true, routing })
+    await writeWorkerFiles(vm, projectRoot, { transparent: true, routing })
     ensureGuestMachineIdFile(projectRoot, vm)
     await pushSlotFiles(vm, slotDir, ['run', 'seed'], session)
     if (!existing) await migrateClaudeDir(session, vm, remoteDir)
@@ -747,7 +747,7 @@ export async function reloadRemoteSlot(vm, projectRoot, { routing } = {}) {
       return startRemoteSlot(vm, projectRoot, { recreate: !!existing, routing })
     }
     const relays = await clusterManager().ensureSlotRelays(nodeId, vm.id)
-    writeWorkerFiles(vm, projectRoot, { transparent: true, routing })
+    await writeWorkerFiles(vm, projectRoot, { transparent: true, routing })
     await pushSlotFiles(vm, slotDir, ['run', 'seed'], session)
     await reconcileSlotCredentials(vm, slotDir, session)
     const running = !!existing.State?.Running

@@ -36,18 +36,18 @@ export function createImportCommit(ctx) {
     return typeof ctx.getRoutingConfig === 'function' ? ctx.getRoutingConfig() : ctx.routingConfig
   }
 
-  function rebindOauthAccount(vm) {
+  async function rebindOauthAccount(vm) {
     const uuid = vm?.claude?.account_uuid
     if (!uuid || !vm?.id) return
-    ctx.accountQuota.rebindToVm(uuid, vm.id, { email: vm.claude?.email || null })
+    await ctx.accountQuota.rebindToVm(uuid, vm.id, { email: vm.claude?.email || null })
   }
 
-  function requireSlotProxy(existing, body = {}) {
-    const resolved = resolveImportProxy({
+  async function requireSlotProxy(existing, body = {}) {
+    const resolved = (await resolveImportProxy({
       vm: existing,
       proxyPool: ctx.proxyPool,
       overrideUrl: body.proxy_url || null,
-    })
+    }))
     const allowProxyBypass = process.env.KIN_CRS_MOCK === '1' && body.require_proxy === false
     if (!resolved.ok && !allowProxyBypass) {
       const message =
@@ -111,20 +111,20 @@ export function createImportCommit(ctx) {
   }
 
   function officialCcStatsHandler(vmId, accountUuid = null) {
-    return (stats) => {
+    return async (stats) => {
       const accountId = accountUuid || getVm(ctx.cfg.paths.project, vmId)?.claude?.account_uuid || vmId
       if (stats?.five_hour || stats?.seven_day || stats?.seven_day_oi || stats?.extra_usage) {
         try {
-          ctx.accountQuota.ingestOAuthUsage(accountId, { usage_status: 200, ok: true, ...stats })
+          await ctx.accountQuota.ingestOAuthUsage(accountId, { usage_status: 200, ok: true, ...stats })
         } catch {}
       }
       if ((stats?.account_tier === 'pro' || stats?.account_tier === 'max') && stats?.limits_present === true) {
         const source = 'usage'
         try {
-          ctx.accountQuota.setAccountTier(accountId, stats.account_tier, { source })
+          await ctx.accountQuota.setAccountTier(accountId, stats.account_tier, { source })
         } catch {}
         try {
-          persistAccountTier(ctx.cfg.paths.project, vmId, stats.account_tier, { source })
+          await persistAccountTier(ctx.cfg.paths.project, vmId, stats.account_tier, { source })
         } catch {}
         try {
           const vm = getVm(ctx.cfg.paths.project, vmId)
@@ -150,11 +150,11 @@ export function createImportCommit(ctx) {
       vm: existing,
       homeDir: path.join(ctx.cfg.paths.project, 'vms', vmId, 'cli-home'),
     }
-    const bound = ctx.proxyPool?.getProxyForVm?.(vmId)
+    const bound = (await ctx.proxyPool?.getProxyForVm?.(vmId))
     if (bound) {
       // Re-bind even when the id already matches: a prior stale write may have
       // left proxy_cli_enabled=false on a bound slot (#332).
-      bindVmProxy(ctx.cfg.paths.project, vmId, bound)
+      await bindVmProxy(ctx.cfg.paths.project, vmId, bound)
       adoptVmProxyBinding(existing, getVm(ctx.cfg.paths.project, vmId))
     }
     if (process.env.KIN_CRS_MOCK !== '1') {
@@ -165,12 +165,12 @@ export function createImportCommit(ctx) {
         if (!boot.ok) {
           return { ok: false, status: 502, error: { code: 'worker_start_failed', message: boot.error } }
         }
-        const written = patchVmRecord(ctx.cfg.paths.project, vmId, {
+        const written = (await patchVmRecord(ctx.cfg.paths.project, vmId, {
           runtime: boot.runtime,
           status: 'running',
           schedulable: true,
           schedule_disabled_reason: null,
-        })
+        }))
         if (written) Object.assign(existing, written)
         else {
           existing.runtime = boot.runtime
@@ -201,8 +201,8 @@ export function createImportCommit(ctx) {
         },
       }
     }
-    await withVmLock(vmPath, () => {
-      persistOauthToVm(
+    await withVmLock(vmPath, async () => {
+      await persistOauthToVm(
         vmPath,
         {
           ...importedCredential,
@@ -214,23 +214,23 @@ export function createImportCommit(ctx) {
       )
       try {
         const accountId = importedCredential.account_uuid || existing.claude?.account_uuid || vmId
-        ctx.accountQuota.clearGrantRevokeLeftover(accountId)
-        ctx.poolScheduler?.clearAuthCooldownFor?.(vmId, accountId)
-        ctx.poolScheduler?.clearGrantRevokeCooldownFor?.(vmId, accountId)
+        await ctx.accountQuota.clearGrantRevokeLeftover(accountId)
+        await ctx.poolScheduler?.clearAuthCooldownFor?.(vmId, accountId)
+        await ctx.poolScheduler?.clearGrantRevokeCooldownFor?.(vmId, accountId)
       } catch {}
       try {
-        rebindOauthAccount({ ...existing, ...JSON.parse(fs.readFileSync(vmPath, 'utf8')), id: vmId })
+        await rebindOauthAccount({ ...existing, ...JSON.parse(fs.readFileSync(vmPath, 'utf8')), id: vmId })
       } catch {}
       const refreshed = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
       if (name && refreshed.name !== name) {
-        const written = patchVmRecord(ctx.cfg.paths.project, vmId, { name })
+        const written = (await patchVmRecord(ctx.cfg.paths.project, vmId, { name }))
         Object.assign(existing, written || refreshed, { name })
       } else {
         Object.assign(existing, refreshed)
       }
     })
     try {
-      writeWorkerCredentialFile(workerExec.homeDir, importedCredential)
+      await writeWorkerCredentialFile(workerExec.homeDir, importedCredential)
     } catch {}
     try {
       const ids = officialCcUidGid(vmId)

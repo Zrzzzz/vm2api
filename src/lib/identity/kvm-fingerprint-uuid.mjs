@@ -111,7 +111,7 @@ export function patchQemuSmbiosArgsUuid(text, uuid) {
  * kin-computer may leave uuid empty on redacted DMI profiles; persist a valid RFC4122 value
  * before linuxComputer() acceptance and before QEMU reads qemu-smbios.args.
  */
-export function repairKvmFingerprintUuid(dir) {
+export async function repairKvmFingerprintUuid(dir) {
   const identPath = path.join(dir, 'identity.json')
   const smbiosPath = path.join(dir, 'qemu-smbios.args')
   if (!fs.existsSync(identPath) || !fs.existsSync(smbiosPath)) return false
@@ -133,7 +133,7 @@ export function repairKvmFingerprintUuid(dir) {
     ) {
       data.hardware.hardware_uuid = uuid
     }
-    atomicWriteJson(identPath, data, { mode: 0o600 })
+    await atomicWriteJson(identPath, data, { mode: 0o600 })
     changed = true
   }
   const argsText = fs.readFileSync(smbiosPath, 'utf8')

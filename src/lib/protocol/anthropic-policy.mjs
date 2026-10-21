@@ -247,8 +247,8 @@ export const CONTEXT_MANAGEMENT_BETA = 'context-management-2025-06-27'
 export const PROMPT_CACHING_SCOPE_BETA = 'prompt-caching-scope-2026-01-05'
 export const MID_CONVERSATION_SYSTEM_BETA = 'mid-conversation-system-2026-04-07'
 
-export function modelSupportsContextManagement(modelId = '') {
-  const caps = getCapabilities(modelId)
+export async function modelSupportsContextManagement(modelId = '') {
+  const caps = (await getCapabilities(modelId))
   if (caps?.supports_context_management === false) return false
   const id = String(modelId || '')
   if (/haiku/i.test(id) && !/haiku-5/i.test(id)) return false
@@ -274,11 +274,11 @@ export function modelSupportsMidConversationSystem(modelId = '') {
  * (clear_thinking_20251015 400s if thinking is off). Haiku / unsupported
  * models drop the field; final beta sanitize may still strip it later.
  */
-export function ensureClearThinkingContextManagement(body = {}) {
+export async function ensureClearThinkingContextManagement(body = {}) {
   // 不支持的模型（Haiku）即使没开 thinking 也要删掉调用方带的 context_management：
   // cli-hop 会先把 Haiku 的 thinking 固定为 disabled，且跳过后面的 beta 清洗，
   // 这里若提前返回，clear_thinking 就会漏到上游，导致槽内 CLI 被杀。
-  if (!modelSupportsContextManagement(body.model)) {
+  if (!(await modelSupportsContextManagement(body.model))) {
     if (body.context_management == null) return body
     const out = { ...body }
     delete out.context_management
@@ -384,7 +384,7 @@ export function ensureClaudeOAuthBodyDefaults(body = {}) {
  * and count-token helpers keep their existing byte shape. Injection must run
  * before enforceCacheLimit or a body could ship more than four markers.
  */
-export function prepareAnthropicRequest(
+export async function prepareAnthropicRequest(
   body = {},
   {
     cacheControlLimit = 4,
@@ -397,12 +397,12 @@ export function prepareAnthropicRequest(
 ) {
   let out = clone(body)
   // Model-aware thinking normalize (adaptive ↔ enabled) before other policy
-  normalizeThinkingForModel(out)
-  out = applyModelRequestRules(out)
-  applyMaxTokensCap(out)
+  await normalizeThinkingForModel(out)
+  out = (await applyModelRequestRules(out))
+  await applyMaxTokensCap(out)
   if (unofficial) {
     out = ensureUnofficialAdaptiveThinking(out)
-    out = ensureUnofficialEffortHigh(out)
+    out = (await ensureUnofficialEffortHigh(out))
     out = rectifyUnofficialRequest(out)
   } else out = ensureOutputConfigSchema(out)
   if (Array.isArray(out.system)) {
@@ -416,7 +416,7 @@ export function prepareAnthropicRequest(
   }
   const stripped = stripInvalidThinkingBlocks(out, { preserveThinkingBlocks })
   if (stripped.messages) out.messages = stripped.messages
-  out = ensureClearThinkingContextManagement(out)
+  out = (await ensureClearThinkingContextManagement(out))
   out = alignSamplingWithThinking(out)
   out = ensureClaudeOAuthBodyDefaults(out)
   if (cacheBreakpoints) {

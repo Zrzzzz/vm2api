@@ -31,20 +31,20 @@ function catalogIsTestPinned() {
   return cache.source === 'go-slot-worker' && (cache.ids || []).length > 0
 }
 
-export function seedModelCatalog() {
+export async function seedModelCatalog() {
   if (catalogIsTestPinned()) return cache
   let ids = [...SEED_MODEL_IDS]
   try {
-    loadModelPolicy()
-    const fromPolicy = getPolicyCatalogIds()
+    await loadModelPolicy()
+    const fromPolicy = (await getPolicyCatalogIds())
     if (fromPolicy.length) ids = fromPolicy
   } catch {}
   return setModelCatalog(ids, { source: 'model-policy' })
 }
 
-function listGptPublicModels() {
+async function listGptPublicModels() {
   try {
-    return listGptPolicyModels().map((m) => ({
+    return (await listGptPolicyModels()).map((m) => ({
       id: m.id,
       object: 'model',
       type: 'model',
@@ -63,13 +63,13 @@ function listGptPublicModels() {
  * Local catalog for GET /v1/models and boot. Does not touch workers.
  * groupType is the key's group_type: openai lists GPT only, anthropic lists Claude only, all lists both.
  */
-export function gatewayModelCatalog({ groupType = 'all' } = {}) {
-  seedModelCatalog()
+export async function gatewayModelCatalog({ groupType = 'all' } = {}) {
+  await seedModelCatalog()
   try {
-    loadModelPolicy()
+    await loadModelPolicy()
   } catch {}
-  const gpt = groupType === 'anthropic' ? [] : listGptPublicModels()
-  const claude = groupType === 'openai' ? [] : listOfficialModels()
+  const gpt = groupType === 'anthropic' ? [] : (await listGptPublicModels())
+  const claude = groupType === 'openai' ? [] : (await listOfficialModels())
   return {
     object: 'list',
     data: [...gpt, ...claude],
@@ -140,10 +140,10 @@ export function latestIdForUndatedAlias(raw, ids) {
   return hits[0] || null
 }
 
-function resolvePolicyAliasToCatalog(raw, ids) {
+async function resolvePolicyAliasToCatalog(raw, ids) {
   try {
-    loadModelPolicy()
-    const policy = getModelPolicy()
+    await loadModelPolicy()
+    const policy = (await getModelPolicy())
     const lower = String(raw || '').toLowerCase()
     const candidates = []
     const top = policy.aliases?.[lower]
@@ -162,7 +162,7 @@ function resolvePolicyAliasToCatalog(raw, ids) {
   return null
 }
 
-export function resolveCatalogModel(raw, ids = cache.ids) {
+export async function resolveCatalogModel(raw, ids = cache.ids) {
   const m = String(raw || '').trim()
   if (!m) return { ok: false, reason: 'empty' }
   const popped = m.split('/').filter(Boolean).pop() || m
@@ -174,7 +174,7 @@ export function resolveCatalogModel(raw, ids = cache.ids) {
     // Bare `opus` stays on the policy target. Rank would promote claude-opus-5-5;
     // 2.1.280 uses that id only when the caller names it.
     if (lower === 'opus') {
-      const pinned = resolvePolicyAliasToCatalog(lower, ids)
+      const pinned = (await resolvePolicyAliasToCatalog(lower, ids))
       if (pinned) return { ok: true, model: pinned, alias: fam, want1m }
     }
     const latest = latestIdForFamily(fam, ids)
@@ -186,7 +186,7 @@ export function resolveCatalogModel(raw, ids = cache.ids) {
   }
   const dated = latestIdForUndatedAlias(id, ids)
   if (dated) return { ok: true, model: dated, alias: id, want1m }
-  const viaPolicy = resolvePolicyAliasToCatalog(id, ids)
+  const viaPolicy = (await resolvePolicyAliasToCatalog(id, ids))
   if (viaPolicy) return { ok: true, model: viaPolicy, alias: id, want1m }
   // Fail closed: empty catalog or unknown id → reject. Never passthrough unverified claude-*.
   return { ok: false, model: id, want1m, reason: ids.length ? 'not_in_catalog' : 'catalog_unavailable' }
@@ -233,16 +233,16 @@ export function clearModelsCache() {
   cache = { at: 0, ids: [], aliases: [], source: null }
 }
 
-export function listOfficialModels() {
+export async function listOfficialModels() {
   try {
-    loadModelPolicy()
+    await loadModelPolicy()
   } catch {}
-  const ids = filterPublicModelIds(cache.ids || [])
-  return ids.map((id) => {
+  const ids = (await filterPublicModelIds(cache.ids || []))
+  return (await Promise.all(ids.map(async (id) => {
     let display = id
     let extra = {}
     try {
-      const e = getModelEntry(id)
+      const e = (await getModelEntry(id))
       display = e.display_name || id
       extra = {
         family: e.family,
@@ -259,7 +259,7 @@ export function listOfficialModels() {
       source: cache.source || 'model-policy',
       ...extra,
     }
-  })
+  })))
 }
 
 /**
@@ -267,7 +267,7 @@ export function listOfficialModels() {
  * Provider prefixes (anthropic/…, openrouter/anthropic/…) are stripped first.
  * Family aliases (sonnet/opus/haiku/fable) resolve to the latest catalog id.
  */
-export function validateOfficialModel(model) {
+export async function validateOfficialModel(model) {
   const m = String(model || '').trim()
   if (!m) {
     return {
@@ -298,11 +298,11 @@ export function validateOfficialModel(model) {
     }
   }
 
-  if (!catalogIsTestPinned()) seedModelCatalog()
-  const resolved = resolveCatalogModel(m, cache.ids)
+  if (!catalogIsTestPinned()) await seedModelCatalog()
+  const resolved = (await resolveCatalogModel(m, cache.ids))
   if (resolved.ok) {
     try {
-      if (!isModelEnabled(resolved.model)) {
+      if (!(await isModelEnabled(resolved.model))) {
         return {
           ok: false,
           error: {

@@ -1,3 +1,4 @@
+import { asyncFilter } from '../core/async-collections.mjs'
 /**
  * Keeps price and model catalogs current without a manual click:
  * - models.dev price snapshot (boot + daily);
@@ -24,18 +25,18 @@ const HARD_DOWN = new Set(['stopped', 'dead', 'error', 'disabled'])
 // Plan tiers see different model sets (Fable is Max-only); a few accounts cover the union.
 const CLAUDE_ACCOUNTS_PER_SYNC = 3
 
-export function readCatalogSync() {
+export async function readCatalogSync() {
   try {
-    return new SettingsRepo().get(CATALOG_SYNC_KEY, null) || { claude: null, codex: null }
+    return (await new SettingsRepo().get(CATALOG_SYNC_KEY, null)) || { claude: null, codex: null }
   } catch {
     return { claude: null, codex: null }
   }
 }
 
-function writeCatalogSync(platform, status) {
+async function writeCatalogSync(platform, status) {
   const repo = new SettingsRepo()
-  const cur = repo.get(CATALOG_SYNC_KEY, null) || { claude: null, codex: null }
-  repo.set(CATALOG_SYNC_KEY, { ...cur, [platform]: status })
+  const cur = (await repo.get(CATALOG_SYNC_KEY, null)) || { claude: null, codex: null }
+  await repo.set(CATALOG_SYNC_KEY, { ...cur, [platform]: status })
   return status
 }
 
@@ -44,17 +45,16 @@ function syncStatus(status, { added = [], error = null } = {}) {
 }
 
 // listVms strips credentials; the exec needs the raw record's OAuth block.
-function claudeCatalogTargets(projectRoot) {
-  return listVms(projectRoot)
+async function claudeCatalogTargets(projectRoot) {
+  return (await asyncFilter(listVms(projectRoot)
     .filter((vm) => vm?.id && !isCodexVm(vm) && !HARD_DOWN.has(String(vm.status || '').toLowerCase()))
-    .map((vm) => getVm(projectRoot, vm.id))
-    .filter((vm) => vm && vmHasClaudeCredential(vm) && vmHasProxyPath(vm))
+    .map((vm) => getVm(projectRoot, vm.id)), async (vm) => vm && vmHasClaudeCredential(vm) && (await vmHasProxyPath(vm))))
 }
 
 /** Live Claude catalog → model_policy. */
 export async function syncClaudeCatalog({ projectRoot, runOauth = runSlotOauth } = {}) {
-  const targets = claudeCatalogTargets(projectRoot)
-  if (!targets.length) return writeCatalogSync('claude', syncStatus('skipped', { error: 'no_claude_slot' }))
+  const targets = (await claudeCatalogTargets(projectRoot))
+  if (!targets.length) return (await writeCatalogSync('claude', syncStatus('skipped', { error: 'no_claude_slot' })))
   const ids = new Set()
   let successes = 0
   let lastError = null
@@ -70,12 +70,12 @@ export async function syncClaudeCatalog({ projectRoot, runOauth = runSlotOauth }
     successes++
     for (const row of list) if (row?.id) ids.add(String(row.id))
   }
-  if (!successes) return writeCatalogSync('claude', syncStatus('error', { error: lastError || 'models_failed' }))
-  const { added } = syncWorkerModelsIntoPolicy([...ids], {
+  if (!successes) return (await writeCatalogSync('claude', syncStatus('error', { error: lastError || 'models_failed' })))
+  const { added } = (await syncWorkerModelsIntoPolicy([...ids], {
     displayNameOf: (id) => modelsDevMeta('anthropic', id)?.name,
-  })
-  seedModelCatalog()
-  return writeCatalogSync('claude', syncStatus('ok', { added }))
+  }))
+  await seedModelCatalog()
+  return (await writeCatalogSync('claude', syncStatus('ok', { added })))
 }
 
 /** Live ChatGPT Codex catalog → gpt_model_policy. Timers never rotate OAuth; the panel button may. */
@@ -83,10 +83,10 @@ export async function syncGptCatalog({ projectRoot, vmId = '', catalogClientVers
   const result = await syncCodexCatalog({ projectRoot, vmId, rotate, catalogClientVersion })
   if (!result.ok) {
     const skipped = result.error === 'no_codex_slot' || result.error === 'proxy_required'
-    writeCatalogSync('codex', syncStatus(skipped ? 'skipped' : 'error', { error: result.error }))
+    await writeCatalogSync('codex', syncStatus(skipped ? 'skipped' : 'error', { error: result.error }))
     return result
   }
-  writeCatalogSync('codex', syncStatus('ok', { added: result.added || [] }))
+  await writeCatalogSync('codex', syncStatus('ok', { added: result.added || [] }))
   return result
 }
 

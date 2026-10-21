@@ -174,7 +174,7 @@ function stabilizeMessageBudgets(body) {
  * This must not depend on client classification: relays strip the billing
  * block and rewrite the UA, so relayed Claude Code looks third-party.
  */
-export function prepareCliHopBody(
+export async function prepareCliHopBody(
   canonicalBody,
   {
     stream = true,
@@ -186,7 +186,7 @@ export function prepareCliHopBody(
     preserveCallerEnvironment = false,
   } = {},
 ) {
-  if (requestContext?.purpose === 'auto_mode_classifier') return prepareClassifierBody(canonicalBody, { stream })
+  if (requestContext?.purpose === 'auto_mode_classifier') return (await prepareClassifierBody(canonicalBody, { stream }))
   if (preserveSystem) validateCacheBreakpoints(canonicalBody)
   let body = officialMessagesBody(canonicalBody, { stream })
   delete body.metadata
@@ -205,13 +205,13 @@ export function prepareCliHopBody(
 
   if (!repaired) {
     body = ensureUnofficialAdaptiveThinking(body)
-    normalizeThinkingForModel(body)
+    await normalizeThinkingForModel(body)
     body = pinHaikuCliThinking(body)
-    body = ensureUnofficialEffortHigh(body)
-    body = ensureClearThinkingContextManagement(body)
+    body = (await ensureUnofficialEffortHigh(body))
+    body = (await ensureClearThinkingContextManagement(body))
   }
   body = stripInvalidThinkingBlocks(body, { preserveThinkingBlocks })
-  body = applyModelRequestRules(body)
+  body = (await applyModelRequestRules(body))
   body = ensureOutputConfigSchema(body)
   body = alignSamplingWithThinking(body)
   if (!preserveSystem) {
@@ -229,7 +229,7 @@ export function pinHaikuCliThinking(body = {}) {
   return { ...body, thinking: { type: 'disabled' } }
 }
 
-export function prepareOutboundAttempt({
+export async function prepareOutboundAttempt({
   requestContext = null,
   canonicalBody,
   inbound = {},
@@ -303,17 +303,17 @@ export function prepareOutboundAttempt({
     identified = stampBillingPromptId(identified, sessionId, firstUserText)
   }
   if (requestContext?.purpose === 'auto_mode_classifier')
-    return { body: prepareClassifierBody(identified, { stream }), toolNames: {} }
+    return { body: (await prepareClassifierBody(identified, { stream })), toolNames: {} }
   // Official Claude Code places its own breakpoints; adding ours would shift the
   // prefix it already caches.
-  let cleaned = prepareAnthropicRequest(identified, {
+  let cleaned = (await prepareAnthropicRequest(identified, {
     cacheControlLimit,
     unofficial: !!unofficial && !inferenceOnly,
     cacheBreakpoints: keepCallerSession ? null : cacheBreakpoints,
     cacheTtl: cacheTtl || undefined,
     inbound,
     preserveThinkingBlocks,
-  })
+  }))
   cleaned = stripIllegalCacheControlFields(cleaned)
   if (cacheTtl) cleaned = applyCacheTtlToBody(cleaned, cacheTtl)
   cleaned = enforceCacheTtlOrder(cleaned)
@@ -321,7 +321,7 @@ export function prepareOutboundAttempt({
   return { body: tools.body, toolNames: tools.reverse }
 }
 
-export function prepareOutboundHeaders(reqHeaders, homeDir, identity, model, { credentialMode, want1m } = {}) {
+export async function prepareOutboundHeaders(reqHeaders, homeDir, identity, model, { credentialMode, want1m } = {}) {
   if (isAnySetupTokenMode(credentialMode) || isApiKeyMode(credentialMode)) {
     return {
       'user-agent': INFERENCE_UA,
@@ -329,11 +329,11 @@ export function prepareOutboundHeaders(reqHeaders, homeDir, identity, model, { c
       'anthropic-beta': isApiKeyMode(credentialMode) ? apiKeyBetaHeader('') : setupTokenBetaHeader(model),
     }
   }
-  return resolveCrsHeaders(reqHeaders, homeDir, identity, model, { want1m: want1m === true })
+  return (await resolveCrsHeaders(reqHeaders, homeDir, identity, model, { want1m: want1m === true }))
 }
 
 /** Body + headers after the context_management ↔ context-management beta gate. */
-export function prepareOutboundEnvelope({
+export async function prepareOutboundEnvelope({
   canonicalBody,
   inbound = {},
   identity,
@@ -367,7 +367,7 @@ export function prepareOutboundEnvelope({
   credentialMode,
   want1m,
 } = {}) {
-  const prepared = prepareOutboundAttempt({
+  const prepared = (await prepareOutboundAttempt({
     canonicalBody,
     inbound,
     identity,
@@ -398,9 +398,9 @@ export function prepareOutboundEnvelope({
     firstUserIdentity,
     authScheme,
     credentialMode,
-  })
+  }))
   const headers = {
-    ...prepareOutboundHeaders(
+    ...(await prepareOutboundHeaders(
       reqHeaders,
       homeDir,
       identity,
@@ -409,7 +409,7 @@ export function prepareOutboundEnvelope({
         credentialMode,
         want1m: want1m === true || hasClaudeCode1mSuffix(inbound?.model) || hasClaudeCode1mSuffix(canonicalBody?.model),
       },
-    ),
+    )),
   }
   if (String(authScheme || '').toLowerCase() === 'apikey' || isApiKeyMode(credentialMode)) {
     headers['anthropic-beta'] = apiKeyBetaHeader(headers['anthropic-beta'] || '')

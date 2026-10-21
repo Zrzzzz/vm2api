@@ -72,9 +72,9 @@ export function localEgressStatus(proxyOrId, run = docker) {
   return { ok: false, reason: 'local_network_missing' }
 }
 
-export function proxyEgressReady(proxy, projectRoot, timeoutMs = 400) {
+export async function proxyEgressReady(proxy, projectRoot, timeoutMs = 400) {
   // Direct exit. kin-egress not running is success, not egress_down.
-  const blocked = proxyBlockedReason(proxy)
+  const blocked = (await proxyBlockedReason(proxy))
   if (blocked) return { ok: false, reason: blocked }
   if (isLocalEgressProxy(proxy)) return { ok: true, mode: 'direct' }
   return egressListening(projectRoot, proxy?.id, timeoutMs)
@@ -375,18 +375,18 @@ export function dnsUpstreamChain(primary) {
   return [primary, ...DNS_UPSTREAMS.filter((u) => u !== primary)].join(',')
 }
 
-export function configuredDnsUpstream() {
+export async function configuredDnsUpstream() {
   if (!isDbOpen()) return ''
   try {
-    return dnsUpstreamChain(new SettingsRepo(getDb()).get('proxy_pool_config')?.dns_primary)
+    return dnsUpstreamChain((await new SettingsRepo(getDb()).get('proxy_pool_config'))?.dns_primary)
   } catch {
     return ''
   }
 }
 
-export function configuredDnsEmptyTypes() {
+export async function configuredDnsEmptyTypes() {
   if (!isDbOpen()) return []
-  return new SettingsRepo(getDb()).get('proxy_pool_config')?.dns_disable_svcb_https === true ? [64, 65] : []
+  return (await new SettingsRepo(getDb()).get('proxy_pool_config'))?.dns_disable_svcb_https === true ? [64, 65] : []
 }
 
 const EGRESS_POLL_MS = 50
@@ -411,7 +411,7 @@ export async function startEgressProcess({
   dnsEmptyTypes = [],
   domainForward = false,
 }) {
-  const blocked = proxyBlockedReason({ url: proxyUrl })
+  const blocked = (await proxyBlockedReason({ url: proxyUrl }))
   if (blocked) return { ok: false, error: blocked }
   if (!listenHost) return { ok: false, error: 'egress listen host required' }
   const dir = egressRunDir(projectRoot, proxyId)
@@ -519,9 +519,9 @@ export function egressListening(projectRoot, proxyId, timeoutMs = 400) {
   return st
 }
 
-export function boundProxyUrl(proxy) {
+export async function boundProxyUrl(proxy) {
   if (isLocalEgressProxy(proxy)) return ''
-  assertProxyAllowed(proxy)
+  await assertProxyAllowed(proxy)
   return socksProxyUrl(proxy)
 }
 
@@ -661,15 +661,17 @@ export async function ensureProxyEgress(
   {
     runDocker = docker,
     runIptables = iptables,
-    dnsUpstream = configuredDnsUpstream(),
-    dnsEmptyTypes = configuredDnsEmptyTypes(),
+    dnsUpstream = undefined,
+    dnsEmptyTypes = undefined,
   } = {},
 ) {
+  if (dnsUpstream === undefined) dnsUpstream = await configuredDnsUpstream()
+  if (dnsEmptyTypes === undefined) dnsEmptyTypes = await configuredDnsEmptyTypes()
   if (isLocalEgressProxy(proxy)) return ensureLocalProxyEgress(proxy, { runDocker })
-  const blocked = proxyBlockedReason(proxy)
+  const blocked = (await proxyBlockedReason(proxy))
   if (blocked) return { ok: false, error: blocked }
   const proxyId = proxy?.id
-  const proxyUrl = boundProxyUrl(proxy)
+  const proxyUrl = (await boundProxyUrl(proxy))
   if (!proxyId || !proxyUrl) return { ok: false, error: 'bound SOCKS5 id and url required; refusing fallback' }
   const net = ensureEgressNetwork(proxyId, runDocker)
   if (!net.ok) return net

@@ -182,7 +182,7 @@ export function canonicalizeClaudeMessagesShape(body) {
   return out
 }
 
-export function sanitizeAnthropicBody(body, { strictPassthrough = false } = {}) {
+export async function sanitizeAnthropicBody(body, { strictPassthrough = false } = {}) {
   if (!body || typeof body !== 'object') return body
   if (strictPassthrough) {
     const out = { ...body }
@@ -213,7 +213,7 @@ export function sanitizeAnthropicBody(body, { strictPassthrough = false } = {}) 
 
   if (Array.isArray(out.tools) && out.tools.length === 0) delete out.tools
   // Do not overwrite caller max_tokens (thinking budget). Only fill if missing.
-  if (!out.max_tokens) out.max_tokens = defaultMaxTokensForModel(out.model)
+  if (!out.max_tokens) out.max_tokens = (await defaultMaxTokensForModel(out.model))
   if (out.tool_choice && !out.tools) delete out.tool_choice
   normalizeStop(out)
   return canonicalizeClaudeMessagesShape(out)

@@ -1,3 +1,4 @@
+import { asyncFilter } from '../core/async-collections.mjs'
 /**
  * Periodic Extra reconcile for live credential slots.
  *
@@ -57,14 +58,14 @@ export function normalizeUsageProbeConfig(raw = {}) {
   }
 }
 
-export function isUsageProbeTarget(vm) {
+export async function isUsageProbeTarget(vm) {
   if (!vm?.id) return false
   if (!hasRefreshPresence(vm.claude) && !vm.has_refresh && !vm.has_token) return false
   const grantErr = String(vm.claude?.refresh_error || vm.refresh_error || '')
   if (/invalid_grant|refresh token not found/i.test(grantErr)) return false
   const status = String(vm.status || '').toLowerCase()
   if (HARD_DOWN.has(status)) return false
-  if (!vmHasProxyPath(vm)) return false
+  if (!(await vmHasProxyPath(vm))) return false
   return true
 }
 
@@ -200,9 +201,9 @@ export function createUsageProbeMonitor(opts = {}) {
   const queue = []
   let running = 0
 
-  const listTargets = () => {
-    const vms = typeof opts.listTargets === 'function' ? opts.listTargets() || [] : []
-    return vms.filter((vm) => isUsageProbeTarget(vm))
+  const listTargets = async () => {
+    const vms = typeof opts.listTargets === 'function' ? (await opts.listTargets()) || [] : []
+    return (await asyncFilter(vms, async (vm) => (await isUsageProbeTarget(vm))))
   }
 
   const takeWorker = () => {
@@ -264,9 +265,9 @@ export function createUsageProbeMonitor(opts = {}) {
   }
 
   /** Event-driven hop (unknown 429, reset recheck). Same single-flight and bounds as the timer. */
-  const probeNow = (vmId, reason = 'event') => {
+  const probeNow = async (vmId, reason = 'event') => {
     if (typeof opts.probeOne !== 'function') return Promise.resolve({ vm_id: vmId, ok: false, reason: 'no_prober' })
-    const vm = listTargets().find((item) => item.id === vmId)
+    const vm = (await listTargets()).find((item) => item.id === vmId)
     if (!vm) return Promise.resolve({ vm_id: vmId, ok: false, reason: 'not_target', source: null })
     return probeVm(vm, reason)
   }
@@ -275,21 +276,21 @@ export function createUsageProbeMonitor(opts = {}) {
     if (inflight) return inflight
     inflight = (async () => {
       const started = nowFn()
-      const targets = listTargets()
+      const targets = (await listTargets())
       const items = []
       const due = []
       const staleMs = config.stale_sec * 1000
       for (const vm of targets) {
-        const account = typeof opts.accountForVm === 'function' ? opts.accountForVm(vm) : null
+        const account = typeof opts.accountForVm === 'function' ? (await opts.accountForVm(vm)) : null
         if (typeof opts.reconcile === 'function') {
           try {
-            opts.reconcile(vm, account)
+            await opts.reconcile(vm, account)
           } catch {}
         }
         let active = false
         if (typeof opts.isActive === 'function') {
           try {
-            active = !!opts.isActive(vm, account)
+            active = !!(await opts.isActive(vm, account))
           } catch {}
         }
         const decision = isUsageProbeDue(account || {}, { now: nowFn(), staleMs, active })

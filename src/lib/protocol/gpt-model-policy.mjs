@@ -56,18 +56,18 @@ export function seedGptPolicy() {
 let policy = seedGptPolicy()
 let loaded = false
 
-function persist() {
+async function persist() {
   try {
-    new SettingsRepo().set(SETTINGS_KEY, policy)
+    await new SettingsRepo().set(SETTINGS_KEY, policy)
   } catch (e) {
     console.warn('[gpt-model-policy] persist failed', e?.message || e)
   }
 }
 
-export function loadGptModelPolicy({ force = false } = {}) {
+export async function loadGptModelPolicy({ force = false } = {}) {
   if (loaded && !force) return policy
   try {
-    const stored = new SettingsRepo().get(SETTINGS_KEY, null)
+    const stored = (await new SettingsRepo().get(SETTINGS_KEY, null))
     if (stored && typeof stored === 'object' && stored.models && typeof stored.models === 'object') {
       const live = stored.source === 'codex' && Object.keys(stored.models).length
       policy = {
@@ -77,7 +77,7 @@ export function loadGptModelPolicy({ force = false } = {}) {
       policy.source = policy.source || 'settings'
     } else {
       policy = seedGptPolicy()
-      persist()
+      await persist()
     }
   } catch {
     policy = seedGptPolicy()
@@ -86,12 +86,12 @@ export function loadGptModelPolicy({ force = false } = {}) {
   return policy
 }
 
-export function getGptModelPolicy() {
-  if (!loaded) loadGptModelPolicy()
+export async function getGptModelPolicy() {
+  if (!loaded) await loadGptModelPolicy()
   return policy
 }
 
-export function saveGptModelPolicy(next) {
+export async function saveGptModelPolicy(next) {
   const seed = seedGptPolicy()
   const models = { ...(seed.models || {}) }
   if (next?.models && typeof next.models === 'object') {
@@ -108,37 +108,37 @@ export function saveGptModelPolicy(next) {
     updated_at: new Date().toISOString(),
     source: 'panel',
   }
-  persist()
+  await persist()
   return policy
 }
-export function listGptPolicyModels() {
-  if (!loaded) loadGptModelPolicy()
+export async function listGptPolicyModels() {
+  if (!loaded) await loadGptModelPolicy()
   return Object.entries(policy.models || {})
     .filter(([id, cfg]) => isGptSeriesId(id) && cfg?.enabled !== false)
     .map(([id, cfg]) => ({ id, ...cfg, family: 'codex' }))
     .sort((a, b) => (a.sort || 80) - (b.sort || 80) || String(a.id).localeCompare(String(b.id)))
 }
 
-export function getGptPolicyCatalogIds({ enabledOnly = false } = {}) {
-  if (!loaded) loadGptModelPolicy()
+export async function getGptPolicyCatalogIds({ enabledOnly = false } = {}) {
+  if (!loaded) await loadGptModelPolicy()
   return Object.entries(policy.models || {})
     .filter(([id, cfg]) => isGptSeriesId(id) && (!enabledOnly || cfg?.enabled !== false))
     .map(([id]) => id)
 }
 
-export function isGptModelEnabled(id) {
+export async function isGptModelEnabled(id) {
   if (!isGptSeriesId(id)) return false
-  if (!loaded) loadGptModelPolicy()
+  if (!loaded) await loadGptModelPolicy()
   const row = policy.models?.[id]
   if (row) return row.enabled !== false
   if (policy.source === 'codex' && Object.keys(policy.models || {}).length) return false
   return true
 }
 
-export function resetGptModelPolicy() {
+export async function resetGptModelPolicy() {
   policy = seedGptPolicy()
   loaded = true
-  persist()
+  await persist()
   return policy
 }
 
@@ -147,8 +147,8 @@ export function resetGptModelPolicy() {
  * a GPT id the policy has never seen starts disabled until the admin enables it
  * (GPT has no worker_only mode).
  */
-export function syncGptIdsIntoPolicy(ids = [], { displayNameOf = null } = {}) {
-  if (!loaded) loadGptModelPolicy()
+export async function syncGptIdsIntoPolicy(ids = [], { displayNameOf = null } = {}) {
+  if (!loaded) await loadGptModelPolicy()
   const live = []
   const seen = new Set()
   for (const item of ids || []) {
@@ -161,7 +161,7 @@ export function syncGptIdsIntoPolicy(ids = [], { displayNameOf = null } = {}) {
     })
   }
   if (!live.length) {
-    return { ok: true, synced: 0, added: [], ids: listGptPolicyModels().map((m) => m.id) }
+    return { ok: true, synced: 0, added: [], ids: (await listGptPolicyModels()).map((m) => m.id) }
   }
   const next = {}
   const added = []
@@ -182,11 +182,11 @@ export function syncGptIdsIntoPolicy(ids = [], { displayNameOf = null } = {}) {
     updated_at: new Date().toISOString(),
     source: 'codex',
   }
-  persist()
+  await persist()
   return {
     ok: true,
     synced: live.length,
     added,
-    ids: listGptPolicyModels().map((m) => m.id),
+    ids: (await listGptPolicyModels()).map((m) => m.id),
   }
 }
