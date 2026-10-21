@@ -617,7 +617,7 @@ export function createPanelHandler(ctx) {
   const vmTestSchedule = ctx.vmTestSchedule
   const backupService = ctx.backupService
   const stats = ctx.stats
-  const persistRoutingPatch = (...args) => ctx.persistRoutingPatch(...args)
+  const persistRoutingPatch = async (...args) => await ctx.persistRoutingPatch(...args)
   const applyVmConcurrency = (...args) => ctx.applyVmConcurrency(...args)
   const applyVmRpm = (...args) => ctx.applyVmRpm(...args)
   const applyVmSessionSlots = (...args) => ctx.applyVmSessionSlots(...args)
@@ -1136,7 +1136,7 @@ export function createPanelHandler(ctx) {
       targetEngine: target,
       commit: async () => {
         try {
-          return persistRoutingPatch(body)
+          return (await persistRoutingPatch(body))
         } catch (error) {
           await restoreRoutingRuntime(previousRoutingConfig)
           if (body.pool || body.failover) initPoolRuntime()
@@ -1197,7 +1197,7 @@ export function createPanelHandler(ctx) {
       const body = await readBody(req, cfg.limits.max_body_bytes)
       let applied
       try {
-        applied = persistRoutingPatch(body)
+        applied = (await persistRoutingPatch(body))
       } catch (error) {
         if (error instanceof TypeError || error instanceof RangeError) {
           return json(res, 400, {
@@ -1391,7 +1391,7 @@ export function createPanelHandler(ctx) {
             if (body?.action === 'profile') {
               await applyUsageProfile({
                 mode: body?.mode,
-                persistRouting: (patch) => persistRoutingPatch(patch),
+                persistRouting: async (patch) => (await persistRoutingPatch(patch)),
                 settings,
                 distillFile: distillFile(),
                 setDistill: (rules) => {
@@ -2303,7 +2303,7 @@ export function createPanelHandler(ctx) {
         const previous = structuredClone(ctx.routingConfig)
         try {
           if (targets.all) {
-            persistRoutingPatch({
+            await persistRoutingPatch({
               inference: {
                 ...(ctx.routingConfig.inference || {}),
                 dataplane: parsed.value,
@@ -5239,7 +5239,7 @@ export function createPanelHandler(ctx) {
         const { applied: appliedDuringSwitch, ...publicEngineRuntime } = engineRuntime
         let applied
         try {
-          applied = appliedDuringSwitch ?? persistRoutingPatch(body)
+          applied = appliedDuringSwitch ?? (await persistRoutingPatch(body))
         } catch (error) {
           await restoreRoutingRuntime(previousRoutingConfig)
           return json(res, 503, {

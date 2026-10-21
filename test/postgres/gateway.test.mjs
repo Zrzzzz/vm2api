@@ -29,6 +29,7 @@ test(`PostgreSQL gateway authenticates and persists ${mode} inference`,async()=>
  const stream=await api(gw,'POST','/v1/messages',{body:{model:'claude-sonnet-4-6',stream:true,max_tokens:20,messages:[{role:'user',content:'stream hello'}]}});assert.equal(stream.status,200,stream.text);assert.match(stream.text,/message_stop/)}
  let rows; for(let i=0;i<40;i++){({rows}=await db.query('SELECT count(*) AS n FROM usage_logs'));if(rows[0].n>0)break;await new Promise(r=>setTimeout(r,50))}assert.ok(rows[0].n>0,gw.stderr());
  assert.ok((await db.query('SELECT count(*) AS n FROM request_log_debug')).rows[0].n>0);
+ const telemetry=await api(gw,'PUT','/api/panel/routing',{body:{telemetry:{upload_interval_seconds:1200}}});assert.equal(telemetry.status,200,telemetry.text);assert.equal(telemetry.json.data.telemetry.upload_interval_seconds,1200);assert.ok(Object.hasOwn(telemetry.json.data,'applied_concurrency'));
  for(const endpoint of ['users','vm-pools','api-keys','request-logs','request-logs/stats','usage-logs','usage-logs/summary','usage-logs/filter-options','usage-logs/session-suggestions','usage-logs/active-sessions','usage-logs/overview','statistics','statistics/leaderboard','backups','backups/config','routing','proxies','proxies/config']) {
    const result=await api(gw,'GET','/api/panel/'+endpoint);
    assert.equal(result.status,200,endpoint+': '+result.text);

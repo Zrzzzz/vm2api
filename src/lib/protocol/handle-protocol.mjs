@@ -1628,7 +1628,7 @@ export function createHandleProtocol(deps) {
         }
         if (pool?.syncQuotaSchedule && result.vmId && cfg?.paths?.project) {
           const vm = getVm(cfg.paths.project, result.vmId)
-          if (vm) pool.syncQuotaSchedule(vm)
+          if (vm) await pool.syncQuotaSchedule(vm)
         }
       } catch {}
       await attachPricing(logBag, {
