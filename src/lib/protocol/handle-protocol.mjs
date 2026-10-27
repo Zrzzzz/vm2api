@@ -57,6 +57,7 @@ import {
 } from '../admin/health-probe.mjs'
 import { resolveInferenceBackend, runApiInference } from '../pool/api-protocol.mjs'
 import { classifyClaudeRequestPurpose, prepareClassifierBody, classifierRequestSummary } from './request-purpose.mjs'
+import { agentSummarySession } from './agent-summary.mjs'
 import { summarizeBody, redactHeaders, presentedApiKeyForLog } from '../admin/request-log.mjs'
 import { reasoningEffortOf, sessionIdForLog } from './log-fields.mjs'
 import { ownerScopeFromRequest } from '../admin/resource-owner.mts'
@@ -945,6 +946,8 @@ export function createHandleProtocol(deps) {
     }
     const officialClient = isOfficialClaudeClient(fp.client_class)
     const callerSession = extractCallerSession({ inbound, body: ctx.body, headers: req.headers })
+    const summarySession = agentSummarySession(inbound, { officialTraffic })
+    const executionSession = summarySession || callerSession
     const firstUserText = extractFirstUserText(ctx.body?.messages) || extractFirstUserText(inbound?.messages)
     // Seed identity skips a leading <system-reminder>; firstUserText stays billing-only.
     const firstUserIdentity =
@@ -989,17 +992,23 @@ export function createHandleProtocol(deps) {
     // Seat = this client session. Same device, other session = other slot.
     const seatKey = seatless
       ? null
-      : resolveSeatIdentity({ inbound, body: ctx.body, headers: req.headers, clientIp: clientIp(req) }).key
-    const sessionKeys = stickyRouter?.sessionPoolKeys
-      ? (await stickyRouter.sessionPoolKeys(req, inbound, {
-          sessionId: inboundIdentity.sessionId,
-          deviceId: stickyDeviceId,
-          migrate: !isProbe,
-        }))
-      : {
-          stickyKey: (await stickyRouter?.extractPoolKey?.(req, inbound, { platform: 'anthropic' })) || null,
-          stickyKeys: stickyRouter?.collectPoolKeys?.(req, inbound, { platform: 'anthropic' }) || [],
-        }
+      : summarySession
+        ? `seat:sess:${summarySession}`
+        : resolveSeatIdentity({ inbound, body: ctx.body, headers: req.headers, clientIp: clientIp(req) }).key
+    // Summary forks retain parent affinity, but must not migrate/bind its
+    // aliases or join its serialization queue while the parent is streaming.
+    const sessionKeys = summarySession
+      ? { stickyKey: null, stickyKeys: [] }
+      : stickyRouter?.sessionPoolKeys
+        ? (await stickyRouter.sessionPoolKeys(req, inbound, {
+            sessionId: inboundIdentity.sessionId,
+            deviceId: stickyDeviceId,
+            migrate: !isProbe,
+          }))
+        : {
+            stickyKey: (await stickyRouter?.extractPoolKey?.(req, inbound, { platform: 'anthropic' })) || null,
+            stickyKeys: stickyRouter?.collectPoolKeys?.(req, inbound, { platform: 'anthropic' }) || [],
+          }
     const stickyKey = sessionKeys.stickyKey || null
     const stickyKeys = sessionKeys.stickyKeys || []
     const deviceKey = stickyDeviceId ? stickyRouter?.canonicalDeviceKey?.(stickyDeviceId) || null : null
@@ -1015,7 +1024,7 @@ export function createHandleProtocol(deps) {
     const familyVmId = familyKey ? (await stickyRouter?.resolve?.(familyKey))?.vmId || null : null
     const stickyBound =
       stickyKey && typeof stickyRouter?.resolve === 'function' ? (await stickyRouter.resolve(stickyKey)) : null
-    const outboundSessionId = resolveOutboundSessionId(callerSession, {
+    const outboundSessionId = resolveOutboundSessionId(executionSession, {
       ...sessionContext,
       accountId: stickyBound?.accountId || '',
       boundSessionId: stickyBound?.sessionId || '',
@@ -1310,7 +1319,7 @@ export function createHandleProtocol(deps) {
         stickyDeviceId,
         deviceKey,
         skipSessionSeat: seatless,
-        familyKey,
+        familyKey: summarySession ? null : familyKey,
         seatKey,
         familyVmId,
         pinVmId,
@@ -1363,7 +1372,7 @@ export function createHandleProtocol(deps) {
           const keptSession = extra.freshSlot ? '' : attemptBound?.sessionId || ''
           const keptAccount = extra.freshSlot ? '' : attemptBound?.accountId || ''
           const keptVm = extra.freshSlot ? '' : attemptBound?.vmId || ''
-          const attemptSessionId = resolveOutboundSessionId(callerSession, {
+          const attemptSessionId = resolveOutboundSessionId(executionSession, {
             ...sessionContext,
             accountId: selected.accountId,
             boundSessionId: keptSession,
