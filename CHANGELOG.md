@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- #795：池调度候选阶段一次联合查询复用账号与运行状态快照，健康写回与过期清理移出请求热路径；迁移 046 拆分 `queue_wait_ms` 与 `scheduling_ms`，`wait_ms` 总调度口径不变，历史行 NULL。
+
+已部署机升级：更新 Node 控制面与 `web/dist` 后重启；启动应用迁移 046。cli-node 哈希未变，不必 `fetch:payload` / `wrap-cli/sync`。不要覆盖 `routing.json`、`vms/`、`data/`、`.env`。
+
 ## 1.4.020 — 2026-10-28
 
 - #726（作者 eshao731，Closes #722 / #723 / #724 / #725）：Codex HTTP 省略 `stream` 且无 `Accept: text/event-stream` 时返回 JSON，非流式 Chat/Completions 返回对应格式而不是 Responses 对象；首事件等待用 `KIN_UPSTREAM_TIMEOUT`，之后按流空闲超时检查，不再在内核回头后无限等待；未输出时内核 `503 no_capacity` 在候选范围内换槽；按实际 envelope 检查槽内限额，内核纯文本 413 报 `413 body_too_large` 而非 `worker_invalid_json`。**行为变化**：未设 `failover.max_request_mib` 时入口请求体上限由进程天花板（默认 128 MiB）改为与槽内 kernel 一致的 32 MiB，32–128 MiB 请求现在在入口直接 413。
