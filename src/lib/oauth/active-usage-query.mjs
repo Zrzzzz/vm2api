@@ -24,7 +24,7 @@ export function createActiveUsageQuery({ probe = probeAccount, persistTier = per
     const accountId = vm.claude?.account_uuid || vm.id
     const key = `${projectRoot}:${vm.id}:${accountId}`
     if (flights.has(key)) return await flights.get(key)
-    const pending = (await (async () => {
+    const pending = (async () => {
       const account = await accountQuota.ensure({ account_id: accountId, vm_id: vm.id })
       const backoff = usageProbeBackoffRemainingMs(account.unified)
       if (backoff > 0) {
@@ -78,7 +78,7 @@ export function createActiveUsageQuery({ probe = probeAccount, persistTier = per
           },
         },
       }
-    })())
+    })()
     flights.set(key, pending)
     try {
       return await pending

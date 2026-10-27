@@ -715,6 +715,7 @@ it('does not guess a multiplier for legacy Max', () => {
   expect(claudeTier(liveVm({ account_tier: 'max' })).label).toBe(
     'Max（倍率未知）'
   )
+})
 describe('four-state schedule model (backend resolveSlotState)', () => {
   it('不可调度 shows the backend reason and groups with the dead zone', () => {
     const vm = liveVm({

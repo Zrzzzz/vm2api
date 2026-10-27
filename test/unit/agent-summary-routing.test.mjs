@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { DatabaseSync } from 'node:sqlite'
+import { createTestDatabase } from '../postgres/isolated-db.mjs'
 import { createHandleProtocol } from '../../src/lib/protocol/handle-protocol.mjs'
 import { FailoverRunner } from '../../src/lib/pool/failover-runner.mjs'
 import { PoolScheduler } from '../../src/lib/pool/pool-scheduler.mjs'
@@ -38,12 +38,13 @@ function success() {
   }
 }
 
-function harness({ mode = 'rebuild', capacity = 2, agentId = '' } = {}) {
+async function harness({ mode = 'rebuild', capacity = 2, agentId = '' } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kin-summary-'))
   const routing = { compatibility: {}, failover: {}, sticky: { enabled: true, outbound_session: mode } }
   const routingFile = path.join(root, 'routing.json')
   fs.writeFileSync(routingFile, JSON.stringify(routing))
-  const sticky = new StickyRouter({ dataDir: root, config: routing })
+  const db = await createTestDatabase()
+  const sticky = new StickyRouter({ db, config: routing })
   const pool = new PoolScheduler({ stickyRouter: sticky })
   // Only discovery/health are simulated. The seat planner, reservations,
   // session queue, sticky writes and outbound preparation are the real ones.
@@ -76,7 +77,7 @@ function harness({ mode = 'rebuild', capacity = 2, agentId = '' } = {}) {
   const clients = new Map()
   const parentStarted = deferred()
   const parentGate = deferred()
-  const thinkingDb = new DatabaseSync(':memory:')
+  const thinkingDb = db
   const handler = createHandleProtocol({
     json(res, status, body) {
       res.statusCode = status
@@ -167,16 +168,13 @@ function harness({ mode = 'rebuild', capacity = 2, agentId = '' } = {}) {
       await handler.handleProtocol(req, res, 'anthropic.messages', '/v1/messages')
       return res
     },
-    close() {
-      sticky.db.close()
-      thinkingDb.close()
-    },
+    async close() { await db.close() },
   }
 }
 
 for (const mode of ['rebuild', 'passthrough']) {
   test(`agent summary executes beside its blocked parent with isolated seat and outbound identity (${mode})`, async () => {
-    const h = harness({ mode, agentId: 'writer-agent' })
+    const h = await harness({ mode, agentId: 'writer-agent' })
     const parent = h.invoke('parent')
     let followup
     try {
@@ -187,9 +185,9 @@ for (const mode of ['rebuild', 'passthrough']) {
         }),
       ])
       const parentKey = h.sticky.canonicalSessionKey(h.parentSession)
-      const before = h.sticky.resolve(parentKey)
+      const before = await h.sticky.resolve(parentKey)
       const familyKey = h.sticky.canonicalFamilyKey('test-parent')
-      const familyBefore = h.sticky.resolve(familyKey)
+      const familyBefore = await h.sticky.resolve(familyKey)
       assert.ok(before?.sessionId)
       // A normal follow-up remains serialized even while a summary can run.
       followup = h.invoke('followup')
@@ -199,8 +197,8 @@ for (const mode of ['rebuild', 'passthrough']) {
         h.calls.map((call) => call.id),
         ['parent', 'summary'],
       )
-      assert.deepEqual(h.sticky.resolve(parentKey), before)
-      assert.deepEqual(h.sticky.resolve(familyKey), familyBefore)
+      assert.deepEqual(await h.sticky.resolve(parentKey), before)
+      assert.deepEqual(await h.sticky.resolve(familyKey), familyBefore)
       const main = h.calls[0]
       const side = h.calls[1]
       assert.equal(side.candidate.vmId, main.candidate.vmId)
@@ -222,7 +220,7 @@ for (const mode of ['rebuild', 'passthrough']) {
       h.parentGate.resolve()
       await parent
       if (followup) await followup
-      h.close()
+      await h.close()
     }
     assert.equal(h.calls.at(-1).id, 'followup')
     assert.equal(h.pool.planner.openCount('vm-01'), 0)
@@ -231,7 +229,7 @@ for (const mode of ['rebuild', 'passthrough']) {
 }
 
 test('summary still waits for actual VM capacity instead of bypassing admission', async () => {
-  const h = harness({ capacity: 1 })
+  const h = await harness({ capacity: 1 })
   const parent = h.invoke('parent')
   let summary
   try {
@@ -260,12 +258,12 @@ test('summary still waits for actual VM capacity instead of bypassing admission'
     h.parentGate.resolve()
     await parent
     if (summary) await summary
-    h.close()
+    await h.close()
   }
 })
 
 test('cancelling a queued summary removes its ticket without releasing the parent seat', async () => {
-  const h = harness({ capacity: 1 })
+  const h = await harness({ capacity: 1 })
   const parent = h.invoke('parent')
   let summary
   try {
@@ -276,7 +274,7 @@ test('cancelling a queued summary removes its ticket without releasing the paren
       }),
     ])
     const parentKey = h.sticky.canonicalSessionKey(h.parentSession)
-    const before = h.sticky.resolve(parentKey)
+    const before = await h.sticky.resolve(parentKey)
     summary = h.invoke('summary', agentBody({ summary: true }))
     await new Promise((resolve) => setTimeout(resolve, 30))
     assert.equal(h.pool.queuedTotal(), 1)
@@ -285,7 +283,7 @@ test('cancelling a queued summary removes its ticket without releasing the paren
     assert.equal(h.pool.queuedTotal(), 0)
     assert.equal(h.pool.planner.openCount('vm-01'), 1)
     assert.equal(h.pool.inflight.get('account-1'), 1)
-    assert.deepEqual(h.sticky.resolve(parentKey), before)
+    assert.deepEqual(await h.sticky.resolve(parentKey), before)
     assert.deepEqual(
       h.calls.map((call) => call.id),
       ['parent'],
@@ -294,6 +292,6 @@ test('cancelling a queued summary removes its ticket without releasing the paren
     h.parentGate.resolve()
     await parent
     if (summary) await summary
-    h.close()
+    await h.close()
   }
 })

@@ -288,6 +288,7 @@ export async function evaluateProtocolIntercept({
           keyword: unavailable ? 'unavailable' : category,
           audit: verdict.audit,
         }),
+        jevState: unavailable ? '' : verdict.state || '',
         category: unavailable ? 'unavailable' : category,
         deviceId: inboundRefusalDeviceId({ inbound, body, headers }),
         fingerprint: refusalFingerprint(body, inbound),

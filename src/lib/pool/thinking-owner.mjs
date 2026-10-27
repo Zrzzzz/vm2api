@@ -40,62 +40,29 @@ export class ThinkingOwnerStore {
     this.lastPurge = 0
   }
 
-  statements() {
-    let db
-    try {
-      db = this.pinned || getDb()
-    } catch {
-      return null
-    }
-    if (this.boundDb === db) return this.sql
-    db.exec(`CREATE TABLE IF NOT EXISTS thinking_signature_owners (
-      key TEXT PRIMARY KEY,
-      account_id TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    )`)
-    db.exec('CREATE INDEX IF NOT EXISTS idx_thinking_owner_created ON thinking_signature_owners(created_at)')
-    this.sql = {
-      owners: db.prepare(
-        'SELECT key, account_id FROM thinking_signature_owners WHERE key IN (SELECT value FROM json_each(?))',
-      ),
-      refresh: db.prepare(
-        'UPDATE thinking_signature_owners SET created_at = ? WHERE key IN (SELECT value FROM json_each(?)) AND created_at < ?',
-      ),
-      insert: db.prepare(
-        'INSERT OR IGNORE INTO thinking_signature_owners (key, account_id, created_at) VALUES (?, ?, ?)',
-      ),
-      purge: db.prepare('DELETE FROM thinking_signature_owners WHERE created_at < ?'),
-    }
-    this.boundDb = db
-    return this.sql
-  }
+  database() { return this.pinned || getDb() }
 
-  /**
-   * key → account for the keys that have a record; null when no database is
-   * reachable, so the caller can leave history alone instead of guessing.
-   */
-  ownersOf(keys, now = Date.now()) {
-    const sql = this.statements()
-    if (!sql) return null
+  async ownersOf(keys, now = Date.now()) {
     const found = new Map()
     if (!keys.length) return found
-    const list = JSON.stringify(keys)
-    for (const row of sql.owners.all(list)) found.set(row.key, row.account_id)
-    if (found.size) sql.refresh.run(now, list, now - REFRESH_AFTER_MS)
+    const db = this.database()
+    const rows = (await db.query('SELECT key, account_id FROM thinking_signature_owners WHERE key = ANY($1::text[])', [keys])).rows
+    for (const row of rows) found.set(row.key, row.account_id)
+    if (found.size) await db.query('UPDATE thinking_signature_owners SET created_at = $1 WHERE key = ANY($2::text[]) AND created_at < $3', [now, keys, now - REFRESH_AFTER_MS])
     return found
   }
 
-  /** First writer wins: a signature belongs to the account that returned it. */
-  record(keys, accountId, now = Date.now()) {
+  async record(keys, accountId, now = Date.now()) {
     const account = String(accountId || '')
-    const sql = keys.length && account ? this.statements() : null
-    if (!sql) return
-    for (const key of keys) sql.insert.run(key, account, now)
+    if (!keys.length || !account) return
+    const db = this.database()
+    await db.query('INSERT INTO thinking_signature_owners(key,account_id,created_at) SELECT unnest($1::text[]), $2, $3 ON CONFLICT(key) DO NOTHING', [keys, account, now])
     if (now - this.lastPurge >= PURGE_EVERY_MS) {
       this.lastPurge = now
-      sql.purge.run(now - this.ttlMs)
+      await db.query('DELETE FROM thinking_signature_owners WHERE created_at < $1', [now - this.ttlMs])
     }
   }
+
 }
 
 export const thinkingOwners = new ThinkingOwnerStore()
@@ -116,16 +83,16 @@ function historyKeys(body) {
  * The body this account may replay: its own thinking stays, every other
  * signed block becomes text (dropped when empty). Without a reachable
  * database the body goes unchanged.
- * @returns {{ body: object, kept: number, converted: number, dropped: number, unknown: number }}
+ * @returns {Promise<{ body: object, kept: number, converted: number, dropped: number, unknown: number }>}
  */
-export function filterThinkingForAccount(body, accountId, store = thinkingOwners) {
+export async function filterThinkingForAccount(body, accountId, store = thinkingOwners) {
   const account = String(accountId || '')
   const counts = { kept: 0, converted: 0, dropped: 0, unknown: 0 }
   const keys = account ? historyKeys(body) : []
   if (!keys.length) return { body, ...counts }
   let owners = null
   try {
-    owners = store.ownersOf([...new Set(keys)])
+    owners = await store.ownersOf([...new Set(keys)])
   } catch {}
   if (!owners) return { body, ...counts, kept: keys.length }
   const out = mapThinkingBlocks(body, (block, message) => {
@@ -150,14 +117,14 @@ export function filterThinkingForAccount(body, accountId, store = thinkingOwners
 }
 
 /** Bind the thinking blocks of a served response to the account that produced them. */
-export function recordThinkingOwners(message, accountId, store = thinkingOwners) {
+export async function recordThinkingOwners(message, accountId, store = thinkingOwners) {
   const keys = []
   for (const block of Array.isArray(message?.content) ? message.content : []) {
     const key = thinkingSignatureKey(block)
     if (key) keys.push(key)
   }
   try {
-    store.record(keys, accountId)
+    await store.record(keys, accountId)
   } catch {}
   return keys.length
 }

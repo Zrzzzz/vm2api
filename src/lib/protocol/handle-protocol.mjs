@@ -228,7 +228,7 @@ export function createHandleProtocol(deps) {
   // Codex handlers write usage onto logBag themselves. The key is charged the
   // official cost usage_logs prices for the same row (image generation
   // included) times the group rate; logBag is left as is so the row is too.
-  function billCodexKey(managedKey, logBag) {
+  async function billCodexKey(managedKey, logBag) {
     if (logBag.final_state !== 'verified') return
     const model = logBag.upstream_model || logBag.model
     const image = logBag.image_usage
@@ -236,7 +236,7 @@ export function createHandleProtocol(deps) {
       : null
     try {
       const priced = costColumnsFromUsage(logBag.usage || {}, model, image)
-      apiKeyStore.recordUsage(managedKey, logBag.usage || {}, {
+      await apiKeyStore.recordUsage(managedKey, logBag.usage || {}, {
         model,
         rateMultiplier: deps.groupsRepo.rateMultiplier(managedKey.group_id ?? 1),
         officialCost: priced.total_cost,
@@ -248,7 +248,7 @@ export function createHandleProtocol(deps) {
   async function runWithCodexKey(req, res, logBag, run) {
     const managedKey = req.apiKeyRecord || null
     if (!managedKey) return run()
-    const gate = apiKeyStore.acquire(managedKey)
+    const gate = await apiKeyStore.acquire(managedKey)
     if (!gate.ok) {
       stats.errors++
       logBag.error_code = gate.code
@@ -261,7 +261,7 @@ export function createHandleProtocol(deps) {
       try {
         apiKeyStore.release(managedKey)
       } catch {}
-      billCodexKey(managedKey, logBag)
+      await billCodexKey(managedKey, logBag)
     }
   }
 
@@ -1336,7 +1336,7 @@ export function createHandleProtocol(deps) {
         applyAttempt: async (body, selected, extra = {}) => {
           // Only this account's own thinking replays as thinking. Another
           // account's signature, or one with no record, goes out as text.
-          const owned = filterThinkingForAccount(body, selected.accountId, thinkingOwnerStore)
+          const owned = (await filterThinkingForAccount(body, selected.accountId, thinkingOwnerStore))
           body = owned.body
           if (owned.kept || owned.converted || owned.dropped) {
             const { kept, converted, dropped, unknown } = owned
@@ -1426,7 +1426,7 @@ export function createHandleProtocol(deps) {
                 entrypoint: entrypointNow,
               })
               // The re-render starts from the raw caller body; re-apply this account's thinking ownership to it.
-              hopBody = filterThinkingForAccount(hopBody, selected.accountId, thinkingOwnerStore).body
+              hopBody = (await filterThinkingForAccount(hopBody, selected.accountId, thinkingOwnerStore)).body
             }
             hopBody = (await prepareCliHopBody(repaired ? body : hopBody, {
               stream: upstreamStream,
@@ -1697,7 +1697,7 @@ export function createHandleProtocol(deps) {
     logBag.final_account_id = result?.accountId || null
     if (result?.threadBetas) logBag.hop_meta = { ...logBag.hop_meta, thread_betas: result.threadBetas }
     if (result?.accountId && (result.ok || result.committed))
-      recordThinkingOwners(result.body, result.accountId, thinkingOwnerStore)
+      await recordThinkingOwners(result.body, result.accountId, thinkingOwnerStore)
     // Zero executions is a real 0, not unknown; the VM is the last one that ran.
     logBag.attempt_count = result?.attemptCount ?? 0
     logBag.final_state = result?.finalState || result?.terminalState || null

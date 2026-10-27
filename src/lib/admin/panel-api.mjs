@@ -2509,13 +2509,13 @@ function windowEstimates(quota, cost, coveredSince, codex) {
 }
 
 /** The last closed 5h / 7d window with its official spend, from the slot's window archive. */
-function closedWindowView(history, key, { vmId, accountId, requestLog }) {
+async function closedWindowView(history, key, { vmId, accountId, requestLog }) {
   const win = lastClosedWindow(history, key)
   if (!win) return null
   let row = null
   try {
     // `until` is inclusive in the log filter; stop 1 ms short so the boundary request counts once.
-    row = requestLog?.costBetween?.({ since: win.start, until: Date.parse(win.end) - 1, vmId, accountId }) || null
+    row = (await requestLog?.costBetween?.({ since: win.start, until: Date.parse(win.end) - 1, vmId, accountId })) || null
   } catch {
     row = null
   }
@@ -2589,8 +2589,8 @@ async function buildAccountBilling(
     usageStats = null
   }
   const scope = { vmId, accountId, requestLog }
-  const prev5h = closedWindowView(windowHistory, '5h', scope)
-  const prev7d = closedWindowView(windowHistory, '7d', scope)
+  const prev5h = (await closedWindowView(windowHistory, '5h', scope))
+  const prev7d = (await closedWindowView(windowHistory, '7d', scope))
   return {
     source: billing?.source || 'anthropic-official',
     currency: billing?.currency || 'USD',

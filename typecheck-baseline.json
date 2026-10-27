@@ -691,6 +691,191 @@
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_preset' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_preset' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_preset' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'overlay_preset' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'overlay_preset' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'overlay_preset' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_hides' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_hides' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_hides' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_hides' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_standing' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_standing' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'agent_standing' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'agent_standing' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'agent_standing' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'persona_block_presets' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'model_env_extra' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cache_ttl' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cache_ttl' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cache_ttl' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cc_entrypoint' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cc_entrypoint' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cc_entrypoint' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cc_entrypoint' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'claude_code_only' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'claude_code_only' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'official_cc_passthrough' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'official_cc_passthrough' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cch_enabled' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'auto_compact_window' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'auto_compact_window' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'thinking_display' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'thinking_display' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'thinking_display' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'thinking_display' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cache_breakpoints' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'cache_breakpoints' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
     "code": 2538,
     "message": "Type 'false' cannot be used as an index type."
   },
@@ -723,6 +908,16 @@
     "file": "src/lib/admin/panel-api.mjs",
     "code": 2345,
     "message": "Argument of type '{ type: string; code: string; message: string; status: number; }' is not assignable to parameter of type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }'.\n  Type '{ type: string; code: string; message: string; status: number; }' is missing the following properties from type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }': param, details, request_id"
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'vmId' does not exist in type '{ windowHistory?: any; estimate5h?: any; coveredSince?: any; }'."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "code": 2339,
+    "message": "Property 'estimate_5h' does not exist on type '{ seats_used: number; seats_max: number; seats_grace: number; seat_sessions: any; queue_depth: number; conc_waiting: number; inflight: any; requests: any; tokens_in: any; tokens_out: any; cache_read_tokens: any; ... 129 more ...; origin: any; }'."
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
@@ -981,23 +1176,18 @@
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
-    "code": 2353,
-    "message": "Object literal may only specify known properties, and 'schedulable' does not exist in type '{ availability?: {}; restrictionUntil?: any; restrictionReason?: any; now?: number; }'."
+    "code": 2339,
+    "message": "Property 'vmId' does not exist on type '{ windowHistory?: null; estimate5h?: null; coveredSince?: null; }'."
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
     "code": 2339,
-    "message": "Property 'vmId' does not exist on type '{}'."
+    "message": "Property 'accountId' does not exist on type '{ windowHistory?: null; estimate5h?: null; coveredSince?: null; }'."
   },
   {
     "file": "src/lib/admin/panel-api.mjs",
     "code": 2339,
-    "message": "Property 'accountId' does not exist on type '{}'."
-  },
-  {
-    "file": "src/lib/admin/panel-api.mjs",
-    "code": 2339,
-    "message": "Property 'requestLog' does not exist on type '{}'."
+    "message": "Property 'requestLog' does not exist on type '{ windowHistory?: null; estimate5h?: null; coveredSince?: null; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
@@ -1033,6 +1223,21 @@
     "file": "src/lib/admin/panel-routes.mjs",
     "code": 2339,
     "message": "Property 'codex' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/admin/panel-routes.mjs",
+    "code": 2339,
+    "message": "Property 'access_token' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/admin/panel-routes.mjs",
+    "code": 2339,
+    "message": "Property 'refresh_token' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/admin/panel-routes.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'by' does not exist in type '{ only?: any; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
@@ -1132,7 +1337,17 @@
   {
     "file": "src/lib/admin/panel-routes.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'routing' does not exist in type '{ recreate?: boolean; refreshFn?: (vm: any, projectRoot: any, { routing, recreate, startFn }?: { recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; }) => Promise<any>; }'."
+    "message": "Object literal may only specify known properties, and 'routing' does not exist in type '{ sessionFor?: (nodeId: any) => Promise<{ nodeId: any; client: any; host: any; docker: DockerConnector; }>; inspect?: (connect: any, id: any) => Promise<any>; nativeVm?: (vm: any) => boolean; nativeDigestFor?: (projectRoot: any) => any; }'."
+  },
+  {
+    "file": "src/lib/admin/panel-routes.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'routing' does not exist in type '{ recreate?: boolean; refreshFn?: (vm: any, projectRoot: any, { routing, recreate, startFn, sessionFor, inspect, }?: { recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; sessionFor?: (nodeId: any) => Promise<...>; inspect?: (connect: any, id: a...'."
+  },
+  {
+    "file": "src/lib/admin/panel-routes.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'by' does not exist in type '{ only?: any; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
@@ -1332,11 +1547,6 @@
   {
     "file": "src/lib/admin/panel-routes.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ headers?: {}; timeoutMs?: number; }'."
-  },
-  {
-    "file": "src/lib/admin/panel-routes.mjs",
-    "code": 2353,
     "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ refresh?: boolean; catalogClientVersion?: string; }'."
   },
   {
@@ -1442,7 +1652,7 @@
   {
     "file": "src/lib/admin/panel-routes.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'vm' does not exist in type '{ force?: boolean; inspect?: (name: any) => { name: any; running: boolean; restarting: boolean; pid: number; ip: string; networkMode: string; startedAt: string; image: string; hostname: string; runtime: string; role: string; }; }'."
+    "message": "Object literal may only specify known properties, and 'vm' does not exist in type '{ force?: boolean; inspect?: (name: any, opts: any) => any; }'."
   },
   {
     "file": "src/lib/admin/panel-routes.mjs",
@@ -1797,22 +2007,22 @@
   {
     "file": "src/lib/admin/request-log.mjs",
     "code": 2339,
-    "message": "Property 'total_cost' does not exist on type '{ web_search_requests: any; requested_model: any; upstream_model: any; model_mismatch: number; first_token_ms: any; stop_reason: any; attempt_count: any; final_state: any; final_account_id: any; ... 37 more ...; cache_creation_tokens: any; }'."
+    "message": "Property 'total_cost' does not exist on type '{ web_search_requests: any; requested_model: any; upstream_model: any; model_mismatch: number; first_token_ms: any; first_byte_ms: any; generation_ms: any; stop_reason: any; attempt_count: any; ... 44 more ...; cache_creation_tokens: any; }'."
   },
   {
     "file": "src/lib/admin/request-log.mjs",
     "code": 2339,
-    "message": "Property 'actual_cost' does not exist on type '{ web_search_requests: any; requested_model: any; upstream_model: any; model_mismatch: number; first_token_ms: any; stop_reason: any; attempt_count: any; final_state: any; final_account_id: any; ... 37 more ...; cache_creation_tokens: any; }'."
+    "message": "Property 'actual_cost' does not exist on type '{ web_search_requests: any; requested_model: any; upstream_model: any; model_mismatch: number; first_token_ms: any; first_byte_ms: any; generation_ms: any; stop_reason: any; attempt_count: any; ... 44 more ...; cache_creation_tokens: any; }'."
   },
   {
     "file": "src/lib/admin/request-log.mjs",
     "code": 2339,
-    "message": "Property 'total_cost' does not exist on type '{ web_search_requests: any; requested_model: any; upstream_model: any; model_mismatch: number; first_token_ms: any; stop_reason: any; attempt_count: any; final_state: any; final_account_id: any; ... 37 more ...; cache_creation_tokens: any; }'."
+    "message": "Property 'total_cost' does not exist on type '{ web_search_requests: any; requested_model: any; upstream_model: any; model_mismatch: number; first_token_ms: any; first_byte_ms: any; generation_ms: any; stop_reason: any; attempt_count: any; ... 44 more ...; cache_creation_tokens: any; }'."
   },
   {
     "file": "src/lib/admin/request-log.mjs",
     "code": 2339,
-    "message": "Property 'error_class' does not exist on type '{ web_search_requests: any; requested_model: any; upstream_model: any; model_mismatch: number; first_token_ms: any; stop_reason: any; attempt_count: any; final_state: any; final_account_id: any; ... 37 more ...; cache_creation_tokens: any; }'."
+    "message": "Property 'error_class' does not exist on type '{ web_search_requests: any; requested_model: any; upstream_model: any; model_mismatch: number; first_token_ms: any; first_byte_ms: any; generation_ms: any; stop_reason: any; attempt_count: any; ... 44 more ...; cache_creation_tokens: any; }'."
   },
   {
     "file": "src/lib/admin/routing-runtime.mjs",
@@ -1827,7 +2037,7 @@
   {
     "file": "src/lib/admin/routing-runtime.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'scheduler' does not exist in type '{ stickyRouter?: any; attemptsRepo?: any; rateLimitService?: any; config?: {}; onProxyFailure?: any; onCredentialFailure?: any; onFablePlanDenied?: any; onFableSuccess?: any; }'."
+    "message": "Object literal may only specify known properties, and 'scheduler' does not exist in type '{ stickyRouter?: any; attemptsRepo?: any; rateLimitService?: any; config?: {}; onProxyFailure?: any; onCredentialFailure?: any; onFablePlanDenied?: any; onFableSuccess?: any; onSchedulePause?: any; }'."
   },
   {
     "file": "src/lib/admin/usage-profile.mjs",
@@ -2397,7 +2607,7 @@
   {
     "file": "src/lib/cluster/remote-slot.mjs",
     "code": 2339,
-    "message": "Property 'routing' does not exist on type '{ recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; }'."
+    "message": "Property 'routing' does not exist on type '{ recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; sessionFor?: (nodeId: any) => Promise<{ nodeId: any; client: any; host: any; docker: DockerConnector; }>; inspect?: (connect: any, id: any) => Promise<...>; }'."
   },
   {
     "file": "src/lib/cluster/remote-slot.mjs",
@@ -2412,17 +2622,32 @@
   {
     "file": "src/lib/cluster/remote-slot.mjs",
     "code": 2339,
-    "message": "Property 'routing' does not exist on type '{ recreate?: boolean; refreshFn?: (vm: any, projectRoot: any, { routing, recreate, startFn }?: { recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; }) => Promise<any>; }'."
+    "message": "Property 'routing' does not exist on type '{ sessionFor?: (nodeId: any) => Promise<{ nodeId: any; client: any; host: any; docker: DockerConnector; }>; inspect?: (connect: any, id: any) => Promise<any>; nativeVm?: (vm: any) => boolean; nativeDigestFor?: (projectRoot: any) => any; }'."
+  },
+  {
+    "file": "src/lib/cluster/remote-slot.mjs",
+    "code": 2339,
+    "message": "Property 'routing' does not exist on type '{ recreate?: boolean; refreshFn?: (vm: any, projectRoot: any, { routing, recreate, startFn, sessionFor, inspect, }?: { recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; sessionFor?: (nodeId: any) => Promise<...>; inspect?: (connect: any, id: a...'."
   },
   {
     "file": "src/lib/cluster/remote-slot.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'routing' does not exist in type '{ recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; }'."
+    "message": "Object literal may only specify known properties, and 'routing' does not exist in type '{ recreate?: boolean; startFn?: (vm: any, projectRoot: any, { recreate, routing }?: { recreate?: boolean; }) => Promise<any>; sessionFor?: (nodeId: any) => Promise<{ nodeId: any; client: any; host: any; docker: DockerConnector; }>; inspect?: (connect: any, id: any) => Promise<...>; }'."
   },
   {
     "file": "src/lib/cluster/remote-slot.mjs",
     "code": 2339,
     "message": "Property 'routing' does not exist on type '{ recreate?: boolean; }'."
+  },
+  {
+    "file": "src/lib/cluster/remote-slot.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ persist?: boolean; }'."
+  },
+  {
+    "file": "src/lib/cluster/remote-slot.mjs",
+    "code": 2345,
+    "message": "Argument of type '{}' is not assignable to parameter of type 'Record<string, string>'.\n  Index signature for type 'string' is missing in type '{}'."
   },
   {
     "file": "src/lib/cluster/remote-slot.mjs",
@@ -2797,6 +3022,16 @@
   {
     "file": "src/lib/db/adapters/postgres/repos/usage-logs-repo.mjs",
     "code": 2339,
+    "message": "Property 'since' does not exist on type '{ vmId?: null; accountId?: null; }'."
+  },
+  {
+    "file": "src/lib/db/adapters/postgres/repos/usage-logs-repo.mjs",
+    "code": 2339,
+    "message": "Property 'until' does not exist on type '{ vmId?: null; accountId?: null; }'."
+  },
+  {
+    "file": "src/lib/db/adapters/postgres/repos/usage-logs-repo.mjs",
+    "code": 2339,
     "message": "Property 'vmId' does not exist on type '{ days?: number; }'."
   },
   {
@@ -2972,6 +3207,46 @@
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
+    "message": "Property 'cwd' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
+    "message": "Property 'cwd' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
+    "message": "Property 'modelId' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
+    "message": "Property 'timezone' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
+    "message": "Property 'timezone' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
+    "message": "Property 'locale' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
+    "message": "Property 'locale' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
+    "message": "Property 'modelId' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
     "message": "Property 'fingerprint' does not exist on type 'object'."
   },
   {
@@ -3082,6 +3357,11 @@
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
+    "message": "Property 'locale' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
     "message": "Property 'identity' does not exist on type '{ overwrite?: boolean; forceTimezone?: boolean; }'."
   },
   {
@@ -3142,52 +3422,52 @@
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'preset' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'preset' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'templates' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'templates' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'switches' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'switches' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'overlayPreset' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'overlayPreset' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'overlayTemplates' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'overlayTemplates' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'cliVersion' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'cliVersion' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'routingFile' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'routingFile' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'sessionId' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'sessionId' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'identity' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'identity' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
     "code": 2339,
-    "message": "Property 'model' does not exist on type '{ callerAgent?: string; }'."
+    "message": "Property 'model' does not exist on type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
@@ -3251,8 +3531,13 @@
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
+    "code": 2339,
+    "message": "Property 'entrypoint' does not exist on type '{ officialClient?: boolean; forceConfigured?: boolean; }'."
+  },
+  {
+    "file": "src/lib/identity/crs-persona.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'preset' does not exist in type '{ callerAgent?: string; }'."
+    "message": "Object literal may only specify known properties, and 'preset' does not exist in type '{ callerAgent?: string; entrypoint?: string; }'."
   },
   {
     "file": "src/lib/identity/crs-persona.mjs",
@@ -3313,6 +3598,56 @@
     "file": "src/lib/identity/identity-rewrite.mjs",
     "code": 2339,
     "message": "Property 'account_uuid' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/official-303.mjs",
+    "code": 8032,
+    "message": "Qualified name 'opts.officialCaller' is not allowed without a leading '@param {object} opts'."
+  },
+  {
+    "file": "src/lib/identity/official-303.mjs",
+    "code": 8032,
+    "message": "Qualified name 'opts.compat' is not allowed without a leading '@param {object} opts'."
+  },
+  {
+    "file": "src/lib/identity/official-303.mjs",
+    "code": 8032,
+    "message": "Qualified name 'opts.cacheTtl' is not allowed without a leading '@param {object} opts'."
+  },
+  {
+    "file": "src/lib/identity/official-303.mjs",
+    "code": 8032,
+    "message": "Qualified name 'opts.oneM' is not allowed without a leading '@param {object} opts'."
+  },
+  {
+    "file": "src/lib/identity/official-303.mjs",
+    "code": 2339,
+    "message": "Property 'callerSystem' does not exist on type '{ officialCaller?: boolean; identity?: null; compat?: {}; firstUserText?: string; sessionId?: string; oneM?: boolean; entrypoint?: string; }'."
+  },
+  {
+    "file": "src/lib/identity/official-303.mjs",
+    "code": 2339,
+    "message": "Property 'cacheTtl' does not exist on type '{ officialCaller?: boolean; identity?: null; compat?: {}; firstUserText?: string; sessionId?: string; oneM?: boolean; entrypoint?: string; }'."
+  },
+  {
+    "file": "src/lib/identity/official-303.mjs",
+    "code": 2339,
+    "message": "Property 'persona_templates' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/identity/official-303.mjs",
+    "code": 2550,
+    "message": "Property 'findLastIndex' does not exist on type '{ type: string; text: string; }[]'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2023' or later."
+  },
+  {
+    "file": "src/lib/identity/official-profiles.mjs",
+    "code": 2551,
+    "message": "Property 'environment_instructions' does not exist on type '{ meta: { cli_version: string; stainless_package_version: string; build_time: string; git_sha: string; source: string; }; identity_cli: string; environment_intro: string; environment_untrusted: string; harness: string; guidance: string; }'. Did you mean 'environment_intro'?"
+  },
+  {
+    "file": "src/lib/identity/persona-template.mjs",
+    "code": 2339,
+    "message": "Property 'persona_preset' does not exist on type 'object'."
   },
   {
     "file": "src/lib/identity/slot-computer.mjs",
@@ -3387,12 +3722,12 @@
   {
     "file": "src/lib/oauth/claude-auth-login.mjs",
     "code": 2339,
-    "message": "Property 'vm' does not exist on type '{ force?: boolean; inspect?: (name: any) => { name: any; running: boolean; restarting: boolean; pid: number; ip: string; networkMode: string; startedAt: string; image: string; hostname: string; runtime: string; role: string; }; }'."
+    "message": "Property 'vm' does not exist on type '{ force?: boolean; inspect?: (name: any, opts: any) => any; }'."
   },
   {
     "file": "src/lib/oauth/claude-auth-login.mjs",
     "code": 2339,
-    "message": "Property 'projectRoot' does not exist on type '{ force?: boolean; inspect?: (name: any) => { name: any; running: boolean; restarting: boolean; pid: number; ip: string; networkMode: string; startedAt: string; image: string; hostname: string; runtime: string; role: string; }; }'."
+    "message": "Property 'projectRoot' does not exist on type '{ force?: boolean; inspect?: (name: any, opts: any) => any; }'."
   },
   {
     "file": "src/lib/oauth/claude-auth-login.mjs",
@@ -3692,7 +4027,7 @@
   {
     "file": "src/lib/oauth/crs-usage-probe.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
+    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; }'."
   },
   {
     "file": "src/lib/oauth/crs-usage-probe.mjs",
@@ -3778,6 +4113,11 @@
     "file": "src/lib/oauth/oauth-credentials.mjs",
     "code": 2339,
     "message": "Property 'gid' does not exist on type '{ create?: boolean; }'."
+  },
+  {
+    "file": "src/lib/oauth/oauth-credentials.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'by' does not exist in type '{ now?: number; }'."
   },
   {
     "file": "src/lib/oauth/oauth-credentials.mjs",
@@ -4942,57 +5282,22 @@
   {
     "file": "src/lib/pool/availability.mjs",
     "code": 2339,
-    "message": "Property 'schedulable' does not exist on type '{ availability?: {}; restrictionUntil?: null; restrictionReason?: null; now?: number; }'."
+    "message": "Property 'schedulable' does not exist on type '{ vm?: null; availability?: {}; restrictionUntil?: null; restrictionReason?: null; circuit?: null; seats?: null; sessions?: null; now?: number; }'."
   },
   {
     "file": "src/lib/pool/availability.mjs",
     "code": 2339,
-    "message": "Property 'scheduleManual' does not exist on type '{ availability?: {}; restrictionUntil?: null; restrictionReason?: null; now?: number; }'."
+    "message": "Property 'scheduleManual' does not exist on type '{ vm?: null; availability?: {}; restrictionUntil?: null; restrictionReason?: null; circuit?: null; seats?: null; sessions?: null; now?: number; }'."
   },
   {
     "file": "src/lib/pool/availability.mjs",
     "code": 2339,
-    "message": "Property 'scheduleDisabledReason' does not exist on type '{ availability?: {}; restrictionUntil?: null; restrictionReason?: null; now?: number; }'."
+    "message": "Property 'scheduleDisabledReason' does not exist on type '{ vm?: null; availability?: {}; restrictionUntil?: null; restrictionReason?: null; circuit?: null; seats?: null; sessions?: null; now?: number; }'."
   },
   {
     "file": "src/lib/pool/availability.mjs",
-    "code": 2339,
-    "message": "Property 'until' does not exist on type '{}'."
-  },
-  {
-    "file": "src/lib/pool/availability.mjs",
-    "code": 2339,
-    "message": "Property 'key' does not exist on type '{}'."
-  },
-  {
-    "file": "src/lib/pool/availability.mjs",
-    "code": 2339,
-    "message": "Property 'reason' does not exist on type '{}'."
-  },
-  {
-    "file": "src/lib/pool/availability.mjs",
-    "code": 2339,
-    "message": "Property 'until' does not exist on type '{}'."
-  },
-  {
-    "file": "src/lib/pool/availability.mjs",
-    "code": 2339,
-    "message": "Property 'key' does not exist on type '{}'."
-  },
-  {
-    "file": "src/lib/pool/availability.mjs",
-    "code": 2339,
-    "message": "Property 'key' does not exist on type '{}'."
-  },
-  {
-    "file": "src/lib/pool/availability.mjs",
-    "code": 2339,
-    "message": "Property 'reason' does not exist on type '{}'."
-  },
-  {
-    "file": "src/lib/pool/availability.mjs",
-    "code": 2339,
-    "message": "Property 'until' does not exist on type '{}'."
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'now' does not exist in type '{ vm: any; availability?: any; restrictionReason?: string; restrictionUntil?: number; circuit?: { state?: string; open_until?: number; }; seats?: { used?: number; max?: number; }; sessions?: { active?: number; max?: number; }; }'."
   },
   {
     "file": "src/lib/pool/codex-slot-pool.mjs",
@@ -5032,7 +5337,7 @@
   {
     "file": "src/lib/pool/failover-runner.mjs",
     "code": 2339,
-    "message": "Property 'scheduler' does not exist on type '{ stickyRouter?: null; attemptsRepo?: null; rateLimitService?: null; config?: {}; onProxyFailure?: null; onCredentialFailure?: null; onFablePlanDenied?: null; onFableSuccess?: null; }'."
+    "message": "Property 'scheduler' does not exist on type '{ stickyRouter?: null; attemptsRepo?: null; rateLimitService?: null; config?: {}; onProxyFailure?: null; onCredentialFailure?: null; onFablePlanDenied?: null; onFableSuccess?: null; onSchedulePause?: null; }'."
   },
   {
     "file": "src/lib/pool/failover-runner.mjs",
@@ -5121,8 +5426,28 @@
   },
   {
     "file": "src/lib/pool/pool-scheduler.mjs",
+    "code": 2322,
+    "message": "Type 'number' is not assignable to type '86400000'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "code": 2345,
+    "message": "Argument of type 'Readonly<{ type: \"platform\"; }> | { type: string; userId: string; }' is not assignable to parameter of type 'Readonly<{ type: \"platform\"; }>'.\n  Type '{ type: string; userId: string; }' is not assignable to type 'Readonly<{ type: \"platform\"; }>'.\n    Types of property 'type' are incompatible.\n      Type 'string' is not assignable to type '\"platform\"'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'seatKey' does not exist in type '{ stickyKey?: any; stickyKeys?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; familyVmId?: any; deviceVmId?: any; ownerScope?: OwnerScope; keyScope?: any; quotaRequest?: any; }'."
+    "message": "Object literal may only specify known properties, and 'vmId' does not exist in type '{ accountId?: any; index?: any; heldUntil?: any; cap?: number; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "code": 2339,
+    "message": "Property 'default_session_slots' does not exist on type '{ worker_health_ttl_ms: number; heartbeat_stale_ms: number; fable_max_per_account: number; default_max_per_account: number; strategy: \"balanced\"; queue_max: 50; seat_grace_ms: 30000; seat_budget_reserve_pct: 0.02; fallback_wait_timeout_ms: 30000; sticky_wait_timeout_ms: 45000; circuit_failure_threshold: 3; circuit_o...'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'seatKey' does not exist in type '{ stickyKey?: any; stickyKeys?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; familyVmId?: any; deviceVmId?: any; deviceKey?: any; ownerScope?: Readonly<{ ...; }>; keyScope?: any; quotaRequest?: any; }'."
   },
   {
     "file": "src/lib/pool/pool-scheduler.mjs",
@@ -5162,17 +5487,17 @@
   {
     "file": "src/lib/pool/pool-scheduler.mjs",
     "code": 2339,
-    "message": "Property 'model' does not exist on type '{ stickyKey?: any; stickyKeys?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; familyVmId?: any; deviceVmId?: any; ownerScope?: OwnerScope; keyScope?: any; quotaRequest?: any; }'."
+    "message": "Property 'model' does not exist on type '{ stickyKey?: any; stickyKeys?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; familyVmId?: any; deviceVmId?: any; deviceKey?: any; ownerScope?: Readonly<{ ...; }>; keyScope?: any; quotaRequest?: any; }'."
   },
   {
     "file": "src/lib/pool/pool-scheduler.mjs",
     "code": 2339,
-    "message": "Property 'seatKey' does not exist on type '{ stickyKey?: any; stickyKeys?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; familyVmId?: any; deviceVmId?: any; ownerScope?: OwnerScope; keyScope?: any; quotaRequest?: any; }'."
+    "message": "Property 'seatKey' does not exist on type '{ stickyKey?: any; stickyKeys?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; familyVmId?: any; deviceVmId?: any; deviceKey?: any; ownerScope?: Readonly<{ ...; }>; keyScope?: any; quotaRequest?: any; }'."
   },
   {
     "file": "src/lib/pool/pool-scheduler.mjs",
     "code": 2339,
-    "message": "Property 'signal' does not exist on type '{ stickyKey?: any; stickyKeys?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; familyVmId?: any; deviceVmId?: any; ownerScope?: OwnerScope; keyScope?: any; quotaRequest?: any; }'."
+    "message": "Property 'signal' does not exist on type '{ stickyKey?: any; stickyKeys?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; familyVmId?: any; deviceVmId?: any; deviceKey?: any; ownerScope?: Readonly<{ ...; }>; keyScope?: any; quotaRequest?: any; }'."
   },
   {
     "file": "src/lib/pool/pool-scheduler.mjs",
@@ -5415,6 +5740,21 @@
     "message": "Property 'vm' does not exist on type '{ workerStatus?: null; now?: number; }'."
   },
   {
+    "file": "src/lib/pool/schedule-state.mjs",
+    "code": 2339,
+    "message": "Property 'by' does not exist on type '{ now?: number; }'."
+  },
+  {
+    "file": "src/lib/pool/schedule-state.mjs",
+    "code": 2741,
+    "message": "Property 'vm' is missing in type '{}' but required in type '{ vm: any; availability?: any; restrictionReason?: string; restrictionUntil?: number; circuit?: { state?: string; open_until?: number; }; seats?: { used?: number; max?: number; }; sessions?: { active?: number; max?: number; }; }'."
+  },
+  {
+    "file": "src/lib/pool/schedule-state.mjs",
+    "code": 2339,
+    "message": "Property 'now' does not exist on type '{ vm: any; availability?: any; restrictionReason?: string; restrictionUntil?: number; circuit?: { state?: string; open_until?: number; }; seats?: { used?: number; max?: number; }; sessions?: { active?: number; max?: number; }; }'."
+  },
+  {
     "file": "src/lib/pool/seat-planner.mjs",
     "code": 2339,
     "message": "Property 'graceMs' does not exist on type '{}'."
@@ -5428,6 +5768,11 @@
     "file": "src/lib/pool/seat-planner.mjs",
     "code": 2339,
     "message": "Property 'strategy' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/pool/seat-planner.mjs",
+    "code": 2339,
+    "message": "Property 'vmId' does not exist on type '{ accountId?: null; index?: null; heldUntil?: null; cap?: number; }'."
   },
   {
     "file": "src/lib/pool/session-limit.mjs",
@@ -5573,6 +5918,31 @@
     "file": "src/lib/pool/sticky-router.mjs",
     "code": 2339,
     "message": "Property 'session_id' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/pool/sticky-router.mjs",
+    "code": 2339,
+    "message": "Property 'device_id' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/pool/sticky-router.mjs",
+    "code": 2339,
+    "message": "Property 'bound_at' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/pool/sticky-router.mjs",
+    "code": 2339,
+    "message": "Property 'bound_at' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/pool/sticky-router.mjs",
+    "code": 2339,
+    "message": "Property 'expires_at' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/pool/sticky-router.mjs",
+    "code": 2339,
+    "message": "Property 'expires_at' does not exist on type '{}'."
   },
   {
     "file": "src/lib/pool/sticky-router.mjs",
@@ -5828,6 +6198,16 @@
     "file": "src/lib/protocol/anthropic-policy.mjs",
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'config' does not exist in type '{ ttl?: string; }'."
+  },
+  {
+    "file": "src/lib/protocol/anthropic-policy.mjs",
+    "code": 2339,
+    "message": "Property 'status' does not exist on type 'Error'."
+  },
+  {
+    "file": "src/lib/protocol/anthropic-policy.mjs",
+    "code": 2339,
+    "message": "Property 'body' does not exist on type 'Error'."
   },
   {
     "file": "src/lib/protocol/cache-prefix.mjs",
@@ -6320,6 +6700,31 @@
     "message": "Property 'refresh' does not exist on type '{}'."
   },
   {
+    "file": "src/lib/protocol/handle-codex.mjs",
+    "code": 2339,
+    "message": "Property 'codex' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-codex.mjs",
+    "code": 2339,
+    "message": "Property 'postCodexJson' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-codex.mjs",
+    "code": 2339,
+    "message": "Property 'fetchImpl' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-codex.mjs",
+    "code": 2339,
+    "message": "Property 'refresh' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2345,
+    "message": "Argument of type '{ type: string; code: any; message: any; status: any; details: any; }' is not assignable to parameter of type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }'.\n  Type '{ type: string; code: any; message: any; status: any; details: any; }' is missing the following properties from type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }': param, request_id"
+  },
+  {
     "file": "src/lib/protocol/handle-protocol.mjs",
     "code": 2345,
     "message": "Argument of type '{ type: string; code: string; message: string; status: number; }' is not assignable to parameter of type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }'.\n  Type '{ type: string; code: string; message: string; status: number; }' is missing the following properties from type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }': param, details, request_id"
@@ -6406,8 +6811,13 @@
   },
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'type' does not exist on type 'Promise<OwnerScope>'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
     "code": 2345,
-    "message": "Argument of type '{ type: string; code: any; message: any; status: any; details: any; }' is not assignable to parameter of type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }'.\n  Type '{ type: string; code: any; message: any; status: any; details: any; }' is missing the following properties from type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }': param, request_id"
+    "message": "Argument of type '{ type: string; code: string; message: string; status: number; }' is not assignable to parameter of type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }'.\n  Type '{ type: string; code: string; message: string; status: number; }' is missing the following properties from type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }': param, details, request_id"
   },
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
@@ -6421,8 +6831,48 @@
   },
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
-    "code": 2345,
-    "message": "Argument of type '{ type: string; code: any; message: any; status: any; details: any; }' is not assignable to parameter of type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }'.\n  Type '{ type: string; code: any; message: any; status: any; details: any; }' is missing the following properties from type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }': param, request_id"
+    "code": 2339,
+    "message": "Property 'image_floor_moved' does not exist on type '{ reread?: any; checkpoint?: any; anchor?: any; image_floor?: any; image_floor_moved?: boolean; turn: any; break: { section: string; index: number; kind: any; diff: { key_order?: boolean; removed?: any; added?: any; reason: string; } | { ...; } | { ...; } | { ...; } | { ...; }; } | { ...; } | { ...; } | { ...; } | {...'.\n  Property 'image_floor_moved' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'turn' does not exist on type '{ reread?: any; checkpoint?: any; anchor?: any; image_floor?: any; image_floor_moved?: boolean; turn: any; break: { section: string; index: number; kind: any; diff: { key_order?: boolean; removed?: any; added?: any; reason: string; } | { ...; } | { ...; } | { ...; } | { ...; }; } | { ...; } | { ...; } | { ...; } | {...'.\n  Property 'turn' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'image_floor' does not exist on type '{ reread?: any; checkpoint?: any; anchor?: any; image_floor?: any; image_floor_moved?: boolean; turn: any; break: { section: string; index: number; kind: any; diff: { key_order?: boolean; removed?: any; added?: any; reason: string; } | { ...; } | { ...; } | { ...; } | { ...; }; } | { ...; } | { ...; } | { ...; } | {...'.\n  Property 'image_floor' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'break' does not exist on type '{ reread?: any; checkpoint?: any; anchor?: any; image_floor?: any; image_floor_moved?: boolean; turn: any; break: { section: string; index: number; kind: any; diff: { key_order?: boolean; removed?: any; added?: any; reason: string; } | { ...; } | { ...; } | { ...; } | { ...; }; } | { ...; } | { ...; } | { ...; } | {...'.\n  Property 'break' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'anchor' does not exist on type '{ reread?: any; checkpoint?: any; anchor?: any; image_floor?: any; image_floor_moved?: boolean; turn: any; break: { section: string; index: number; kind: any; diff: { key_order?: boolean; removed?: any; added?: any; reason: string; } | { ...; } | { ...; } | { ...; } | { ...; }; } | { ...; } | { ...; } | { ...; } | {...'.\n  Property 'anchor' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'anchor' does not exist on type '{ reread?: any; checkpoint?: any; anchor?: any; image_floor?: any; image_floor_moved?: boolean; turn: any; break: { section: string; index: number; kind: any; diff: { key_order?: boolean; removed?: any; added?: any; reason: string; } | { ...; } | { ...; } | { ...; } | { ...; }; } | { ...; } | { ...; } | { ...; } | {...'.\n  Property 'anchor' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'checkpoint' does not exist on type '{ reread?: any; checkpoint?: any; anchor?: any; image_floor?: any; image_floor_moved?: boolean; turn: any; break: { section: string; index: number; kind: any; diff: { key_order?: boolean; removed?: any; added?: any; reason: string; } | { ...; } | { ...; } | { ...; } | { ...; }; } | { ...; } | { ...; } | { ...; } | {...'.\n  Property 'checkpoint' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'checkpoint' does not exist on type '{ reread?: any; checkpoint?: any; anchor?: any; image_floor?: any; image_floor_moved?: boolean; turn: any; break: { section: string; index: number; kind: any; diff: { key_order?: boolean; removed?: any; added?: any; reason: string; } | { ...; } | { ...; } | { ...; } | { ...; }; } | { ...; } | { ...; } | { ...; } | {...'.\n  Property 'checkpoint' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'turn' does not exist on type '{ reread?: any; checkpoint?: any; anchor?: any; image_floor?: any; image_floor_moved?: boolean; turn: any; break: { section: string; index: number; kind: any; diff: { key_order?: boolean; removed?: any; added?: any; reason: string; } | { ...; } | { ...; } | { ...; } | { ...; }; } | { ...; } | { ...; } | { ...; } | {...'.\n  Property 'turn' does not exist on type '{}'."
   },
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
@@ -6431,13 +6881,13 @@
   },
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
-    "code": 2353,
-    "message": "Object literal may only specify known properties, and 'routingFile' does not exist in type '{ officialClient?: boolean; forceConfigured?: boolean; }'."
+    "code": 2304,
+    "message": "Cannot find name 'fs'."
   },
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'mode' does not exist in type '{ officialClient?: boolean; }'."
+    "message": "Object literal may only specify known properties, and 'routingFile' does not exist in type '{ officialClient?: boolean; forceConfigured?: boolean; }'."
   },
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
@@ -6467,7 +6917,7 @@
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'cacheTtl' does not exist in type '{ candidate: any; body: any; reqHeaders: any; timeoutMs: any; idleTimeoutMs: any; signal: any; deliveryMode: any; toolNames?: {}; want1m?: boolean; preserveCacheBreakpoints?: boolean; cliHop?: boolean; requestContext?: any; routing?: {}; noGoFallback?: boolean; }'."
+    "message": "Object literal may only specify known properties, and 'cacheTtl' does not exist in type '{ candidate: any; body: any; reqHeaders: any; timeoutMs: any; idleTimeoutMs: any; signal: any; deliveryMode: any; toolNames?: {}; want1m?: boolean; preserveCacheBreakpoints?: boolean; cliHop?: boolean; ... 5 more ...; onOutboundHeaders?: any; }'."
   },
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
@@ -6478,6 +6928,26 @@
     "file": "src/lib/protocol/handle-protocol.mjs",
     "code": 2345,
     "message": "Argument of type 'number | Number' is not assignable to parameter of type 'number'.\n  Type 'Number' is not assignable to type 'number'.\n    'number' is a primitive, but 'Number' is a wrapper object. Prefer using 'number' when possible."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2345,
+    "message": "Argument of type '{ type: string; code: string; message: string; status: number; }' is not assignable to parameter of type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }'.\n  Type '{ type: string; code: string; message: string; status: number; }' is missing the following properties from type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }': param, details, request_id"
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'message' does not exist on type '{ ok: true; body: any; } | { ok: false; message: string; }'.\n  Property 'message' does not exist on type '{ ok: true; body: any; }'."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2345,
+    "message": "Argument of type '{ type: string; code: string; message: any; status: number; }' is not assignable to parameter of type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }'.\n  Type '{ type: string; code: string; message: any; status: number; }' is missing the following properties from type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }': param, details, request_id"
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "code": 2339,
+    "message": "Property 'message' does not exist on type '{ ok: true; body: any; } | { ok: false; message: string; }'.\n  Property 'message' does not exist on type '{ ok: true; body: any; }'."
   },
   {
     "file": "src/lib/protocol/handle-protocol.mjs",
@@ -6562,17 +7032,7 @@
   {
     "file": "src/lib/protocol/intercept-gate.mjs",
     "code": 2339,
-    "message": "Property 'reason' does not exist on type '{ action: \"block\"; category: string; categories: string[]; }'."
-  },
-  {
-    "file": "src/lib/protocol/intercept-gate.mjs",
-    "code": 2339,
-    "message": "Property 'detail' does not exist on type '{ action: \"block\"; category: string; categories: string[]; }'."
-  },
-  {
-    "file": "src/lib/protocol/intercept-gate.mjs",
-    "code": 2339,
-    "message": "Property 'detail' does not exist on type '{ action: \"pass\"; reason?: string; }'."
+    "message": "Property 'state' does not exist on type '{ action: string; reason?: string; category?: string; categories?: string[]; detail?: string; audit: { version: string; system: { fingerprint: string; chars: number; status: string; chunks?: number; }; instruction: { ...; }; }; }'."
   },
   {
     "file": "src/lib/protocol/jev-intercept.mjs",
@@ -6787,11 +7247,6 @@
   {
     "file": "src/lib/protocol/jev-intercept.mjs",
     "code": 2339,
-    "message": "Property 'dedup_sec' does not exist on type 'object'."
-  },
-  {
-    "file": "src/lib/protocol/jev-intercept.mjs",
-    "code": 2339,
     "message": "Property 'max_state_chars' does not exist on type 'object'."
   },
   {
@@ -6871,8 +7326,13 @@
   },
   {
     "file": "src/lib/protocol/jev-intercept.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'state' does not exist in type '{ action: \"pass\"; reason?: string; }'."
+  },
+  {
+    "file": "src/lib/protocol/jev-intercept.mjs",
     "code": 2322,
-    "message": "Type '{ action: string; category: any; categories: any; reason?: undefined; } | { action: string; reason: string; category?: undefined; categories?: undefined; }' is not assignable to type '{ action: \"pass\"; reason?: string; } | { action: \"block\"; category: string; categories: string[]; }'.\n  Type '{ action: string; category: any; categories: any; reason?: undefined; }' is not assignable to type '{ action: \"pass\"; reason?: string; } | { action: \"block\"; category: string; categories: string[]; }'.\n    Type '{ action: string; category: any; categories: any; reason?: undefined; }' is not assignable to type '{ action: \"block\"; category: string; categories: string[]; }'.\n      Types of property 'action' are incompatible.\n        Type 'string' is not assignable to type '\"block\"'."
+    "message": "Type '{ action: string; category: any; categories: any; state: string; reason?: undefined; } | { action: string; reason: string; state: string; category?: undefined; categories?: undefined; }' is not assignable to type '{ action: \"pass\"; reason?: string; } | { action: \"block\"; category: string; categories: string[]; }'.\n  Type '{ action: string; category: any; categories: any; state: string; reason?: undefined; }' is not assignable to type '{ action: \"pass\"; reason?: string; } | { action: \"block\"; category: string; categories: string[]; }'.\n    Type '{ action: string; category: any; categories: any; state: string; reason?: undefined; }' is not assignable to type '{ action: \"block\"; category: string; categories: string[]; }'.\n      Types of property 'action' are incompatible.\n        Type 'string' is not assignable to type '\"block\"'."
   },
   {
     "file": "src/lib/protocol/jev-intercept.mjs",
@@ -7047,11 +7507,6 @@
   {
     "file": "src/lib/protocol/outbound-attempt.mjs",
     "code": 2339,
-    "message": "Property 'model' does not exist on type 'object'."
-  },
-  {
-    "file": "src/lib/protocol/outbound-attempt.mjs",
-    "code": 2339,
     "message": "Property 'canonicalBody' does not exist on type '{ requestContext?: null; inbound?: {}; stream?: boolean; cacheControlLimit?: number; toolNameRewrite?: boolean; cacheTtl?: null; cacheBreakpoints?: null; preserveThinkingBlocks?: boolean; preserveCallerEnvironment?: boolean; ... 11 more ...; firstUserIdentity?: string; }'."
   },
   {
@@ -7183,6 +7638,11 @@
     "file": "src/lib/protocol/outbound-attempt.mjs",
     "code": 2339,
     "message": "Property 'model' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/protocol/outbound-shape.mjs",
+    "code": 2339,
+    "message": "Property 'officialCaller' does not exist on type '{ protocol?: string; }'."
   },
   {
     "file": "src/lib/protocol/request-purpose.mjs",
@@ -7632,6 +8092,16 @@
   {
     "file": "src/lib/protocol/thinking.mjs",
     "code": 2339,
+    "message": "Property 'thinking' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/protocol/thinking.mjs",
+    "code": 2339,
+    "message": "Property 'model' does not exist on type 'object'."
+  },
+  {
+    "file": "src/lib/protocol/thinking.mjs",
+    "code": 2339,
     "message": "Property 'model' does not exist on type 'object'."
   },
   {
@@ -7811,6 +8281,11 @@
   },
   {
     "file": "src/lib/protocol/user-count-tokens.mjs",
+    "code": 2345,
+    "message": "Argument of type '{ type: string; code: string; message: string; param: string; status: number; }' is not assignable to parameter of type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }'.\n  Type '{ type: string; code: string; message: string; param: string; status: number; }' is missing the following properties from type '{ type?: string; code?: string; message: any; param: any; details: any; status?: number; request_id: any; }': details, request_id"
+  },
+  {
+    "file": "src/lib/protocol/user-count-tokens.mjs",
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'poolScheduler' does not exist in type '{ inbound?: {}; usersRepo?: any; }'."
   },
@@ -7897,12 +8372,12 @@
   {
     "file": "src/lib/transport/codex-kernel-client.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
+    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; }'."
   },
   {
     "file": "src/lib/transport/codex-kernel-client.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
+    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; onOutboundHeaders?: any; }'."
   },
   {
     "file": "src/lib/transport/codex-kernel-supervisor.mjs",
@@ -7967,157 +8442,102 @@
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'body' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; }'."
+    "message": "Property 'body' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'reqHeaders' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; }'."
+    "message": "Property 'reqHeaders' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'exec' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; }'."
+    "message": "Property 'exec' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'identity' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; }'."
+    "message": "Property 'identity' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'routing' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; }'."
+    "message": "Property 'routing' does not exist on type '{ want1m?: boolean; cliHop?: boolean; requestContext?: null; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'body' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; }'."
+    "message": "Property 'body' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'reqHeaders' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; }'."
+    "message": "Property 'reqHeaders' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'exec' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; }'."
+    "message": "Property 'exec' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'identity' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; }'."
+    "message": "Property 'identity' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'routing' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; }'."
+    "message": "Property 'routing' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'stream' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; }'."
+    "message": "Property 'stream' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'deliveryMode' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; }'."
+    "message": "Property 'deliveryMode' does not exist on type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ want1m?: boolean; cliHop?: boolean; requestContext?: any; }'."
+    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ want1m?: boolean; cliHop?: boolean; requestContext?: any; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'exec' does not exist on type '{ requestContext?: null; reqHeaders?: {}; identity?: null; want1m?: boolean; cacheTtl?: null; preserveCacheBreakpoints?: null; requestPath?: string; envelope?: null; cliHop?: boolean; }'."
+    "message": "Property 'exec' does not exist on type '{ requestContext?: null; reqHeaders?: {}; identity?: null; want1m?: boolean; cacheTtl?: null; preserveCacheBreakpoints?: null; requestPath?: string; envelope?: null; cliHop?: boolean; repaired?: boolean; onEnvelope?: null; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'body' does not exist on type '{ requestContext?: null; reqHeaders?: {}; identity?: null; want1m?: boolean; cacheTtl?: null; preserveCacheBreakpoints?: null; requestPath?: string; envelope?: null; cliHop?: boolean; }'."
+    "message": "Property 'body' does not exist on type '{ requestContext?: null; reqHeaders?: {}; identity?: null; want1m?: boolean; cacheTtl?: null; preserveCacheBreakpoints?: null; requestPath?: string; envelope?: null; cliHop?: boolean; repaired?: boolean; onEnvelope?: null; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'timeoutMs' does not exist on type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
+    "message": "Property 'timeoutMs' does not exist on type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'routing' does not exist on type '{ requestContext?: null; reqHeaders?: {}; identity?: null; want1m?: boolean; cacheTtl?: null; preserveCacheBreakpoints?: null; requestPath?: string; envelope?: null; cliHop?: boolean; }'."
+    "message": "Property 'routing' does not exist on type '{ requestContext?: null; reqHeaders?: {}; identity?: null; want1m?: boolean; cacheTtl?: null; preserveCacheBreakpoints?: null; requestPath?: string; envelope?: null; cliHop?: boolean; repaired?: boolean; onEnvelope?: null; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2339,
-    "message": "Property 'signal' does not exist on type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
+    "message": "Property 'signal' does not exist on type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ want1m?: boolean; cliHop?: boolean; requestContext?: any; }'."
+    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ want1m?: boolean; cliHop?: boolean; requestContext?: any; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2353,
-    "message": "Object literal may only specify known properties, and 'requestPath' does not exist in type '{ method?: string; body?: any; timeoutMs?: number; timeoutMode?: string; headers?: {}; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2339,
-    "message": "Property 'exec' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2339,
-    "message": "Property 'body' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2339,
-    "message": "Property 'timeoutMs' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2339,
-    "message": "Property 'routing' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2339,
-    "message": "Property 'signal' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2339,
-    "message": "Property 'onEvent' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2339,
-    "message": "Property 'onCommit' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2353,
-    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ want1m?: boolean; cliHop?: boolean; requestContext?: any; }'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2365,
-    "message": "Operator '+' cannot be applied to types 'number' and 'null'."
-  },
-  {
-    "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2353,
-    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; }'."
+    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; repaired?: boolean; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
@@ -8126,18 +8546,53 @@
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2365,
-    "message": "Operator '+' cannot be applied to types 'number' and 'null'."
+    "code": 2339,
+    "message": "Property 'exec' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; onOutboundHeaders?: any; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2365,
-    "message": "Operator '+' cannot be applied to types 'number' and 'null'."
+    "code": 2339,
+    "message": "Property 'body' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; onOutboundHeaders?: any; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
-    "code": 2365,
-    "message": "Operator '+' cannot be applied to types 'number' and 'null'."
+    "code": 2339,
+    "message": "Property 'timeoutMs' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; onOutboundHeaders?: any; }'."
+  },
+  {
+    "file": "src/lib/transport/go-worker-client.mjs",
+    "code": 2339,
+    "message": "Property 'routing' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; onOutboundHeaders?: any; }'."
+  },
+  {
+    "file": "src/lib/transport/go-worker-client.mjs",
+    "code": 2339,
+    "message": "Property 'signal' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; onOutboundHeaders?: any; }'."
+  },
+  {
+    "file": "src/lib/transport/go-worker-client.mjs",
+    "code": 2339,
+    "message": "Property 'onEvent' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; onOutboundHeaders?: any; }'."
+  },
+  {
+    "file": "src/lib/transport/go-worker-client.mjs",
+    "code": 2339,
+    "message": "Property 'onCommit' does not exist on type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; onOutboundHeaders?: any; }'."
+  },
+  {
+    "file": "src/lib/transport/go-worker-client.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ want1m?: boolean; cliHop?: boolean; requestContext?: any; repaired?: boolean; }'."
+  },
+  {
+    "file": "src/lib/transport/go-worker-client.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'body' does not exist in type '{ requestContext?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; cliHop?: boolean; repaired?: boolean; }'."
+  },
+  {
+    "file": "src/lib/transport/go-worker-client.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'requestPath' does not exist in type '{ method?: string; body?: any; timeoutMs?: number; timeoutMode?: string; headers?: {}; }'."
   },
   {
     "file": "src/lib/transport/go-worker-client.mjs",
@@ -8232,12 +8687,12 @@
   {
     "file": "src/lib/transport/rust-kernel-client.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
+    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; identity?: any; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; }'."
   },
   {
     "file": "src/lib/transport/rust-kernel-client.mjs",
     "code": 2353,
-    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; }'."
+    "message": "Object literal may only specify known properties, and 'exec' does not exist in type '{ requestContext?: any; reqHeaders?: {}; idleTimeoutMs?: number; identity?: any; deliveryMode?: string; want1m?: boolean; cacheTtl?: any; preserveCacheBreakpoints?: any; requestPath?: string; envelope?: any; cliHop?: boolean; repaired?: boolean; onEnvelope?: any; onOutboundHeaders?: any; }'."
   },
   {
     "file": "src/lib/transport/rust-kernel-supervisor.mjs",
@@ -8680,6 +9135,41 @@
     "message": "Argument of type '{ routing?: any; force?: boolean; }' is not assignable to parameter of type '{ routing: any; docker: any; inContainer: any; accessKvm: any; probeContainer: any; resolveImage: any; sockPath: any; }'.\n  Type '{ routing?: any; force?: boolean; }' is missing the following properties from type '{ routing: any; docker: any; inContainer: any; accessKvm: any; probeContainer: any; resolveImage: any; sockPath: any; }': docker, inContainer, accessKvm, probeContainer, and 2 more."
   },
   {
+    "file": "src/lib/vm/kvm-machine.mjs",
+    "code": 2339,
+    "message": "Property 'run' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/vm/kvm-machine.mjs",
+    "code": 2339,
+    "message": "Property 'projectRoot' does not exist on type '{ persist?: boolean; }'."
+  },
+  {
+    "file": "src/lib/vm/kvm-machine.mjs",
+    "code": 2339,
+    "message": "Property 'containerName' does not exist on type '{ persist?: boolean; }'."
+  },
+  {
+    "file": "src/lib/vm/kvm-machine.mjs",
+    "code": 2339,
+    "message": "Property 'containerEnv' does not exist on type '{ persist?: boolean; }'."
+  },
+  {
+    "file": "src/lib/vm/kvm-machine.mjs",
+    "code": 2339,
+    "message": "Property 'run' does not exist on type '{ persist?: boolean; }'."
+  },
+  {
+    "file": "src/lib/vm/kvm-machine.mjs",
+    "code": 2339,
+    "message": "Property 'run' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/vm/kvm-machine.mjs",
+    "code": 2345,
+    "message": "Argument of type '{}' is not assignable to parameter of type 'Record<string, string>'.\n  Index signature for type 'string' is missing in type '{}'."
+  },
+  {
     "file": "src/lib/vm/local-proxy-nodes.mjs",
     "code": 2339,
     "message": "Property 'role' does not exist on type '{ nodes?: undefined[]; }'."
@@ -9071,6 +9561,21 @@
   },
   {
     "file": "src/lib/vm/slot-recovery.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'by' does not exist in type '{ now?: number; }'."
+  },
+  {
+    "file": "src/lib/vm/slot-recovery.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'by' does not exist in type '{ now?: number; }'."
+  },
+  {
+    "file": "src/lib/vm/slot-recovery.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'by' does not exist in type '{ now?: number; }'."
+  },
+  {
+    "file": "src/lib/vm/slot-recovery.mjs",
     "code": 2339,
     "message": "Property 'cluster' does not exist on type '{}'."
   },
@@ -9275,6 +9780,16 @@
     "message": "Property 'smbios_repaired' does not exist on type '{ upserted: number; rebuilt: number; active: string; }'."
   },
   {
+    "file": "src/lib/vm/vm-db-sync.mjs",
+    "code": 2339,
+    "message": "Property 'schedule_migrated' does not exist on type '{ upserted: number; rebuilt: number; active: string; }'."
+  },
+  {
+    "file": "src/lib/vm/vm-db-sync.mjs",
+    "code": 2339,
+    "message": "Property 'schedule_migrated' does not exist on type '{ upserted: number; rebuilt: number; active: string; }'."
+  },
+  {
     "file": "src/lib/vm/vm-file.mjs",
     "code": 2339,
     "message": "Property 'mode' does not exist on type '{}'."
@@ -9312,7 +9827,7 @@
   {
     "file": "src/lib/vm/vm-recreate.mjs",
     "code": 2339,
-    "message": "Property 'codex' does not exist on type '{ owner_user_id?: any; node_id?: any; persona_preset?: any; inference_engine?: any; id: any; name: any; status: string; kernel: any; timezone: string; timezone_source: any; locale: any; region: any; note: any; ... 12 more ...; proxy_required: any; }'."
+    "message": "Property 'codex' does not exist on type '{ origin?: any; owner_user_id?: any; node_id?: any; persona_preset?: any; inference_engine?: any; id: any; name: any; status: string; kernel: any; timezone: string; timezone_source: any; locale: any; region: any; ... 11 more ...; proxy_required: any; }'."
   },
   {
     "file": "src/lib/vm/vm-registry.mjs",
@@ -9365,6 +9880,16 @@
     "message": "Property 'limitedUntil' does not exist on type '{ quotaExceeded?: boolean; now?: number; policy?: null; }'."
   },
   {
+    "file": "src/lib/vm/vm-registry.mjs",
+    "code": 2339,
+    "message": "Property 'by' does not exist on type '{ only?: null; }'."
+  },
+  {
+    "file": "src/lib/vm/vm-registry.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'by' does not exist in type '{ now?: number; }'."
+  },
+  {
     "file": "src/lib/vm/vm-runtime.mjs",
     "code": 2339,
     "message": "Property 'projectRoot' does not exist on type '{ run?: (argv: any, opts?: {}) => { ok: boolean; stdout: string; stderr: string; code?: undefined; } | { ok: boolean; stdout: string; stderr: string; code: any; }; }'."
@@ -9408,6 +9933,16 @@
     "file": "src/lib/vm/vm-runtime.mjs",
     "code": 2339,
     "message": "Property 'egress' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/vm/vm-runtime.mjs",
+    "code": 2339,
+    "message": "Property 'kernel_socket' does not exist on type '{}'."
+  },
+  {
+    "file": "src/lib/vm/vm-runtime.mjs",
+    "code": 2339,
+    "message": "Property 'kernel_socket' does not exist on type '{}'."
   },
   {
     "file": "src/lib/vm/vm-runtime.mjs",
@@ -9488,6 +10023,11 @@
     "file": "src/lib/vm/vm-runtime.mjs",
     "code": 2353,
     "message": "Object literal may only specify known properties, and 'routing' does not exist in type '{ recreate?: boolean; }'."
+  },
+  {
+    "file": "src/lib/vm/vm-runtime.mjs",
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'projectRoot' does not exist in type '{ persist?: boolean; }'."
   },
   {
     "file": "src/lib/vm/vm-runtime.mjs",

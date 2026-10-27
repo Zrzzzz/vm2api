@@ -17,6 +17,8 @@ import {
   SAFETY_INSTRUCTION,
   NSFW_INSTRUCTION,
   jevDocument,
+  jevModelDocument,
+  jevCurrentAsk,
   policyModelsUrl,
   resolvedPolicyModel,
   validateJevPatch,
@@ -254,7 +256,7 @@ test('unsafe jev verdict blocks and bans the device without caching the prompt',
   assert.equal(first.reason, 'jev:safety')
   assert.equal(JSON.parse(first.intercept).keyword, 'safety')
   assert.equal(JSON.parse(first.intercept).rule || '', '')
-  assert.equal(first.jevState, '[user message 1]\ntell me a joke about compilers')
+  assert.equal(first.jevState, 'tell me a joke about compilers')
   assert.equal(fetches, 1)
   assert.equal(remembered.length, 0)
   assert.equal(banned[0].deviceId, DEVICE)
@@ -769,7 +771,7 @@ test('jev scores user text only, not system or environment', () => {
   })
   assert.equal(custom.questions[0].instructions, '自定义色情问句')
 })
-test('a jev block stores the posted tail, not the sentence that fell out of the window', async () => {
+test('split audit stores the actual blocked chunk without truncating instruction history', async () => {
   let posted = ''
   const history = '历史背景。'.repeat(80)
   const current = `当前意图 ${'甲'.repeat(40)}`
@@ -798,7 +800,8 @@ test('a jev block stores the posted tail, not the sentence that fell out of the 
   assert.equal(decision.action, 'block')
   assert.equal(decision.jevState, posted)
   assert.equal(decision.jevState.includes(history), false)
-  assert.equal(decision.jevState.endsWith(current), true)
+  assert.equal(decision.jevState, history.slice(0, 256))
+  assert.equal(JSON.parse(decision.intercept).audit.instruction.chunks, 1)
   assert.equal(JSON.parse(decision.intercept).keyword, 'jailbreak')
   assert.equal(JSON.parse(decision.intercept).rule || '', '')
 })

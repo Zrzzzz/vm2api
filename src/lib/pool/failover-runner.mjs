@@ -658,7 +658,7 @@ export class FailoverRunner {
       if (this.stickyRouter.bind) {
         for (const key of bindKeys) {
           if ((await pinMoved(key))) continue
-          const prev = this.stickyRouter.resolve?.(key)
+          const prev = (await this.stickyRouter.resolve?.(key))
           const ownMove =
             !!outboundSessionAccountId &&
             prev?.accountId === outboundSessionAccountId &&
@@ -669,8 +669,8 @@ export class FailoverRunner {
           if (prev) guard = { ...opts, ifGeneration: prev.generation || 0 }
           if (freshSlot || opts?.replaceSession) guard = { ...guard, replaceSession: true }
           if (ownMove) guard = { ...guard, allowMove: true }
-          this.stickyRouter.bind(key, payload, guard)
-          pinBaseline.set(key, this.stickyRouter.resolve?.(key) || null)
+          ;(await this.stickyRouter.bind(key, payload, guard))
+          pinBaseline.set(key, (await this.stickyRouter.resolve?.(key)) || null)
         }
       }
       if (familyKey && account.vmId && !(await pinMoved(familyKey))) {
@@ -697,9 +697,9 @@ export class FailoverRunner {
       if (!this.stickyRouter?.bind) return
       for (const key of bindKeys) {
         if ((await pinMoved(key))) continue
-        const prev = this.stickyRouter.resolve?.(key)
+        const prev = (await this.stickyRouter.resolve?.(key))
         if (!prev?.vmId || prev.slotIndex == null) continue
-        this.stickyRouter.bind(
+        ;(await this.stickyRouter.bind(
           key,
           {
             accountId: prev.accountId,
@@ -707,8 +707,8 @@ export class FailoverRunner {
             sessionId: prev.sessionId || outboundSessionId || '',
           },
           { countHit: false, ifGeneration: prev.generation || 0, clearSlot: true, keepExpiry: true },
-        )
-        pinBaseline.set(key, this.stickyRouter.resolve?.(key) || null)
+        ))
+        pinBaseline.set(key, (await this.stickyRouter.resolve?.(key)) || null)
       }
     }
     let lastResult = null

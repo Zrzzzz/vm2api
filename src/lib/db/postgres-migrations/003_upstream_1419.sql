@@ -52,3 +52,8 @@ CREATE TABLE jev_usage_totals (
   estimated_cost_nano_usd BIGINT NOT NULL DEFAULT 0,
   unknown_cost_requests BIGINT NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS thinking_signature_owners (
+ key TEXT PRIMARY KEY, account_id TEXT NOT NULL, created_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_thinking_owner_created ON thinking_signature_owners(created_at);

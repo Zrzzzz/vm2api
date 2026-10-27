@@ -241,8 +241,8 @@ export async function pickCodexCandidates(
     })
   }
   const stickyKeys = stickyRouter?.collectPoolKeys?.(req, body || {}, { platform: 'openai' }) || []
-  const sessionKey = stickyRouter?.extractPoolKey?.(req, body || {}, { platform: 'openai' }) || stickyKeys[0] || null
-  const bound = sessionKey ? stickyRouter?.resolve?.(sessionKey) : null
+  const sessionKey = (await stickyRouter?.extractPoolKey?.(req, body || {}, { platform: 'openai' })) || stickyKeys[0] || null
+  const bound = sessionKey ? (await stickyRouter?.resolve?.(sessionKey)) : null
   const vms = listVms(projectRoot, { codex: { quota: routingPolicy } }).filter(
     (vm) => vmMatchesOwnerScope(vm, owner) && keyAllowsVm(scope, vm),
   )
@@ -1401,7 +1401,7 @@ export async function handleCodexImages({
           body: parseJson(last.text),
         })
         if (last.status >= 200 && last.status < 300 && stickyRouter?.bind) {
-          for (const key of admitted.picked.stickyKeys || []) stickyRouter.bind(key, { accountId: vm.id, vmId: vm.id })
+          for (const key of admitted.picked.stickyKeys || []) (await stickyRouter.bind(key, { accountId: vm.id, vmId: vm.id }))
         }
         if (!isSearchFailover(last)) break
       } finally {
