@@ -334,6 +334,35 @@ test('cooldown is waitable and becomes selectable after it expires', async (t) =
   selected.release()
 })
 
+test('refreshes cooldown time after an async health check crosses the expiry', async (t) => {
+  const root = project()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const repo = new RuntimeRepo()
+  const pool = new PoolScheduler({
+    projectRoot: root,
+    runtimeRepo: repo,
+    accountQuota: { canAccept: () => ({ ok: true }) },
+    workerHealth: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 60))
+      return { ok: true, credential: { generation: 1, has_access: true } }
+    },
+    config: { fallback_wait_timeout_ms: 200, sticky_wait_timeout_ms: 200 },
+  })
+  repo.markCooldown('account-1', {
+    vmId: 'vm-01',
+    until: Date.now() + 20,
+    reason: 'provider_transient_error',
+  })
+  const selected = await pool.selectAndReserve({
+    model: 'claude-test',
+    excluded: new Set(['account-2']),
+    allowWait: true,
+  })
+  assert.equal(selected.ok, true)
+  assert.equal(selected.accountId, 'account-1')
+  selected.release()
+})
+
 test('busy slot waits for release instead of failing closed', async (t) => {
   const root = project()
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
@@ -2484,6 +2513,71 @@ test('rebuild outbound session stays on one VM and changes after failover', asyn
   assert.equal(second.vmId, first.vmId)
   assert.equal(secondSeen[0].sessionId, seen[0].sessionId)
   assert.equal(sticky.resolve(stickyKey).sessionId, seen[0].sessionId)
+})
+
+test('held and restored seats keep their outbound session despite a different family home', async (t) => {
+  const root = project()
+  const sticky = new StickyRouter({ dataDir: path.join(root, 'data'), config: { sticky: { enabled: true } } })
+  t.after(() => {
+    sticky.db.close()
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+  const caller = 'seated-session'
+  const stickyKey = sticky.canonicalSessionKey(caller)
+  const familyKey = sticky.canonicalFamilyKey(caller)
+  const deviceKey = sticky.canonicalDeviceKey('seated-machine')
+  sticky.bind(familyKey, { accountId: 'account-1', vmId: 'vm-01' }, { countHit: false })
+  sticky.bindDeviceAffinity(deviceKey, { accountId: 'account-2', vmId: 'vm-02' })
+  const runtimeRepo = new RuntimeRepo()
+  const makeRunner = () =>
+    new FailoverRunner({ scheduler: scheduler(root, { stickyRouter: sticky, runtimeRepo }), stickyRouter: sticky })
+  let runner = makeRunner()
+  const seen = []
+  const run = (turn) =>
+    runner.run({
+      requestId: `seated-turn-${turn}`,
+      canonicalBody: { model: 'claude-opus-test' },
+      model: 'claude-opus-test',
+      stickyKey,
+      seatKey: `seat:sess:${caller}`,
+      familyKey,
+      familyVmId: sticky.resolve(familyKey).vmId,
+      deviceKey,
+      applyAttempt: applyRebuildAttempt(caller, { seen, epoch: turn }),
+      callAttempt: () => verifiedHop('reply'),
+    })
+
+  const first = await run(1)
+  assert.equal(first.ok, true)
+  assert.equal(first.vmId, 'vm-02')
+  const sessionId = seen[0].sessionId
+  for (const turn of [2, 3]) {
+    const result = await run(turn)
+    assert.equal(result.ok, true)
+    assert.equal(result.vmId, 'vm-02')
+    assert.equal(seen.at(-1).sessionId, sessionId)
+    assert.equal(sticky.resolve(stickyKey).sessionId, sessionId)
+  }
+
+  // A control-process restart restores the seat from the persisted binding.
+  runner = makeRunner()
+  const restored = await run(4)
+  assert.equal(restored.ok, true)
+  assert.equal(restored.vmId, 'vm-02')
+  assert.equal(seen.at(-1).sessionId, sessionId)
+
+  // A real home quota gate must still move the seat and remint its session.
+  runtimeRepo.upsert({ account_id: 'account-2', vm_id: 'vm-02', rate_limit_reset_at: Date.now() + 3_600_000 })
+  const moved = await run(5)
+  assert.equal(moved.ok, true)
+  assert.equal(moved.vmId, 'vm-01')
+  const movedSession = seen.at(-1).sessionId
+  assert.notEqual(movedSession, sessionId)
+  const next = await run(6)
+  assert.equal(next.ok, true)
+  assert.equal(next.vmId, 'vm-01')
+  assert.equal(seen.at(-1).sessionId, movedSession)
+  assert.equal(sticky.resolve(stickyKey).sessionId, movedSession)
 })
 
 test('consecutive turns without an inbound session keep one outbound session', async (t) => {

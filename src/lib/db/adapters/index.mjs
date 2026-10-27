@@ -1,3 +1,4 @@
+import * as jev_usage_repo from './postgres/repos/jev-usage-repo.mjs'
 import * as backup from './postgres/backup.mjs'
 import { snapshotDatabaseMetrics } from './postgres/metrics.mjs'
 import { PostgresDatabase, postgresConfig } from './postgres/database.mts'
@@ -25,4 +26,4 @@ const engine = process.env.KIN_DB_ENGINE || 'postgres'
 if (engine !== 'postgres') throw new Error('Database adapter is not installed: ' + engine)
 
 export const adapter = { engine, Database:PostgresDatabase, config:postgresConfig, backup, metrics:snapshotDatabaseMetrics }
-export const repositories = { account_runtime_repo, accounts_repo, api_endpoints_repo, api_keys_repo, backup_repo, cluster_nodes_repo, proxies_repo, redeem_codes_repo, refusal_device_blocks_repo, refusal_guards_repo, request_attempts_repo, statistics_repo, sticky_repo, usage_log_preds, usage_logs_repo, usage_logs_view, users_repo, vm_pools_repo, vms_repo }
+export const repositories = { jev_usage_repo, account_runtime_repo, accounts_repo, api_endpoints_repo, api_keys_repo, backup_repo, cluster_nodes_repo, proxies_repo, redeem_codes_repo, refusal_device_blocks_repo, refusal_guards_repo, request_attempts_repo, statistics_repo, sticky_repo, usage_log_preds, usage_logs_repo, usage_logs_view, users_repo, vm_pools_repo, vms_repo }

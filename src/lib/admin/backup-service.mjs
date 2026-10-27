@@ -9,7 +9,7 @@ import { adapter } from '../db/adapters/index.mjs'
 import { SettingsRepo } from '../db/repos/settings-repo.mjs'
 import { BackupRepo } from '../db/repos/backup-repo.mjs'
 import { reconcileVms } from '../vm/vm-db-sync.mjs'
-import { repairSlotSmbios, repairVmProxyCliEnabled } from '../vm/vm-registry.mjs'
+import { migrateScheduleFields, repairSlotSmbios, repairVmProxyCliEnabled } from '../vm/vm-registry.mjs'
 import { invalidateReadCache, isVmRecordFile } from '../vm/vm-file.mjs'
 
 const SCHEDULE_KEY = 'backup_schedule'
@@ -335,6 +335,9 @@ export class BackupService {
           } catch {}
           try {
             await repairSlotSmbios(this.projectRoot)
+          } catch {}
+          try {
+            await migrateScheduleFields(this.projectRoot)
           } catch {}
         } catch {}
       }

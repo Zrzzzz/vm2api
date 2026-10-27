@@ -12,7 +12,8 @@
 import { ErrorCode, ErrorType, makeError } from '../core/errors.mjs'
 import { refusalUserDocument } from '../core/refusal-similarity.mjs'
 import { hasAccessPresence } from '../oauth/oauth-credentials.mjs'
-import { prepareInterceptText } from './jev-prepare.mjs'
+import { prepareInterceptText, stripEnvironmentSection, stripReminders } from './jev-prepare.mjs'
+import { isOfficialTypeSafeUrl, jevKeyFingerprint, recordJevUsage } from './jev-usage.mjs'
 import { inferClaudeTier } from '../pool/claude-tier.mjs'
 
 export const JEV_SETTING = 'jev_intercept'
@@ -991,9 +992,78 @@ export function matchHardPolicy(text, extra = [], rules = null) {
   return null
 }
 
-/** Hard regex sees user-authored turns only. Tool results and official system text are not scanned. */
+/** Drop harness reminders and `# Environment` before a gate sees a user turn. */
+function cleanUserAsk(text) {
+  return stripEnvironmentSection(stripReminders(text))
+}
+
+/** Hard regex sees user-authored turns only. Tool results, system, and env are not scanned. */
 export function jevDocument(inbound, body = inbound) {
-  return refusalUserDocument(inbound, body, { includeToolResults: false })
+  return refusalUserDocument(inbound, body, { includeToolResults: false, clean: cleanUserAsk })
+}
+
+/** User text only. System prompts, env blocks, and tool payloads are not the ask. */
+function jevModelContentText(content) {
+  if (typeof content === 'string') return cleanUserAsk(content)
+  if (Array.isArray(content)) return content.map(jevModelContentText).filter(Boolean).join('\n')
+  if (!content || typeof content !== 'object') return ''
+  const type = String(content.type || '')
+  if (type === 'tool_result' || type === 'function_call_output' || type.endsWith('_tool_result')) return ''
+  if (typeof content.text === 'string') return cleanUserAsk(content.text)
+  if (typeof content.content === 'string') return cleanUserAsk(content.content)
+  if (Array.isArray(content.content)) return jevModelContentText(content.content)
+  return ''
+}
+
+/** Last labeled user turn, without the `[user message N]` prefix. */
+export function jevCurrentAsk(document) {
+  const text = String(document || '').trim()
+  if (!text) return ''
+  const marked = text.split('\n[current ask]\n')
+  const block = marked.length > 1 ? marked[marked.length - 1] : text
+  return block.replace(/^\[user (?:message|input) \d+\]\n/, '').trim()
+}
+
+/**
+ * User turns only, labeled by position. System, instructions, developer, and
+ * env blocks are harness text; scoring them blocks ordinary coding sessions.
+ * The current ask is the last user turn. Assistant and tool turns stay out.
+ */
+function normalizeText(text) { return String(text || '').replace(/\r\n/g, '\n').trim() }
+
+export function jevModelDocument(inbound, body = inbound) {
+  const seen = new Set()
+  const parts = []
+  const push = (source, text) => {
+    const norm = normalizeText(text)
+    // Deduplicate repeated copies from inbound/body, but keep each message/input
+    // position distinct so repeated user turns remain separate evidence.
+    const key = `${source}\u0000${norm}`
+    if (!norm || seen.has(key)) return
+    seen.add(key)
+    parts.push(`[${source}]\n${norm}`)
+  }
+  for (const src of [inbound, body]) {
+    const messages = Array.isArray(src?.messages) ? src.messages : []
+    messages.forEach((message, index) => {
+      const role = String(message?.role || 'unknown').toLowerCase()
+      if (role !== 'user') return
+      push(`user message ${index + 1}`, jevModelContentText(message?.content))
+    })
+    const input = typeof src?.input === 'string' ? [src.input] : Array.isArray(src?.input) ? src.input : []
+    input.forEach((item, index) => {
+      if (typeof item === 'string') {
+        push(`user input ${index + 1}`, cleanUserAsk(item))
+        return
+      }
+      const role = String(item?.role || 'user').toLowerCase()
+      if (role !== 'user' && role !== '') return
+      push(`user input ${index + 1}`, jevModelContentText(item?.content ?? item))
+    })
+  }
+  if (!parts.length) return ''
+  const current = parts[parts.length - 1]
+  return parts.length === 1 ? current : `${parts.join('\n')}\n[current ask]\n${current}`
 }
 
 /** Explicit model wins. Otherwise Jev uses jev-latest, ModernBERT uses english, Laya lets the router choose. */
@@ -1218,6 +1288,17 @@ export async function classifyJev(text, cfg, fetchImpl = globalThis.fetch) {
   for (let i = 0; i < targets.length; i++) {
     const target = targets[(start + i) % targets.length]
     if (skipUrl.has(target.url)) continue
+    // One row per real provider attempt; dedup replays return before this loop.
+    const attemptStarted = Date.now()
+    const attemptUsage = {
+      created_at: new Date(attemptStarted).toISOString(),
+      request_id: cfg?.policy_request_id,
+      provider: config.provider,
+      model,
+      key_fingerprint: jevKeyFingerprint(target.apiKey),
+      official_typesafe: isOfficialTypeSafeUrl(target.url),
+      outcome: 'network_error',
+    }
     try {
       const response = await fetchImpl(target.url, {
         method: 'POST',
@@ -1228,6 +1309,8 @@ export async function classifyJev(text, cfg, fetchImpl = globalThis.fetch) {
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(config.timeout_ms),
       })
+      attemptUsage.http_status = Number(response?.status) || null
+      attemptUsage.outcome = response?.ok ? 'invalid_response' : 'http_error'
       if (!response?.ok) {
         const status = Number(response?.status) || 0
         if (status === 401 || status === 429 || status === 529) {
@@ -1238,20 +1321,28 @@ export async function classifyJev(text, cfg, fetchImpl = globalThis.fetch) {
         if (!http) http = `上游 ${status || '失败'}`
         continue
       }
-      const decision = parsePolicyDecision(await response.json(), config)
-      if (!decision) return { action: 'pass', reason: 'invalid' }
+      const responsePayload = await response.json()
+      attemptUsage.usage = responsePayload?.usage
+      attemptUsage.response_model = responsePayload?.model
+      const decision = parsePolicyDecision(responsePayload, config)
+      if (!decision) return { action: 'pass', reason: 'invalid', state: document }
+      attemptUsage.outcome = 'success'
       const verdict = decision.hits.length
         ? {
             action: 'block',
             category: decision.hits[0].category,
             categories: decision.hits.map((hit) => hit.category),
+            state: document,
           }
-        : { action: 'pass', reason: 'safe' }
+        : { action: 'pass', reason: 'safe', state: document }
       return verdict
     } catch {
       // Host-level. Do not retire keys, and do not walk the rest of this host.
       skipUrl.add(target.url)
       network = true
+    } finally {
+      attemptUsage.duration_ms = Date.now() - attemptStarted
+      await recordJevUsage(attemptUsage)
     }
   }
   return unavailable(config, network ? '网络异常' : http || '密钥失效')

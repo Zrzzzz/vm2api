@@ -13,6 +13,7 @@ export async function createDatabase({ env = process.env, dbPath = undefined } =
     await db.verify()
     await db.initializeBaseline(fs.readFileSync(new URL('./postgres-migrations/001_baseline.sql', import.meta.url), 'utf8'))
     await db.applyMigration('002', fs.readFileSync(new URL('./postgres-migrations/002_upstream_207.sql', import.meta.url), 'utf8'))
+    await db.applyMigration('003', fs.readFileSync(new URL('./postgres-migrations/003_upstream_1419.sql', import.meta.url), 'utf8'))
     return db
   } catch (error) {
     await db.close()

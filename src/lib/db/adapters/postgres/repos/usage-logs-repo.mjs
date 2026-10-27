@@ -97,6 +97,8 @@ const SUMMARY_COLUMNS = [
   'upstream_model',
   'model_mismatch',
   'first_token_ms',
+  'first_byte_ms',
+  'generation_ms',
   'stop_reason',
   'attempt_count',
   'final_state',
@@ -123,6 +125,12 @@ const SUMMARY_COLUMNS = [
   'reasoning_effort',
   'inbound_device_id',
   'intercept',
+  'jev_state',
+  'image_model',
+  'image_usage',
+  'image_input_tokens',
+  'image_output_tokens',
+  'image_cost',
   'vm_owner_user_id',
 ]
 
@@ -130,6 +138,7 @@ function toRow(rec) {
   return SUMMARY_COLUMNS.map((c) => {
     if (c === 'created_at') return rec.created_at ?? rec.ts ?? null
     if (c === 'ip_address') return rec.ip_address ?? rec.ip ?? null
+    if (c === 'cache_creation_tokens' && rec[c] == null) return null
     if (c === 'stream') return rec.stream ? 1 : 0
     if (c === 'has_tools') return rec.has_tools == null ? null : rec.has_tools ? 1 : 0
     if (
@@ -139,7 +148,7 @@ function toRow(rec) {
       c === 'cache_creation_tokens' ||
       c === 'cache_creation_5m_tokens' ||
       c === 'cache_creation_1h_tokens' ||
-      c === 'web_search_requests'
+      c === 'web_search_requests' || c === 'image_input_tokens' || c === 'image_output_tokens'
     )
       return Number(rec[c]) || 0
     return rec[c] ?? null
@@ -543,37 +552,37 @@ export class UsageLogsRepo {
     }
   }
 
+  /** Stored image generation usage for re-pricing; Images endpoint rows bill it alone. */
+  _imageForPrice(row) {
+    const only = row.protocol === 'openai.images'
+    if (!row.image_usage && !only) return null
+    let usage = null
+    try {
+      usage = row.image_usage ? JSON.parse(row.image_usage) : null
+    } catch {}
+    return { usage, model: row.image_model, only }
+  }
+
   async _repriceRows(rows, { writeActualCost = false } = {}) {
     if (!rows.length) return { rows: 0, changed: 0, still_unpriced: 0, delta_usd: 0 }
-    const upd = writeActualCost
-      ? `
-      UPDATE usage_logs
-         SET input_cost = $1, output_cost = $2, cache_read_cost = $3,
-             cache_creation_cost = $4, web_search_cost = $5, total_cost = $6,
-             actual_cost = $7, pricing_model = $8, price_source = $9, price_version = $10,
-             long_context = $11
-       WHERE id = $12
-    `
-      : `
-      UPDATE usage_logs
-         SET input_cost = $1, output_cost = $2, cache_read_cost = $3,
-             cache_creation_cost = $4, web_search_cost = $5, total_cost = $6,
-             pricing_model = $7, price_source = $8, price_version = $9, long_context = $10
-       WHERE id = $11
-    `
+    const columns = ['input_cost', 'output_cost', 'cache_read_cost', 'cache_creation_cost',
+      'web_search_cost', 'image_cost', 'total_cost', ...(writeActualCost ? ['actual_cost'] : []),
+      'pricing_model', 'price_source', 'price_version', 'long_context']
+    const upd = `UPDATE usage_logs SET ${columns.map((c, i) => `${c} = $${i + 1}`).join(', ')} WHERE id = $${columns.length + 1}`
     let changed = 0
     let still_unpriced = 0
     let delta_usd = 0
     await this.db.transaction(async () => {
       for (const r of rows) {
         const model = r.upstream_model || r.model || r.requested_model
-        const priced = costColumnsFromUsage(this._usageForPrice(r), model)
+        const priced = costColumnsFromUsage(this._usageForPrice(r), model, this._imageForPrice(r))
         const same =
           (r.input_cost ?? null) === (priced.input_cost ?? null) &&
           (r.output_cost ?? null) === (priced.output_cost ?? null) &&
           (r.cache_read_cost ?? null) === (priced.cache_read_cost ?? null) &&
           (r.cache_creation_cost ?? null) === (priced.cache_creation_cost ?? null) &&
           (r.web_search_cost ?? null) === (priced.web_search_cost ?? null) &&
+          (r.image_cost ?? null) === (priced.image_cost ?? null) &&
           (r.total_cost ?? null) === (priced.total_cost ?? null) &&
           (r.pricing_model ?? null) === (priced.pricing_model ?? null) &&
           (r.price_source ?? null) === (priced.price_source ?? null) &&
@@ -595,6 +604,7 @@ export class UsageLogsRepo {
             priced.cache_read_cost ?? null,
             priced.cache_creation_cost ?? null,
             priced.web_search_cost ?? null,
+            priced.image_cost ?? null,
             priced.total_cost ?? null,
             actual,
             priced.pricing_model ?? UNPRICED_MODEL,
@@ -610,6 +620,7 @@ export class UsageLogsRepo {
             priced.cache_read_cost ?? null,
             priced.cache_creation_cost ?? null,
             priced.web_search_cost ?? null,
+            priced.image_cost ?? null,
             priced.total_cost ?? null,
             priced.pricing_model ?? UNPRICED_MODEL,
             priced.price_source ?? null,
@@ -630,7 +641,7 @@ export class UsageLogsRepo {
    * Only `pricing_model IS NULL` rows; those set actual_cost = total_cost × rate_multiplier.
    */
   async backfillMissingCosts({ limit = 4000 } = {}) {
-    const rows = (await this.db.query("\n      SELECT id, model, upstream_model, requested_model,\n             input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens,\n             cache_creation_5m_tokens, cache_creation_1h_tokens, web_search_requests,\n             rate_multiplier, service_tier, speed,\n             input_cost, output_cost, cache_read_cost, cache_creation_cost, web_search_cost,\n             total_cost, pricing_model, price_source, price_version, long_context\n      FROM usage_logs\n      WHERE pricing_model IS NULL\n      LIMIT $1\n    ", [Math.max(1, Math.min(20000, Number(limit) || 4000))])).rows
+    const rows = (await this.db.query("\n      SELECT id, model, upstream_model, requested_model,\n             input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens,\n             cache_creation_5m_tokens, cache_creation_1h_tokens, web_search_requests,\n             rate_multiplier, service_tier, speed, protocol, image_model, image_usage,\n             input_cost, output_cost, cache_read_cost, cache_creation_cost, web_search_cost,\n             image_cost, total_cost, pricing_model, price_source, price_version, long_context\n      FROM usage_logs\n      WHERE pricing_model IS NULL\n      LIMIT $1\n    ", [Math.max(1, Math.min(20000, Number(limit) || 4000))])).rows
     return (await this._repriceRows(rows, { writeActualCost: true })).rows
   }
 
@@ -643,9 +654,9 @@ export class UsageLogsRepo {
       SELECT id, model, upstream_model, requested_model,
              input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens,
              cache_creation_5m_tokens, cache_creation_1h_tokens, web_search_requests,
-             rate_multiplier, service_tier, speed,
+             rate_multiplier, service_tier, speed, protocol, image_model, image_usage,
              input_cost, output_cost, cache_read_cost, cache_creation_cost, web_search_cost,
-             total_cost, pricing_model, price_source, price_version, long_context
+             image_cost, total_cost, pricing_model, price_source, price_version, long_context
       FROM usage_logs ${where}
       ORDER BY id
       LIMIT 2000
@@ -721,6 +732,11 @@ export class UsageLogsRepo {
       unpriced: Number(row?.unpriced || 0),
     }
     return { ...out, ...cacheHitStats(out) }
+  }
+
+  async costBetween({ since, until, vmId = null, accountId = null } = {}) {
+    const { cond, params } = filterCond({ since, until, vmId, accountId })
+    return await this._costSelect(cond, params)
   }
 
   async costByAccount({ since = null, until = null } = {}) {

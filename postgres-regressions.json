@@ -1,1 +1,206 @@
-[]
+[
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "line": 38,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/admin/panel-api.mjs",
+    "line": 866,
+    "code": 2339,
+    "message": "Property 'estimate_5h' does not exist on type '{ seats_used: number; seats_max: number; seats_grace: number; seat_sessions: any; queue_depth: number; conc_waiting: number; inflight: any; requests: any; tokens_in: any; tokens_out: any; cache_read_tokens: any; ... 129 more ...; origin: any; }'."
+  },
+  {
+    "file": "src/lib/admin/panel-routes.mjs",
+    "line": 123,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/admin/panel-tenant.mjs",
+    "line": 4,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/admin/panel-users.mjs",
+    "line": 11,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/db/adapters/index.mjs",
+    "line": 4,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/db/adapters/index.mjs",
+    "line": 21,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/db/adapters/postgres/backup.mjs",
+    "line": 4,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/db/adapters/postgres/repos/redeem-codes-repo.mjs",
+    "line": 9,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/db/adapters/postgres/repos/vms-repo.mjs",
+    "line": 13,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/pool/failover-runner.mjs",
+    "line": 586,
+    "code": 2339,
+    "message": "Property 'requestId' does not exist on type '{ stickyKey?: any; stickyKeys?: any; seatKey?: any; stickyDeviceId?: any; stream?: boolean; deliveryMode?: any; onAttempt?: any; pinVmId?: any; familyKey?: any; familyVmId?: any; deviceKey?: any; skipSessionSeat?: boolean; ownerScope?: OwnerScope; keyScope?: any; countUsage?: boolean; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/failover-runner.mjs",
+    "line": 587,
+    "code": 2339,
+    "message": "Property 'canonicalBody' does not exist on type '{ stickyKey?: any; stickyKeys?: any; seatKey?: any; stickyDeviceId?: any; stream?: boolean; deliveryMode?: any; onAttempt?: any; pinVmId?: any; familyKey?: any; familyVmId?: any; deviceKey?: any; skipSessionSeat?: boolean; ownerScope?: OwnerScope; keyScope?: any; countUsage?: boolean; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/failover-runner.mjs",
+    "line": 588,
+    "code": 2339,
+    "message": "Property 'model' does not exist on type '{ stickyKey?: any; stickyKeys?: any; seatKey?: any; stickyDeviceId?: any; stream?: boolean; deliveryMode?: any; onAttempt?: any; pinVmId?: any; familyKey?: any; familyVmId?: any; deviceKey?: any; skipSessionSeat?: boolean; ownerScope?: OwnerScope; keyScope?: any; countUsage?: boolean; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/failover-runner.mjs",
+    "line": 595,
+    "code": 2339,
+    "message": "Property 'signal' does not exist on type '{ stickyKey?: any; stickyKeys?: any; seatKey?: any; stickyDeviceId?: any; stream?: boolean; deliveryMode?: any; onAttempt?: any; pinVmId?: any; familyKey?: any; familyVmId?: any; deviceKey?: any; skipSessionSeat?: boolean; ownerScope?: OwnerScope; keyScope?: any; countUsage?: boolean; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/failover-runner.mjs",
+    "line": 596,
+    "code": 2339,
+    "message": "Property 'applyAttempt' does not exist on type '{ stickyKey?: any; stickyKeys?: any; seatKey?: any; stickyDeviceId?: any; stream?: boolean; deliveryMode?: any; onAttempt?: any; pinVmId?: any; familyKey?: any; familyVmId?: any; deviceKey?: any; skipSessionSeat?: boolean; ownerScope?: OwnerScope; keyScope?: any; countUsage?: boolean; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/failover-runner.mjs",
+    "line": 597,
+    "code": 2339,
+    "message": "Property 'callAttempt' does not exist on type '{ stickyKey?: any; stickyKeys?: any; seatKey?: any; stickyDeviceId?: any; stream?: boolean; deliveryMode?: any; onAttempt?: any; pinVmId?: any; familyKey?: any; familyVmId?: any; deviceKey?: any; skipSessionSeat?: boolean; ownerScope?: OwnerScope; keyScope?: any; countUsage?: boolean; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 41,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 469,
+    "code": 2339,
+    "message": "Property 'model' does not exist on type '{ stickyKey?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; pinVmId?: any; familyVmId?: any; deviceVmId?: any; ownerScope?: OwnerScope; keyScope?: any; stickyKeys?: any; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 474,
+    "code": 2339,
+    "message": "Property 'signal' does not exist on type '{ stickyKey?: any; excluded?: Set<any>; spilled?: Set<any>; avoid?: any; deadline?: any; allowWait?: boolean; pinVmId?: any; familyVmId?: any; deviceVmId?: any; ownerScope?: OwnerScope; keyScope?: any; stickyKeys?: any; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 523,
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'model' does not exist in type '{ excluded?: Set<any>; pinVmId?: any; ownerScope?: OwnerScope; keyScope?: any; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 693,
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'model' does not exist in type '{ excluded?: Set<any>; pinVmId?: any; ownerScope?: OwnerScope; keyScope?: any; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 996,
+    "code": 2339,
+    "message": "Property 'model' does not exist on type '{ excluded?: Set<any>; pinVmId?: null; ownerScope?: OwnerScope; keyScope?: null; quotaRequest?: null; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 998,
+    "code": 2339,
+    "message": "Property 'signal' does not exist on type '{ excluded?: Set<any>; pinVmId?: any; ownerScope?: OwnerScope; keyScope?: any; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 1481,
+    "code": 2339,
+    "message": "Property 'model' does not exist on type '{ stickyKey?: null; ownerScope?: OwnerScope; keyScope?: null; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 1481,
+    "code": 2339,
+    "message": "Property 'signal' does not exist on type '{ stickyKey?: null; ownerScope?: OwnerScope; keyScope?: null; }'."
+  },
+  {
+    "file": "src/lib/pool/pool-scheduler.mjs",
+    "line": 1482,
+    "code": 2353,
+    "message": "Object literal may only specify known properties, and 'model' does not exist in type '{ excluded?: Set<any>; pinVmId?: any; ownerScope?: OwnerScope; keyScope?: any; quotaRequest?: any; }'."
+  },
+  {
+    "file": "src/lib/protocol/handle-codex.mjs",
+    "line": 9,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/protocol/handle-protocol.mjs",
+    "line": 62,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/protocol/jev-intercept.mjs",
+    "line": 1036,
+    "code": 2304,
+    "message": "Cannot find name 'normalizeText'."
+  },
+  {
+    "file": "src/lib/protocol/user-count-tokens.mjs",
+    "line": 31,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/vm/kvm-machine.mjs",
+    "line": 65,
+    "code": 1064,
+    "message": "The return type of an async function or method must be the global Promise<T> type. Did you mean to write 'Promise<boolean>'?"
+  },
+  {
+    "file": "src/lib/vm/proxy-pool.mjs",
+    "line": 18,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/vm/vm-package.mjs",
+    "line": 25,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  },
+  {
+    "file": "src/lib/vm/vm-registry.mjs",
+    "line": 34,
+    "code": 5097,
+    "message": "An import path can only end with a '.mts' extension when 'allowImportingTsExtensions' is enabled."
+  }
+]

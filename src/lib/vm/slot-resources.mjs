@@ -52,7 +52,7 @@ export function createSlotResourceSampler({ read = dockerJson, hostOf = slotHost
     const cached = samples.get(key)
     if (cached && cached.expires > now) return cached.promise
     for (const [id, entry] of samples) if (entry.expires <= now) samples.delete(id)
-    const promise = (async () => {
+    const promise = (await (async () => {
       try {
         const host = hostOf(vm)
         if ('native' in host && host.native) return { status: 'unsupported' }
@@ -65,7 +65,7 @@ export function createSlotResourceSampler({ read = dockerJson, hostOf = slotHost
       } catch {
         return { status: 'error', error: 'resource_collection_failed' }
       }
-    })()
+    })())
     const entry = { promise, expires: Infinity }
     samples.set(key, entry)
     promise.finally(() => { entry.expires = Date.now() + ttlMs })

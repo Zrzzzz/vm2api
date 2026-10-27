@@ -38,9 +38,9 @@ export function proxyOwnerId(proxy: OwnedResource | null | undefined) {
   return normalizeOwnerId(proxy?.owner_user_id)
 }
 
-export type OwnerScope = { type: 'platform' } | { type: 'any' } | { type: 'user'; userId: string | null }
+export type OwnerScope = { type: 'platform' } | { type: 'any' } | { type: 'none' } | { type: 'user'; userId: string | null }
 export type KeyOwner = { user_id?: string | null }
-export type OwnerRequest = { apiKeyKind?: string | null; apiKeyRecord?: KeyOwner | null }
+export type OwnerRequest = { apiKeyKind?: string | null; apiKeyRecord?: KeyOwner | null; panelUser?: unknown; panelRole?: string; panelUserId?: string }
 export type UserRoleReader = { getById(id: string): Promise<{ role: string } | null> }
 type OwnedResource = { owner_user_id?: string | null; origin?: string }
 type PanelActor = { role?: string; userId?: string }
@@ -64,6 +64,12 @@ export async function ownerScopeFromRequest(
   usersRepo: UserRoleReader | null = null,
 ): Promise<OwnerScope> {
   const rec = req?.apiKeyRecord || null
+  if (!rec && req?.panelUser && req?.apiKeyKind !== 'master') {
+    const role = String(req.panelRole || '').trim().toLowerCase()
+    if (role === 'admin' || role === 'super') return PLATFORM_SCOPE
+    const userId = normalizeOwnerId(req.panelUserId)
+    return userId ? { type: 'user', userId } : { type: 'none' }
+  }
   let ownerRole: string | null = null
   const userId = normalizeOwnerId(rec?.user_id)
   if (userId && usersRepo?.getById) {

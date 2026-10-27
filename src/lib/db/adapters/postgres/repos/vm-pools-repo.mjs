@@ -119,6 +119,19 @@ export class VmPoolsRepo {
     const info = (await this.db.query(this._delete, [id]))
     return info.rowCount > 0
   }
+  async removeVm(vmId) {
+    const result = await this.db.query('DELETE FROM vm_pool_members WHERE vm_id = $1', [String(vmId)])
+    return result.rowCount || 0
+  }
+
+  async pruneUnknown(knownIds) {
+    const known = new Set([...knownIds].map(String))
+    const stale = (await this.db.query('SELECT DISTINCT vm_id FROM vm_pool_members')).rows
+      .map(row => row.vm_id).filter(id => !known.has(id))
+    for (const id of stale) await this.removeVm(id)
+    return stale
+  }
+
 }
 
 function mapConstraint(error) {

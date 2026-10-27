@@ -14,6 +14,7 @@ test('PostgreSQL log queries preserve tenant filters, bodies, statistics and per
  try{
  await db.initializeBaseline(fs.readFileSync(new URL('../../src/lib/db/postgres-migrations/001_baseline.sql',import.meta.url),'utf8'));
  await db.applyMigration('002',fs.readFileSync(new URL('../../src/lib/db/postgres-migrations/002_upstream_207.sql',import.meta.url),'utf8'));
+ await db.applyMigration('003',fs.readFileSync(new URL('../../src/lib/db/postgres-migrations/003_upstream_1419.sql',import.meta.url),'utf8'));
  const repo=new UsageLogsRepo(db),view=new UsageLogsView(db,{mutedErrorClasses:[]}),stats=new StatisticsRepo(db);
  const now=new Date().toISOString();
  for(const user of ['one','two']) {

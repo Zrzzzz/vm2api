@@ -97,7 +97,7 @@ export async function classifyJevRequest(
     } else if ((approvedSystems.get(key) || 0) > now) {
       audit.system.status = 'cached_pass'
     } else {
-      const verdict = await judgeDocument(docs.system, config, fetchImpl)
+      const verdict = await judgeDocument(docs.system, { ...config, policy_request_id: requestId }, fetchImpl)
       audit.system.status = verdict.action === 'block' ? 'block' : verdict.reason === 'safe' ? 'judged_pass' : 'error'
       audit.system.chunks = verdict.chunks
       if (verdict.action !== 'pass' || verdict.reason !== 'safe') return { ...verdict, audit }
@@ -105,7 +105,7 @@ export async function classifyJevRequest(
       approvedSystems.set(key, now + CACHE_TTL)
     }
   }
-  const verdict = await judgeDocument(docs.instruction, config, fetchImpl)
+  const verdict = await judgeDocument(docs.instruction, { ...config, policy_request_id: requestId }, fetchImpl)
   audit.instruction.status = verdict.action === 'block' ? 'block' : verdict.reason === 'safe' ? 'judged_pass' : 'error'
   audit.instruction.chunks = verdict.chunks
   const result = { ...verdict, audit }

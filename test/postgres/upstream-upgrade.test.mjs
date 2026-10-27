@@ -11,6 +11,7 @@ test('upstream PostgreSQL migration is repeatable, checksummed, and atomic on fa
  const db = await createTestDatabase()
  try {
   await db.applyMigration('002', migration)
+  await db.applyMigration('003', migration)
   assert.equal((await db.query("SELECT count(*) AS n FROM postgres_schema_migrations WHERE version='002'")).rows[0].n, 1)
   await assert.rejects(db.applyMigration('002', migration + '\n-- modified'), /checksum mismatch/)
   await assert.rejects(db.applyMigration('bad', 'CREATE TABLE migration_probe(id int); SELECT * FROM nonexistent_upgrade_table;'))

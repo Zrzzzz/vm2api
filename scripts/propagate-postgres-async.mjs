@@ -33,7 +33,7 @@ for(let round=0;round<30;round++){
    if(ts.isPropertyAccessExpression(n.parent)&&['then','catch','finally'].includes(n.parent.name.text))return
    const fn=containing(n)
    if(fn&&(ts.isConstructorDeclaration(fn)||ts.isGetAccessor(fn)||ts.isSetAccessor(fn))){unresolved.push({file:sf.fileName,line:sf.getLineAndCharacterOfPosition(n.pos).line+1,kind:'constructor_or_accessor',callee:n.expression.getText(sf)});return}
-   if(add(sf,n,(ts.isExpressionStatement(n.parent)?'await '+n.getText(sf):'(await '+n.getText(sf)+')'))&&fn&&!isAsync(fn))asyncFns.set(key(fn),fn)
+   if(add(sf,n,(ts.isExpressionStatement(n.parent)?'await '+n.getText(sf):'(await '+n.getText(sf)+')'))&&fn&&!isAsync(fn))asyncFns.set(sf.fileName+':'+fn.pos,fn)
   })
  }
  for(const fn of asyncFns.values()){
