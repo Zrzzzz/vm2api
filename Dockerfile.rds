@@ -1,4 +1,4 @@
-ARG RUNTIME_IMAGE=ghcr.1ms.run/dofastted/vm2api:v1.3.207
+ARG RUNTIME_IMAGE=ghcr.io/dofastted/vm2api:v1.4.019
 FROM docker.1ms.run/library/node:22-bookworm-slim AS async-check
 WORKDIR /check
 COPY package.json package-lock.json .npmrc ./

@@ -51,11 +51,13 @@ jobs:
           cache: true
           cache_dependency_path: web/pnpm-lock.yaml
       - run: npm ci
+      - name: asynchronous PostgreSQL type safety
+        run: npm run check && npm run test:async-guards
       - name: format and syntax
         run: |
           npx biome format
           test -z "$(gofmt -l worker api-kernel)" || { gofmt -l worker api-kernel; exit 1; }
-          find src scripts -name '*.mjs' -print0 | xargs -0 -n1 node --check
+          find src scripts \( -name '*.mjs' -o -name '*.mts' \) -print0 | xargs -0 -n1 node --check
       - name: pinned payload
         run: |
           node scripts/fetch-payload.mjs
