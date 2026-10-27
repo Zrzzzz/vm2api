@@ -260,6 +260,8 @@ function toProviderChainItem(r, names) {
     action: r.action ?? null,
     downstreamCommitted: !!r.downstream_committed,
     waitMs: nullableNum(r.wait_ms),
+    queueWaitMs: nullableNum(r.queue_wait_ms),
+    schedulingMs: nullableNum(r.scheduling_ms),
     ttftMs: nullableNum(r.ttft_ms),
     latencyMs: nullableNum(r.latency_ms),
     startedAt: r.started_at ?? null,
