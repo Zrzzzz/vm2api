@@ -14,7 +14,8 @@ data
 **/*.enc
 **/*.dek
 docs/images
-test
+test/*
+!test/types
 crates
 patches
 .local

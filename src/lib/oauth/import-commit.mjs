@@ -118,13 +118,17 @@ export function createImportCommit(ctx) {
           await ctx.accountQuota.ingestOAuthUsage(accountId, { usage_status: 200, ok: true, ...stats })
         } catch {}
       }
-      if ((stats?.account_tier === 'pro' || stats?.account_tier === 'max') && stats?.limits_present === true) {
-        const source = 'usage'
+      if (
+        (stats?.account_tier === 'pro' || stats?.account_tier === 'max') &&
+        (stats?.account_tier_source === 'profile' || stats?.limits_present === true)
+      ) {
+        const source = stats.account_tier_source === 'profile' ? 'profile' : 'usage'
+        const maxMultiplier = stats.account_max_multiplier ?? null
         try {
-          await ctx.accountQuota.setAccountTier(accountId, stats.account_tier, { source })
+          await ctx.accountQuota.setAccountTier(accountId, stats.account_tier, { source, maxMultiplier })
         } catch {}
         try {
-          await persistAccountTier(ctx.cfg.paths.project, vmId, stats.account_tier, { source })
+          await persistAccountTier(ctx.cfg.paths.project, vmId, stats.account_tier, { source, maxMultiplier })
         } catch {}
         try {
           const vm = getVm(ctx.cfg.paths.project, vmId)

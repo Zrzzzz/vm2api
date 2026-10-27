@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import {DatabaseSync} from 'node:sqlite'
 import {pathToFileURL} from 'node:url'
 import {rowDigest} from './migrate-sqlite-to-postgres.mjs'
-import {PostgresDatabase,postgresConfig} from '../src/lib/db/adapters/postgres/database.mjs'
+import {PostgresDatabase,postgresConfig} from '../src/lib/db/adapters/postgres/database.mts'
 const ident=name=>'"'+name.replaceAll('"','""')+'"'
 const mask=(1n<<256n)-1n
 const key=(row,columns)=>JSON.stringify(columns.map(c=>row[c]))

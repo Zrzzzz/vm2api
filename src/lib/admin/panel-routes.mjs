@@ -31,6 +31,7 @@ import { parseCodexImportPayload, upsertCodexAccount, readCodexAccounts } from '
 import { generateAuthUrl, exchangeAuthCode, normalizeOauthFlavor } from '../oauth/oauth-auth-url.mjs'
 import { sessionKeyToOAuth, panelImportErrorPayload } from '../oauth/cookie-auth.mjs'
 import { enrichOauthIdentity } from '../oauth/oauth-identity.mjs'
+import { queryActiveUsage } from '../oauth/active-usage-query.mjs'
 import { generateCodexAuthUrl, exchangeCodexAuthCode } from '../oauth/codex-oauth.mjs'
 import {
   completeClaudeSetupToken,
@@ -116,7 +117,7 @@ import {
   filterVmsForPanel,
   normalizeOwnerId,
   vmOwnerId,
-} from './resource-owner.mjs'
+} from './resource-owner.mts'
 import { servePoolSeatStream } from './pool-seat-stream.mjs'
 import { logsToCsv, logsToJsonl } from './request-log.mjs'
 import {
@@ -209,6 +210,7 @@ import { commitVmPackage, exportVmPackage, parseVmPackage } from '../vm/vm-packa
 import { preflightNode } from '../cluster/placement.mjs'
 import { probeLocalKvm } from '../vm/kvm-host.mjs'
 import { normalizeVmConfig, resolveMachineSpec, validateVmConfigPatch } from '../vm/machine-spec.mjs'
+import { attachSlotResources } from '../vm/slot-resources.mjs'
 import { raiseDockerSlotMemory } from '../vm/docker-slot-memory.mjs'
 import { RUNTIME_KVM } from '../vm/runtime-kind.mjs'
 import { hostProxyUrlForVm, slotHost } from '../vm/slot-host.mjs'
@@ -2204,10 +2206,7 @@ export function createPanelHandler(ctx) {
       }
       if (req.method === 'GET' && p === '/api/panel/vms') {
         const ident = panelIdentity(req)
-        return json(
-          res,
-          200,
-          await panel.buildVmList({
+        const result = await panel.buildVmList({
             cfg,
             accountQuota,
             routingConfig: ctx.routingConfig,
@@ -2217,8 +2216,9 @@ export function createPanelHandler(ctx) {
             role: ident.role,
             ownerUserId: ident.role === 'user' ? req.panelUserId : null,
             clusterNodes: (await clusterNodesOf(ctx)),
-          }),
-        )
+          })
+        await attachSlotResources(result.data?.items || [], (id) => getVm(cfg.paths.project, id))
+        return json(res, 200, result)
       }
       // GET /api/panel/pool/stream — live seat / queue snapshots (SSE over fetch).
       if (req.method === 'GET' && p === '/api/panel/pool/stream') {
@@ -2951,7 +2951,7 @@ export function createPanelHandler(ctx) {
               : body.memory
           const liveVm = getVm(cfg.paths.project, id) || currentVm
           const raiseMemory = ctx.raiseDockerSlotMemory || raiseDockerSlotMemory
-          const raised = raiseMemory(cfg.paths.project, liveVm, requestedMemory, {
+          const raised = await raiseMemory(cfg.paths.project, liveVm, requestedMemory, {
             routing: ctx.routingConfig,
           })
           if (!raised.ok) {
@@ -3003,6 +3003,16 @@ export function createPanelHandler(ctx) {
         if (timezoneSync && detail?.data) detail.data.timezone_sync = timezoneSync
         if (memoryRaiseResult && detail?.data) detail.data.memory_raise = memoryRaiseResult
         return json(res, 200, detail)
+      }
+      // Explicit quota refresh; never sends a Fable inference probe.
+      if (req.method === 'POST' && /^\/api\/panel\/vms\/[^/]+\/usage\/query$/.test(p)) {
+        const id = p.split('/')[4]
+        const result = await queryActiveUsage({
+          projectRoot: cfg.paths.project,
+          vm: getVm(cfg.paths.project, id),
+          accountQuota,
+        })
+        return json(res, result.status, result.body)
       }
       // POST /api/panel/vms/:id/probe
       if (req.method === 'POST' && /^\/api\/panel\/vms\/[^/]+\/probe$/.test(p)) {
@@ -4373,7 +4383,7 @@ export function createPanelHandler(ctx) {
             }
             const account = { ...parsed.account }
             if (!account.access_token && account.refresh_token) {
-              const slotProxy = requireSlotProxy(existing, body)
+              const slotProxy = await requireSlotProxy(existing, body)
               if (!slotProxy.ok) {
                 return json(res, slotProxy.status, {
                   ok: false,
@@ -4409,7 +4419,7 @@ export function createPanelHandler(ctx) {
             return json(res, 200, panel.ok(committed))
           }
 
-          const slotProxy = requireSlotProxy(existing, body)
+          const slotProxy = await requireSlotProxy(existing, body)
           const wantsApiKey =
             looksLikeConsoleApiKey(apiKeyRaw || sessionKey || accessToken) ||
             String(requestedType).toLowerCase() === 'apikey' ||
@@ -4520,7 +4530,7 @@ export function createPanelHandler(ctx) {
         const existing = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
         existing.id = existing.id || id
         const body = await readBody(req, 8 * 1024)
-        const slotProxy = requireSlotProxy(existing, body)
+        const slotProxy = await requireSlotProxy(existing, body)
         if (!slotProxy.ok) {
           return json(res, slotProxy.status, {
             ok: false,
@@ -4616,7 +4626,7 @@ export function createPanelHandler(ctx) {
         const existing = JSON.parse(fs.readFileSync(vmPath, 'utf8'))
         existing.id = existing.id || id
         const body = await readBody(req, 16 * 1024)
-        const slotProxy = requireSlotProxy(existing, body)
+        const slotProxy = await requireSlotProxy(existing, body)
         if (!slotProxy.ok) {
           return json(res, slotProxy.status, {
             ok: false,

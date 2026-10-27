@@ -389,7 +389,7 @@ export class AccountQuota {
       if (acc.unified.headers) delete acc.unified.headers['7d_oi']
       delete acc.unified.fable
     }
-    if (completeOfficialUsage) {
+    if (completeOfficialUsage && acc.unified.account_tier_source !== 'profile') {
       if (probe.usage_has_fable === true || hasFableUsage) acc.unified.account_tier = 'max'
       else if (probe.usage_has_fable === false) acc.unified.account_tier = 'pro'
       if (acc.unified.account_tier === 'pro' || acc.unified.account_tier === 'max')
@@ -409,16 +409,18 @@ export class AccountQuota {
         error: usageOk && Number(probe.fable.status) === 401 ? null : probe.fable.error || null,
         probed_at: probe.probed_at || new Date().toISOString(),
       }
-      // Only a complete official /usage classifies the plan; Fable hop only fills metadata.
-      if (completeOfficialUsage && hasFableUsage) {
+      // Usage may classify accounts without an authoritative profile; Fable only fills metadata.
+      if (completeOfficialUsage && hasFableUsage && acc.unified.account_tier_source !== 'profile') {
         acc.unified.account_tier = 'max'
         acc.unified.account_tier_source = 'usage'
       }
     } else if (usageOk) {
       const leftover = leftoverFable
       if (completeOfficialUsage && hasFableUsage) {
-        acc.unified.account_tier = 'max'
-        acc.unified.account_tier_source = 'usage'
+        if (acc.unified.account_tier_source !== 'profile') {
+          acc.unified.account_tier = 'max'
+          acc.unified.account_tier_source = 'usage'
+        }
         if (leftover.plan_denied || leftover.ok === false) {
           acc.unified.fable = {
             ...leftover,
@@ -1167,17 +1169,22 @@ export class AccountQuota {
       })
   }
 
-  async setAccountTier(accountId, tier, { source = null } = {}) {
+  async setAccountTier(accountId, tier, { source = null, maxMultiplier = null } = {}) {
     return await this.db.withEntityLock('account', accountId, async () => {
     const key = String(tier || '').toLowerCase()
     if (!accountId || (key !== 'pro' && key !== 'max')) return null
     const acc = (await this.repo.get(accountId))
     if (!acc) return null
-    if (acc.unified?.account_tier_source === 'profile' && source !== 'profile' && source !== 'usage') return acc
-    if (acc.unified?.account_tier === key && (acc.unified?.account_tier_source || null) === source) return acc
+    if (acc.unified?.account_tier_source === 'profile' && source !== 'profile') return acc
+    if (
+      acc.unified?.account_tier === key &&
+      (acc.unified?.account_tier_source || null) === source &&
+      (acc.unified.account_max_multiplier ?? null) === (key === 'max' ? maxMultiplier : null)
+    ) return acc
     acc.unified = acc.unified || {}
     acc.unified.account_tier = key
     acc.unified.account_tier_source = source
+    acc.unified.account_max_multiplier = key === 'max' && [5, 20].includes(maxMultiplier) ? maxMultiplier : null
     acc.unified.updated_at = new Date().toISOString()
     return (await this.repo.save(acc))
       })

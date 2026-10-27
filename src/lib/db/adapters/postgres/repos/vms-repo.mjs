@@ -10,7 +10,7 @@ import { getDb } from '../../../database.mjs'
 import { SettingsRepo } from '../../../repos/settings-repo.mjs'
 import { maybeEncrypt, maybeDecrypt, encryptionEnabled } from '../../../secure.mjs'
 import { hasAccessPresence, hasRefreshPresence, stripCredentialSecrets } from '../../../../oauth/oauth-credentials.mjs'
-import { normalizeOwnerId, vmOriginOf } from '../../../../admin/resource-owner.mjs'
+import { normalizeOwnerId, vmOriginOf } from '../../../../admin/resource-owner.mts'
 
 const ACTIVE_VM_KEY = 'active_vm'
 

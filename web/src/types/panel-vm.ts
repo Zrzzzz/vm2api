@@ -188,7 +188,19 @@ export type VmPhysicalFeatures = {
   runtimes?: string | null
 }
 
+export type VmResourceUsage = {
+  status: 'ok' | 'warming' | 'stopped' | 'unsupported' | 'error'
+  sampled_at?: string
+  cpu_used_cores?: number | null
+  cpu_limit_cores?: number
+  memory_used_bytes?: number
+  memory_limit_bytes?: number
+  memory_limit_kind?: 'container' | 'host'
+  error?: string
+}
+
 export type Vm = {
+  resource_usage?: VmResourceUsage
   id: string
   name?: string
   owner_user_id?: string | null
@@ -292,6 +304,8 @@ export type Vm = {
   fable?: Record<string, unknown>
   weekly_split?: Record<string, unknown>
   account_tier?: string
+  account_max_multiplier?: 5 | 20 | null
+  account_tier_source?: string | null
   /** Complete official usage: true = Max, false = Pro, null = unconfirmed. */
   usage_has_fable?: boolean | null
   /** anthropic | openai。缺省按 Claude 槽展示。 */
@@ -613,6 +627,7 @@ export type OfficialCcStatus = {
   hello_ok?: boolean
   usage_ok?: boolean
   account_tier?: string
+  account_max_multiplier?: 5 | 20 | null
   /** `profile` = 官方 /api/oauth/profile；`usage` = /usage 推断兜底。 */
   account_tier_source?: string
   /** 槽内 GET /v1/models 返回的模型 id。 */

@@ -1,7 +1,7 @@
 import { getVm } from '../vm/vm-registry.mjs'
 import { makeError, ErrorType, ErrorCode } from '../core/errors.mjs'
 import { panelIdentity } from './panel-acl.mjs'
-import { canUserDeleteVm, normalizeOwnerId, proxyOwnerId, vmOwnerId } from './resource-owner.mjs'
+import { canUserDeleteVm, normalizeOwnerId, proxyOwnerId, vmOwnerId } from './resource-owner.mts'
 
 const VM_COLLECTION = new Set([
   'create',

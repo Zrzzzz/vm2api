@@ -10,8 +10,9 @@ import {
   countUserCreatedVms,
   filterVmsForPanel,
   ownerScopeFromApiKey,
+  ownerScopeFromRequest,
   vmMatchesOwnerScope,
-} from '../../src/lib/admin/resource-owner.mjs'
+} from '../../src/lib/admin/resource-owner.mts'
 
 test('admin and master keys stay on the platform pool', () => {
   assert.deepEqual(ownerScopeFromApiKey({ user_id: 'admin-1' }, { apiKeyKind: 'master' }), PLATFORM_SCOPE)
@@ -62,4 +63,37 @@ test('unassign origin and proxy bind rules', () => {
   assert.equal(canBindProxyToVm({ owner_user_id: 'u1' }, { owner_user_id: 'u1' }, { role: 'user' }), true)
   assert.equal(canBindProxyToVm({ owner_user_id: 'u1' }, {}, { role: 'admin' }), false)
   assert.equal(canBindProxyToVm({}, { owner_user_id: 'u1' }, { role: 'admin' }), true)
+})
+
+for (const role of ['admin', 'super', 'user']) {
+  test(`request scope awaits asynchronous ${role} lookup and preserves tenant isolation`, async () => {
+    const scope = await ownerScopeFromRequest(
+      { apiKeyKind: 'managed', apiKeyRecord: { user_id: 'u1' } },
+      {
+        getById: async (id) => {
+          assert.equal(id, 'u1')
+          return { role }
+        },
+      },
+    )
+    assert.deepEqual(scope, role === 'user' ? { type: 'user', userId: 'u1' } : PLATFORM_SCOPE)
+    assert.equal(vmMatchesOwnerScope({}, scope), role !== 'user')
+    assert.equal(vmMatchesOwnerScope({ owner_user_id: 'u1' }, scope), role === 'user')
+    assert.equal(vmMatchesOwnerScope({ owner_user_id: 'u2' }, scope), false)
+  })
+}
+
+test('database lookup failures propagate instead of changing the ownership scope', async () => {
+  const failure = new Error('database unavailable')
+  await assert.rejects(
+    ownerScopeFromRequest(
+      { apiKeyKind: 'managed', apiKeyRecord: { user_id: 'admin-1' } },
+      {
+        getById: async () => {
+          throw failure
+        },
+      },
+    ),
+    (error) => error === failure,
+  )
 })

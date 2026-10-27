@@ -1,3 +1,4 @@
+import { jevRequestDocuments } from '../../src/lib/protocol/jev-request.mjs'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { isUpstreamRefusal, refusalFingerprint, REFUSAL_GUARD_MESSAGE } from '../../src/lib/core/refusal-guard.mjs'
@@ -16,7 +17,6 @@ import {
   SAFETY_INSTRUCTION,
   NSFW_INSTRUCTION,
   jevDocument,
-  jevModelDocument,
   policyModelsUrl,
   resolvedPolicyModel,
   validateJevPatch,
@@ -104,7 +104,7 @@ test('model catalog sits beside systemone and uses the given key', async () => {
   assert.equal(auth, 'Bearer secret')
   assert.deepEqual(listed.models, ['english', 'jev-latest'])
   assert.equal(publicJevConfig({}).defaults.safety_threshold, 0.5)
-  assert.equal(publicJevConfig({}).defaults.dedup_sec, 60)
+  assert.equal('dedup_sec' in publicJevConfig({}).defaults, false)
 })
 
 test('hard regex blocks jailbreak and crack, not ordinary debugging', () => {
@@ -128,9 +128,9 @@ test('hard regex blocks jailbreak and crack, not ordinary debugging', () => {
   assert.equal(matchHardPolicy('explain the difference between phishing and spam for a security class'), null)
 })
 
-test('saved rules replace the builtins and a bad regex is rejected', () => {
+test('saved rules replace the builtins and a bad regex is rejected', async () => {
   let saved = null
-  const patched = applyJevPatch(
+  const patched = await applyJevPatch(
     {
       get: () => null,
       set: (_key, value) => {
@@ -143,11 +143,11 @@ test('saved rules replace the builtins and a bad regex is rejected', () => {
   assert.equal(patched.config.rules_customized, true)
   assert.equal(matchHardPolicy('feat vmpanel-keygen', [], saved.rules).keyword, 'vmpanel')
   assert.equal(matchHardPolicy('write a keygen', [], saved.rules), null)
-  const bad = applyJevPatch({ get: () => null, set() {} }, { rules: [{ category: 'custom', source: '(' }] })
+  const bad = await applyJevPatch({ get: () => null, set() {} }, { rules: [{ category: 'custom', source: '(' }] })
   assert.equal(bad.ok, false)
 })
 
-test('an empty rule list falls back to the builtins instead of clearing the layer', () => {
+test('an empty rule list falls back to the builtins instead of clearing the layer', async () => {
   let saved = null
   const settings = {
     get: () => null,
@@ -156,7 +156,7 @@ test('an empty rule list falls back to the builtins instead of clearing the laye
     },
   }
   assert.equal(normalizeJevConfig({ rules: [] }).rules, null)
-  const patched = applyJevPatch(settings, { rules: [] })
+  const patched = await applyJevPatch(settings, { rules: [] })
   assert.equal(patched.ok, true)
   assert.equal(patched.config.rules_customized, false)
   assert.equal(patched.config.rules.length, builtinHardRules().length)
@@ -165,7 +165,7 @@ test('an empty rule list falls back to the builtins instead of clearing the laye
     'jailbreak',
   )
   // The panel can still turn the layer off with its own switch.
-  const off = applyJevPatch(settings, { hard_regex_enabled: false })
+  const off = await applyJevPatch(settings, { hard_regex_enabled: false })
   assert.equal(off.config.hard_regex_enabled, false)
   assert.equal(saved.rules, null)
 })
@@ -339,23 +339,30 @@ test('content-policy error codes are refusals; generic api errors are not', () =
   assert.equal(isUpstreamRefusal({ body: { error: { code: 'distill_blocked', message: '不允许蒸馏' } } }), false)
 })
 
-test('panel patch keeps a stored key unless cleared', () => {
+test('panel patch keeps a stored key unless cleared', async () => {
   const saved = new Map()
   const settings = {
     get: (key, fallback) => (saved.has(key) ? saved.get(key) : fallback),
     set: (key, value) => saved.set(key, value),
   }
   assert.equal(
-    applyJevPatch(settings, { enabled: true, base_url: 'http://127.0.0.1:9/v1', model: 'jev', api_key: 'secret' }).ok,
+    (
+      await applyJevPatch(settings, {
+        enabled: true,
+        base_url: 'http://127.0.0.1:9/v1',
+        model: 'jev',
+        api_key: 'secret',
+      })
+    ).ok,
     true,
   )
-  const kept = applyJevPatch(settings, { timeout_ms: 1500 })
+  const kept = await applyJevPatch(settings, { timeout_ms: 1500 })
   assert.equal(kept.ok, true)
   assert.equal(kept.config.api_key_set, true)
   const stored = saved.get('jev_intercept')
   assert.equal(publicJevConfig(stored).api_key_set, true)
   assert.equal(stored.api_key, 'secret')
-  assert.equal(applyJevPatch(settings, { api_key: '' }).config.api_key_set, false)
+  assert.equal((await applyJevPatch(settings, { api_key: '' })).config.api_key_set, false)
   assert.equal(validateJevPatch({ timeout_ms: 10 }).length, 1)
 })
 
@@ -468,7 +475,7 @@ test('decision state keeps only the configured tail', async () => {
   assert.equal(verdict.category, 'nsfw')
 })
 
-test('replay of the same state blocks without a second model call', async () => {
+test('repeated user text is judged again instead of replaying a block', async () => {
   let fetches = 0
   const cfg = {
     enabled: true,
@@ -486,9 +493,9 @@ test('replay of the same state blocks without a second model call', async () => 
   const second = await classifyJev(text, cfg, fetchImpl, 2_000)
   assert.equal(first.action, 'block')
   assert.equal(first.category, 'safety')
-  assert.equal(second.reason, 'replay')
+  assert.equal(second.reason, undefined)
   assert.equal(second.action, 'block')
-  assert.equal(fetches, 1)
+  assert.equal(fetches, 2)
 })
 
 test('cyber_policy stops another account hop', () => {
@@ -600,9 +607,9 @@ test('jev reads the client system, and the previous nsfw sentence upgrades', () 
     messages: [{ role: 'user', content: '角色卡：性别女。' }],
   }
   assert.equal(jevDocument(body).includes('性爱'), false)
-  const doc = jevModelDocument(body)
-  assert.match(doc, /性爱/)
-  assert.match(doc, /性别女/)
+  const doc = jevRequestDocuments(body)
+  assert.match(doc.system, /性爱/)
+  assert.match(doc.instruction, /性别女/)
   assert.equal(refusalUserDocument(body).includes('性爱'), false)
   const legacy = '这段话是否可以提交给模型，并且不包含色情、露骨性描写、性服务请求或任何未成年人性内容？'
   const upgraded = normalizeJevConfig({
@@ -646,8 +653,8 @@ test('GPT / Codex skips the gate by default and runs the same rules once opted i
 
   const roleplay = codexBody('角色卡：性别女。', { instructions: '情景里写了性爱。' })
   assert.equal(jevDocument(roleplay).includes('性爱'), false)
-  assert.match(jevModelDocument(roleplay), /性爱/)
-  assert.match(jevModelDocument(roleplay), /性别女/)
+  assert.match(jevRequestDocuments(roleplay).system, /性爱/)
+  assert.match(jevRequestDocuments(roleplay).instruction, /性别女/)
 })
 
 test('a cached protocol block is not a refusal, so the model can pass the retry', async () => {
@@ -763,7 +770,10 @@ test('401 retires that key until the key list is saved again', async () => {
       settings.value = value
     },
   }
-  assert.equal(applyJevPatch(settings, { api_keys: ['k-auth-retire'], base_url: cfg.base_url, enabled: true }).ok, true)
+  assert.equal(
+    (await applyJevPatch(settings, { api_keys: ['k-auth-retire'], base_url: cfg.base_url, enabled: true })).ok,
+    true,
+  )
   let retried = 0
   await classifyJev('retire-auth-3', { ...cfg, api_keys: ['k-auth-retire'] }, async () => {
     retried += 1

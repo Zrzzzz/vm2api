@@ -9,24 +9,24 @@ export const VM_ORIGIN = {
   userCreated: 'user_created',
 }
 
-export const PLATFORM_SCOPE = Object.freeze({ type: 'platform' })
+export const PLATFORM_SCOPE: Readonly<{ type: 'platform' }> = Object.freeze({ type: 'platform' })
 
-export function normalizeOwnerId(id) {
+export function normalizeOwnerId(id: unknown) {
   const s = String(id || '').trim()
   return s || null
 }
 
-export function clampVmCreateQuota(value, fallback = 0) {
+export function clampVmCreateQuota(value: unknown, fallback = 0) {
   const n = Number(value)
   if (!Number.isFinite(n)) return fallback
   return Math.max(0, Math.min(100, Math.round(n)))
 }
 
-export function vmOwnerId(vm) {
+export function vmOwnerId(vm: OwnedResource | null | undefined) {
   return normalizeOwnerId(vm?.owner_user_id)
 }
 
-export function vmOriginOf(vm) {
+export function vmOriginOf(vm: OwnedResource | null | undefined) {
   const origin = String(vm?.origin || '').trim()
   if (origin === VM_ORIGIN.adminAssigned || origin === VM_ORIGIN.userCreated || origin === VM_ORIGIN.platform) {
     return origin
@@ -34,11 +34,21 @@ export function vmOriginOf(vm) {
   return vmOwnerId(vm) ? VM_ORIGIN.adminAssigned : VM_ORIGIN.platform
 }
 
-export function proxyOwnerId(proxy) {
+export function proxyOwnerId(proxy: OwnedResource | null | undefined) {
   return normalizeOwnerId(proxy?.owner_user_id)
 }
 
-export function ownerScopeFromApiKey(record, { apiKeyKind = null, ownerRole = null } = {}) {
+export type OwnerScope = { type: 'platform' } | { type: 'any' } | { type: 'user'; userId: string | null }
+export type KeyOwner = { user_id?: string | null }
+export type OwnerRequest = { apiKeyKind?: string | null; apiKeyRecord?: KeyOwner | null }
+export type UserRoleReader = { getById(id: string): Promise<{ role: string } | null> }
+type OwnedResource = { owner_user_id?: string | null; origin?: string }
+type PanelActor = { role?: string; userId?: string }
+
+export function ownerScopeFromApiKey(
+  record: KeyOwner | null,
+  { apiKeyKind = null, ownerRole = null }: { apiKeyKind?: string | null; ownerRole?: string | null } = {},
+): OwnerScope {
   if (apiKeyKind === 'master') return PLATFORM_SCOPE
   const userId = normalizeOwnerId(record?.user_id)
   if (!userId) return PLATFORM_SCOPE
@@ -49,47 +59,46 @@ export function ownerScopeFromApiKey(record, { apiKeyKind = null, ownerRole = nu
   return { type: 'user', userId }
 }
 
-export function ownerScopeFromRequest(req, usersRepo = null) {
+export async function ownerScopeFromRequest(
+  req: OwnerRequest | null,
+  usersRepo: UserRoleReader | null = null,
+): Promise<OwnerScope> {
   const rec = req?.apiKeyRecord || null
-  let ownerRole = null
+  let ownerRole: string | null = null
   const userId = normalizeOwnerId(rec?.user_id)
   if (userId && usersRepo?.getById) {
-    try {
-      ownerRole = usersRepo.getById(userId)?.role || null
-    } catch {
-      ownerRole = null
-    }
+    ownerRole = (await usersRepo.getById(userId))?.role || null
   }
   return ownerScopeFromApiKey(rec, { apiKeyKind: req?.apiKeyKind, ownerRole })
 }
 
-export function vmMatchesOwnerScope(vm, scope = PLATFORM_SCOPE) {
+export function vmMatchesOwnerScope(vm: OwnedResource | null | undefined, scope: OwnerScope = PLATFORM_SCOPE) {
   const type = scope?.type || 'platform'
   if (type === 'any') return true
   const owner = vmOwnerId(vm)
   if (type === 'platform') return !owner
-  if (type === 'user') return owner === normalizeOwnerId(scope.userId)
+  if (scope.type === 'user') return owner === normalizeOwnerId(scope.userId)
   return false
 }
 
-export function filterVmsForPanel(vms, { role, userId } = {}) {
+export function filterVmsForPanel<T extends OwnedResource>(vms: T[], { role, userId }: PanelActor = {}): T[] {
   if (role === 'admin' || role === 'super') return vms
   const owner = normalizeOwnerId(userId)
   if (!owner) return []
   return (vms || []).filter((vm) => vmOwnerId(vm) === owner)
 }
 
-export function countUserCreatedVms(vms, userId) {
+export function countUserCreatedVms(vms: OwnedResource[], userId: unknown) {
   const owner = normalizeOwnerId(userId)
   if (!owner) return 0
   return (vms || []).filter((vm) => vmOwnerId(vm) === owner && vmOriginOf(vm) === VM_ORIGIN.userCreated).length
 }
 
-export function canUserDeleteVm(vm, userId) {
+export function canUserDeleteVm(vm: OwnedResource | null | undefined, userId: unknown) {
   return vmOwnerId(vm) === normalizeOwnerId(userId) && vmOriginOf(vm) === VM_ORIGIN.userCreated
 }
 
-export function canBindProxyToVm(proxy, vm, { role } = {}) {
+export function canBindProxyToVm(proxy: OwnedResource, vm: OwnedResource, { role }: Pick<PanelActor, 'role'> = {}) {
   const pOwner = proxyOwnerId(proxy)
   const vOwner = vmOwnerId(vm)
   const r = String(role || '')
@@ -101,7 +110,10 @@ export function canBindProxyToVm(proxy, vm, { role } = {}) {
   return true
 }
 
-export function assignOriginForOwner(ownerUserId, { previousOrigin = VM_ORIGIN.platform, actorRole = 'admin' } = {}) {
+export function assignOriginForOwner(
+  ownerUserId: unknown,
+  { previousOrigin = VM_ORIGIN.platform, actorRole = 'admin' }: { previousOrigin?: string; actorRole?: string } = {},
+) {
   const owner = normalizeOwnerId(ownerUserId)
   if (!owner) return VM_ORIGIN.platform
   if (actorRole === 'user') return VM_ORIGIN.userCreated

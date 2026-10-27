@@ -41,6 +41,7 @@ import {
   zoneOf,
   type BladeState,
 } from '@/features/vm/vm-rack-model'
+import { ResourceMeter } from './resource-meter'
 
 export type RackSize = 's' | 'm' | 'l'
 
@@ -416,7 +417,7 @@ export const VmBlade = memo(function VmBlade({
       aria-label={`查看 ${vm.id} 详情`}
       style={tierStyle(vm)}
       className={cn(
-        'relative grid min-w-0 cursor-pointer grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto_1fr_auto] rounded-[10px] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,box-shadow] duration-150 ease-out hover:bg-muted hover:shadow-[inset_0_0_0_1px_var(--border)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
+        'relative grid min-w-0 cursor-pointer grid-cols-[minmax(0,1fr)] grid-rows-[auto_auto_auto_1fr_auto] rounded-[10px] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,box-shadow] duration-150 ease-out hover:bg-muted hover:shadow-[inset_0_0_0_1px_var(--border)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
         "before:absolute before:top-3 before:left-0 before:h-[18px] before:w-[3px] before:rounded-r-[2px] before:bg-[color:var(--tc,transparent)] before:content-['']",
         large
           ? 'gap-2.5 px-3 ps-3.5 pt-3 pb-2'
@@ -464,6 +465,7 @@ export const VmBlade = memo(function VmBlade({
         ) : null}
       </div>
       <SpecLine vm={vm} />
+      <ResourceMeter usage={vm.resource_usage} />
       {state === 'live' ? (
         <BladeUsage vm={vm} accounts={accounts} now={now} />
       ) : state === 'unprobed' ? (

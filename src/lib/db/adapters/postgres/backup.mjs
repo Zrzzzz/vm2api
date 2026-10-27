@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
-import { postgresConfig } from './database.mjs'
+import { postgresConfig } from './database.mts'
 
 function run(program, args, env) {
   return new Promise((resolve, reject) => {

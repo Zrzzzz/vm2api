@@ -28,7 +28,7 @@ import { isOfficialUsageRateLimited, shouldHopOfficialUsage } from '../oauth/crs
 import { countTokensViaWorker } from '../transport/go-worker-client.mjs'
 import { apiKeyBetaHeader, setupTokenBetaHeader } from './claude-code-betas.mjs'
 import { listQuotaFromHeaders, publicUsageWindow, usageWindowsEmpty } from '../pool/quota-window.mjs'
-import { ownerScopeFromRequest } from '../admin/resource-owner.mjs'
+import { ownerScopeFromRequest } from '../admin/resource-owner.mts'
 import { keyScopeFromRequest, vmPoolDenial } from '../admin/key-scope.mjs'
 import { detectInboundPlatform } from './platform-detect.mjs'
 import { resolveInboundIdentity } from '../identity/identity-rewrite.mjs'
@@ -122,11 +122,13 @@ export async function peekCurrentAccount({
   if (platform && keyScope.group_type !== 'all' && keyScope.group_type !== platform) {
     return { ok: false, code: ErrorCode.KEY_GROUP_MISMATCH, group_type: keyScope.group_type }
   }
+  /** @type {import('../admin/resource-owner.mts').OwnerScope} */
+  const ownerScope = await ownerScopeFromRequest(req, usersRepo)
   return (await poolScheduler.peekAccount({
     model,
     stickyKey,
     signal,
-    ownerScope: ownerScopeFromRequest(req, usersRepo),
+    ownerScope,
     keyScope,
   }))
 }

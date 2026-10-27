@@ -696,3 +696,23 @@ describe('rest period (working window) is scheduling, not cooldown or credential
     expect(credentialStatus(resting).key).not.toBe('rest')
   })
 })
+
+for (const multiplier of [5, 20] as const) {
+  it(`shows official Max ${multiplier}x despite missing Fable usage`, () => {
+    expect(
+      claudeTier(
+        liveVm({
+          account_tier: 'max',
+          account_tier_source: 'profile',
+          account_max_multiplier: multiplier,
+          usage_has_fable: false,
+        })
+      ).label
+    ).toBe(`Max ${multiplier}x`)
+  })
+}
+it('does not guess a multiplier for legacy Max', () => {
+  expect(claudeTier(liveVm({ account_tier: 'max' })).label).toBe(
+    'Max（倍率未知）'
+  )
+})

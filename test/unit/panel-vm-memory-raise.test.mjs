@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
 import { createPanelHandler } from '../../src/lib/admin/panel-routes.mjs'
@@ -67,8 +68,11 @@ test('PATCH vm memory raises docker limit and returns memory_raise payload', asy
       root,
       { machine: { memory: '1g' } },
       {
-        raiseDockerSlotMemory: (projectRoot, vm, memory, opts) =>
-          raiseDockerSlotMemory(projectRoot, vm, memory, { ...opts, execImpl }),
+        raiseDockerSlotMemory: async (projectRoot, vm, memory, opts) => {
+          await new Promise((resolve) => setImmediate(resolve))
+          assert.equal(response.status, undefined, 'must not respond before the memory operation finishes')
+          return raiseDockerSlotMemory(projectRoot, vm, memory, { ...opts, execImpl })
+        },
       },
     )
     await patchVm(handlePanel)
@@ -77,7 +81,7 @@ test('PATCH vm memory raises docker limit and returns memory_raise payload', asy
     const saved = JSON.parse(fs.readFileSync(path.join(root, 'vms', 'vm-01.json'), 'utf8'))
     assert.equal(saved.machine.memory, '1g')
   } finally {
-    fs.rmSync(root, { recursive: true, force: true })
+    execFileSync('trash', [root])
   }
 })
 
@@ -91,7 +95,7 @@ test('PATCH vm memory rejects kvm slots', async () => {
     const saved = JSON.parse(fs.readFileSync(path.join(root, 'vms', 'vm-kvm.json'), 'utf8'))
     assert.equal(saved.machine.memory, '512m')
   } finally {
-    fs.rmSync(root, { recursive: true, force: true })
+    execFileSync('trash', [root])
   }
 })
 
@@ -105,6 +109,32 @@ test('PATCH vm memory rejects invalid values without persisting', async () => {
     const saved = JSON.parse(fs.readFileSync(path.join(root, 'vms', 'vm-03.json'), 'utf8'))
     assert.equal(saved.machine.memory, '512m')
   } finally {
-    fs.rmSync(root, { recursive: true, force: true })
+    execFileSync('trash', [root])
+  }
+})
+
+test('PATCH vm memory preserves the actual Docker failure after awaiting the operation', async () => {
+  const root = tmpProject('vm-01')
+  try {
+    const { handlePanel, response } = handler(root, { memory: '1g' }, {
+      raiseDockerSlotMemory: async (projectRoot, vm, memory, opts) => {
+        await new Promise((resolve) => setImmediate(resolve))
+        assert.equal(response.status, undefined)
+        return raiseDockerSlotMemory(projectRoot, vm, memory, {
+          ...opts,
+          execImpl: (argv) => argv.includes('update')
+            ? { ok: false, stderr: 'docker update rejected' }
+            : { ok: true, stdout: `${512 * 1024 ** 2} ${512 * 1024 ** 2} true` },
+        })
+      },
+    })
+    await patchVm(handlePanel)
+    assert.equal(response.status, 502)
+    assert.equal(response.body.error.code, 'docker_update_failed')
+    assert.equal(response.body.error.message, 'docker update rejected')
+    const saved = JSON.parse(fs.readFileSync(path.join(root, 'vms', 'vm-01.json'), 'utf8'))
+    assert.equal(saved.machine.memory, '512m')
+  } finally {
+    execFileSync('trash', [root])
   }
 })

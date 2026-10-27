@@ -1,3 +1,4 @@
+import { classifyJevRequest } from './jev-request.mjs'
 /**
  * One pre-hop gate for /v1 and count_tokens.
  *
@@ -17,11 +18,9 @@ import {
 import { RefusalDeviceBlocksRepo } from '../db/repos/refusal-device-blocks-repo.mjs'
 import {
   HARD_POLICY_RULES,
-  classifyJev,
   isPolicyBlockMemory,
   jevDocument,
   jevAccountInScope,
-  jevModelDocument,
   jevScopeConfigured,
   jevScopeWaits,
   matchHardPolicy,
@@ -176,10 +175,6 @@ export async function evaluateProtocolIntercept({
     stripReminders: jev?.strip_reminders !== false,
     expandBase64: jev?.expand_base64 !== false,
   })
-  const modelDocument = prepareInterceptText(jevModelDocument(inbound, body), {
-    stripReminders: jev?.strip_reminders !== false,
-    expandBase64: jev?.expand_base64 !== false,
-  })
   const distillOn = distillRules?.enabled !== false
   const hardOn = jev?.hard_regex_enabled !== false
   const rules = hardRulesFor(inbound, body, jev, distillOn)
@@ -233,7 +228,7 @@ export async function evaluateProtocolIntercept({
   }
 
   if (policy?.enabled && repo && typeof repo.get === 'function') {
-    let match = (await matchStoredRefusal({
+    let match = await matchStoredRefusal({
       inbound,
       body,
       headers,
@@ -242,7 +237,7 @@ export async function evaluateProtocolIntercept({
       similarityEnabled: policy.similarity_enabled,
       similarity: similarityRatio(policy.similarity),
       deviceBlockEnabled: policy.device_block_enabled,
-    }))
+    })
     // Our own Jev/regex block used to be stored here and then blocked every retry.
     if (match && match.kind !== 'device' && isPolicyBlockMemory(match.row?.error_message)) match = null
     if (match) {
@@ -266,7 +261,7 @@ export async function evaluateProtocolIntercept({
   }
 
   if (jev?.enabled) {
-    const verdict = await classifyJev(modelDocument, jev, fetchImpl)
+    const verdict = await classifyJevRequest(inbound || body, jev, { official, fetchImpl, requestId })
     if (verdict.action === 'block') {
       const unavailable = verdict.reason === 'unavailable'
       const error = policyBlockError(requestId)
@@ -287,7 +282,12 @@ export async function evaluateProtocolIntercept({
         final_state: 'policy_blocked',
         error,
         errorMessage: unavailable ? error.body.error.message : `${error.body?.error?.message}: ${category}`,
-        intercept: gateVerdict({ kind: 'block', by: 'jev', keyword: unavailable ? 'unavailable' : category }),
+        intercept: gateVerdict({
+          kind: 'block',
+          by: 'jev',
+          keyword: unavailable ? 'unavailable' : category,
+          audit: verdict.audit,
+        }),
         category: unavailable ? 'unavailable' : category,
         deviceId: inboundRefusalDeviceId({ inbound, body, headers }),
         fingerprint: refusalFingerprint(body, inbound),
@@ -307,7 +307,15 @@ export async function evaluateProtocolIntercept({
             ? 'regex'
             : 'unchecked'
           : 'fail-open'
-    return pass(by, verdict.reason === 'unavailable' ? verdict.detail || '' : '')
+    return {
+      action: 'pass',
+      intercept: gateVerdict({
+        kind: 'pass',
+        by,
+        keyword: verdict.reason === 'unavailable' ? verdict.detail || '' : '',
+        audit: verdict.audit,
+      }),
+    }
   }
 
   return pass(scanned ? 'regex' : 'unchecked')

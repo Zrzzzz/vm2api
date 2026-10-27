@@ -41,7 +41,12 @@ import {
 } from './oauth-credentials.mjs'
 import { canOfficialCc, credentialModeOfVm } from './credential-mode.mjs'
 import { ensureWorkerCredential } from '../transport/go-worker-client.mjs'
-import { inferTierFromOfficialStats, parseOfficialCcStats, tierFromOauthProfile } from './official-cc-stats.mjs'
+import {
+  inferTierFromOfficialStats,
+  parseOfficialCcStats,
+  tierFromOauthProfile,
+  maxMultiplierFromOauthProfile,
+} from './official-cc-stats.mjs'
 import { defaultSeedPolicy } from '../protocol/seed-policy.mjs'
 import { OFFICIAL_CLI_VERSION, loadVmIdentity, persistVmSettings } from '../identity/vm-identity.mjs'
 import { applyOfficialFingerprintToVm, readOfficialCcIdentity } from '../identity/official-fingerprint.mjs'
@@ -578,6 +583,7 @@ export function writeOfficialCcStatus(homeDir, status) {
     step: status.step || null,
     official_login: !!status.official_login,
     account_tier: status.account_tier || null,
+    account_max_multiplier: status.account_max_multiplier ?? null,
     has_oauth_account: !!status.has_oauth_account,
     has_user_id: !!status.has_user_id,
     has_machine_id: !!status.has_machine_id,
@@ -1055,6 +1061,7 @@ export async function collectOfficialCcAccount(exec, { slotOauth } = {}) {
   const list = Array.isArray(models?.body?.data) ? models.body.data : []
   return {
     account_tier: tier,
+    account_max_multiplier: profile?.ok ? maxMultiplierFromOauthProfile(profile.body) : null,
     profile_ok: !!profile?.ok,
     profile_error: profile?.ok ? null : profile?.body?.error?.code || `http_${profile?.status || 0}`,
     available_models: models?.ok ? list.map((m) => String(m?.id || '')).filter(Boolean) : null,
@@ -1265,6 +1272,10 @@ export async function runOfficialCcBootstrap(rawOpts = {}) {
     })
     const account = await collectOfficialCcAccount({ vmId, homeDir, vm }, { slotOauth })
     let tierSource = null
+    if (account.account_tier) {
+      stats = { ...stats, account_tier: account.account_tier, account_max_multiplier: account.account_max_multiplier }
+      tierSource = 'profile'
+    }
     if (stats?.limits_present === true && !stats.account_tier) {
       const accountTier = inferTierFromOfficialStats('', stats)
       if (accountTier) stats = { ...stats, account_tier: accountTier }
@@ -1291,6 +1302,7 @@ export async function runOfficialCcBootstrap(rawOpts = {}) {
       usage_via: stats?.via || null,
       stats_ok: usageOk,
       account_tier: stats?.account_tier || null,
+      account_max_multiplier: stats?.account_max_multiplier ?? null,
       force,
       step: 'seed',
     })
@@ -1319,6 +1331,7 @@ export async function runOfficialCcBootstrap(rawOpts = {}) {
       usage_via: stats?.via || null,
       stats_ok: usageOk,
       account_tier: stats?.account_tier || null,
+      account_max_multiplier: stats?.account_max_multiplier ?? null,
       force,
       step: 'telemetry',
     })
@@ -1347,6 +1360,7 @@ export async function runOfficialCcBootstrap(rawOpts = {}) {
       wiped: wiped.wiped,
       official_login: true,
       account_tier: stats?.account_tier || null,
+      account_max_multiplier: stats?.account_max_multiplier ?? null,
       account_tier_source: tierSource,
       available_models: account.available_models,
       profile_error: account.profile_error,

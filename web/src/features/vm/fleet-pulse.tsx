@@ -15,6 +15,7 @@ import {
   type VmZone,
   type VmZoneFilter,
 } from '@/features/vm/vm-rack-model'
+import { ResourceSummary } from './resource-meter'
 
 /** 7d 余量直方图的档位。越靠左越危险，和用量条的风险轴同向。 */
 const HEADROOM_BUCKETS: { label: string; color: string }[] = [
@@ -170,6 +171,9 @@ export function FleetPulse({
         className
       )}
     >
+      <div className='bg-card p-3.5 sm:col-span-2 xl:col-span-10'>
+        <ResourceSummary vms={vms} />
+      </div>
       <Cell
         title='状态分区'
         className='sm:col-span-2 xl:col-span-4'

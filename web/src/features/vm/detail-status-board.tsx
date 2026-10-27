@@ -29,6 +29,7 @@ import {
 } from '@/lib/wrap-health'
 import { SlotIdentity } from '@/components/platform-chip'
 import { StatusMark } from '@/components/status-mark'
+import { ActiveUsageAction } from '@/features/vm/active-usage-action'
 import { ClaudeResetActions } from '@/features/vm/claude-reset-actions'
 import { CodexKernelHealthFields } from '@/features/vm/codex-kernel-health-card'
 import { dataplaneLabel } from '@/features/vm/dataplane-contract'
@@ -341,7 +342,10 @@ export function VmStatusBoard(props: Props) {
                     />
                   </div>
                 ) : null}
-                <ClaudeResetActions vm={vm} now={now} />
+                <div className='grid gap-1'>
+                  <ActiveUsageAction vm={vm} />
+                  <ClaudeResetActions vm={vm} now={now} />
+                </div>
               </>
             )}
           </div>

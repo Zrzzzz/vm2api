@@ -378,7 +378,7 @@ function whereSql(where) {
 
 export class UsageLogsView {
   /**
-   * @param {import('../database.mjs').PostgresDatabase} db
+   * @param {import('../database.mts').PostgresDatabase} db
    * @param {{ mutedErrorClasses?: string[] }} [opts] settings default mute list
    */
   constructor(db = getDb(), { mutedErrorClasses = DEFAULT_MUTED_ERROR_CLASSES } = {}) {

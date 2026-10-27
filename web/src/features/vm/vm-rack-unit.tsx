@@ -21,6 +21,7 @@ import {
   zoneOf,
   type WindowReadout,
 } from '@/features/vm/vm-rack-model'
+import { ResourceMeter } from './resource-meter'
 
 function MiniColumn({ w, now }: { w: WindowReadout; now: number }) {
   const reset = w.reset ? resetCountdown(w.reset, now) : null
@@ -144,6 +145,9 @@ export const VmUnit = memo(function VmUnit({
           </span>
         </span>
       ) : null}
+      <div className='col-span-2'>
+        <ResourceMeter usage={vm.resource_usage} />
+      </div>
       <div className='hairline-t col-span-2 mt-0.5 flex items-center gap-1 pt-1 text-[10.5px] text-muted-foreground'>
         <VmSeats vm={vm} compact />
         <BladeControls vm={vm} />

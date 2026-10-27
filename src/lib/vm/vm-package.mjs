@@ -21,7 +21,7 @@ import {
   writeGuestMachineIdFile,
 } from '../identity/workstation-fingerprint.mjs'
 import { assignComputerFingerprint } from '../identity/slot-computer.mjs'
-import { VM_ORIGIN, canBindProxyToVm, normalizeOwnerId } from '../admin/resource-owner.mjs'
+import { VM_ORIGIN, canBindProxyToVm, normalizeOwnerId } from '../admin/resource-owner.mts'
 import { readCodexAccounts, writeCodexAccounts } from './codex-slot.mjs'
 import { hasBoundExit, isLocalEgressProxy } from './egress.mjs'
 import { OS_CATALOG, STANDARD_LOCALE, nextNumericIndex, padVm, parseVmIndex } from './vm-runtime.mjs'

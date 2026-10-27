@@ -57,7 +57,7 @@ import { resolveInferenceBackend, runApiInference } from '../pool/api-protocol.m
 import { classifyClaudeRequestPurpose, prepareClassifierBody, classifierRequestSummary } from './request-purpose.mjs'
 import { summarizeBody, redactHeaders, presentedApiKeyForLog } from '../admin/request-log.mjs'
 import { reasoningEffortOf, sessionIdForLog } from './log-fields.mjs'
-import { ownerScopeFromRequest } from '../admin/resource-owner.mjs'
+import { ownerScopeFromRequest } from '../admin/resource-owner.mts'
 import { keyScopeFromRequest, vmPoolDenial } from '../admin/key-scope.mjs'
 import {
   resolveInferenceEngine,
@@ -1191,7 +1191,8 @@ export function createHandleProtocol(deps) {
     const pinVmRaw = String(req.headers['x-kin-vm'] || '').trim()
     const pinVmId = req.apiKeyKind === 'master' && isValidVmId(pinVmRaw) ? pinVmRaw : null
     // Pin is panel test-chat / diagnostics (manage). Unpinned /v1 is dispatch.
-    const ownerScope = pinVmId ? { type: 'any' } : ownerScopeFromRequest(req, apiKeyStore?.users)
+    /** @type {import('../admin/resource-owner.mts').OwnerScope} */
+    const ownerScope = pinVmId ? { type: 'any' } : await ownerScopeFromRequest(req, apiKeyStore?.users)
     // Cache bypass is a client hint; only authenticated master-key probes may skip accounting.
     const healthReal = req.apiKeyKind === 'master' && isHealthRealBypass(req.headers)
     // Cache lives per account; a failover to another account starts cold by design.

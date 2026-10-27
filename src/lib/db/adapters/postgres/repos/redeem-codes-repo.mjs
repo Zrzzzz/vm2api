@@ -6,7 +6,7 @@
 
 import crypto from 'node:crypto'
 import { getDb } from '../../../database.mjs'
-import { UsersRepo } from './users-repo.mjs'
+import { UsersRepo } from './users-repo.mts'
 
 function rowToRec(row) {
   if (!row) return null

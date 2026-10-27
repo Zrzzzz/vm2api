@@ -8,7 +8,7 @@
 import crypto from 'node:crypto'
 import { resolveStoreDb } from '../db/database.mjs'
 import { UsersRepo } from '../db/repos/users-repo.mjs'
-import { clampVmCreateQuota } from './resource-owner.mjs'
+import { clampVmCreateQuota } from './resource-owner.mts'
 import { reclaimAssignedVms } from '../vm/vm-registry.mjs'
 
 export const PANEL_ROLES = ['admin', 'super', 'user']

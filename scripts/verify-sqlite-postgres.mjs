@@ -3,7 +3,7 @@ import {DatabaseSync} from 'node:sqlite'
 import {pathToFileURL} from 'node:url'
 import {rowDigest} from './migrate-sqlite-to-postgres.mjs'
 import {targetDigest,targetRows} from './sync-sqlite-to-postgres.mjs'
-import {PostgresDatabase,postgresConfig} from '../src/lib/db/adapters/postgres/database.mjs'
+import {PostgresDatabase,postgresConfig} from '../src/lib/db/adapters/postgres/database.mts'
 const ident=name=>'"'+name.replaceAll('"','""')+'"',mask=(1n<<256n)-1n
 export async function verifySnapshot(snapshot,db){
  const source=new DatabaseSync(snapshot,{readOnly:true})

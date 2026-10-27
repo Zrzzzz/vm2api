@@ -15,7 +15,7 @@ import net from 'node:net'
 import crypto from 'node:crypto'
 import { resolveStoreDb } from '../db/database.mjs'
 import { ProxiesRepo } from '../db/repos/proxies-repo.mjs'
-import { canBindProxyToVm, normalizeOwnerId, proxyOwnerId, vmOwnerId } from '../admin/resource-owner.mjs'
+import { canBindProxyToVm, normalizeOwnerId, proxyOwnerId, vmOwnerId } from '../admin/resource-owner.mts'
 import { validTimezone } from '../core/timezone.mjs'
 import { lookupProxyGeo, lookupProxyGeoV6 } from './proxy-geo.mjs'
 import {

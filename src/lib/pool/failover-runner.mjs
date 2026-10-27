@@ -589,7 +589,7 @@ export class FailoverRunner {
     familyVmId = null,
     deviceKey = null,
     skipSessionSeat = false,
-    ownerScope = null,
+    ownerScope = /** @type {import('../admin/resource-owner.mts').OwnerScope | null} */ (null),
     keyScope = null,
     countUsage = true,
     quotaRequest = null,

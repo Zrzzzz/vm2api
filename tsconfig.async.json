@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+    "src/**/*.mjs",
+    "src/**/*.mts",
+    "test/types/**/*.ts"
+  ]
+}

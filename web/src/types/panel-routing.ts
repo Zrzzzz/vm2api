@@ -168,7 +168,6 @@ export type JevInterceptConfig = {
     safety_threshold: number
     block_if_below: boolean
     fail_open: boolean
-    dedup_sec: number
     max_state_chars: number
     expand_base64: boolean
     strip_reminders: boolean
@@ -180,6 +179,7 @@ export type JevInterceptConfig = {
   timeout_ms: number
   api_key_set: boolean
   api_key_count: number
+  trusted_system_hashes?: string[]
   safety_instruction: string
   question_ids: string[]
   question_bank?: PolicyQuestion[]
@@ -187,7 +187,6 @@ export type JevInterceptConfig = {
   safety_threshold: number
   block_if_below: boolean
   fail_open: boolean
-  dedup_sec: number
   max_state_chars: number
   expand_base64: boolean
   strip_reminders: boolean

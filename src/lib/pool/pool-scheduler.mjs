@@ -38,7 +38,7 @@ import { slotAllowsModel } from './slot-model-gate.mjs'
 import { isCodexVm } from '../vm/vm-kind.mjs'
 import { detectInboundPlatform } from '../protocol/platform-detect.mjs'
 import { resolveCredentialScheduleLevel } from './credential-weight.mjs'
-import { PLATFORM_SCOPE, normalizeOwnerId, vmMatchesOwnerScope } from '../admin/resource-owner.mjs'
+import { PLATFORM_SCOPE, normalizeOwnerId, vmMatchesOwnerScope } from '../admin/resource-owner.mts'
 import { keyAllowsVm } from '../admin/key-scope.mjs'
 import {
   kernelFaults,
@@ -382,7 +382,7 @@ export class PoolScheduler extends EventEmitter {
     pinVmId = null,
     familyVmId = null,
     deviceVmId = null,
-    ownerScope = PLATFORM_SCOPE,
+    ownerScope = /** @type {import('../admin/resource-owner.mts').OwnerScope} */ (PLATFORM_SCOPE),
     keyScope = null,
     stickyKeys = null,
     quotaRequest = null,
@@ -547,7 +547,7 @@ export class PoolScheduler extends EventEmitter {
     allowWait = true,
     familyVmId = null,
     deviceVmId = null,
-    ownerScope = PLATFORM_SCOPE,
+    ownerScope = /** @type {import('../admin/resource-owner.mts').OwnerScope} */ (PLATFORM_SCOPE),
     keyScope = null,
     quotaRequest = null,
   } = {}) {
@@ -862,7 +862,7 @@ export class PoolScheduler extends EventEmitter {
     excluded = new Set(),
     signal,
     pinVmId = null,
-    ownerScope = PLATFORM_SCOPE,
+    ownerScope = /** @type {import('../admin/resource-owner.mts').OwnerScope} */ (PLATFORM_SCOPE),
     keyScope = null,
     quotaRequest = null,
   } = {}) {
@@ -1351,7 +1351,7 @@ export class PoolScheduler extends EventEmitter {
   }
 
   /** Read-only current account. Never bind, unbind, or reserve. */
-  async peekAccount({ model, stickyKey = null, signal, ownerScope = PLATFORM_SCOPE, keyScope = null } = {}) {
+  async peekAccount({ model, stickyKey = null, signal, ownerScope = /** @type {import('../admin/resource-owner.mts').OwnerScope} */ (PLATFORM_SCOPE), keyScope = null } = {}) {
     const candidates = await this.eligibleCandidates({ model, signal, ownerScope, keyScope })
     if (!candidates.length) {
       const empty = emptyPoolFailure(model, candidates)

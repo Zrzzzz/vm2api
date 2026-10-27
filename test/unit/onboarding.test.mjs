@@ -7,7 +7,7 @@ import { createDatabase } from '../../src/lib/db/database.mjs'
 import { hashPassword } from '../../src/lib/admin/panel-users.mjs'
 import { SettingsRepo } from '../../src/lib/db/repos/settings-repo.mjs'
 import { UsageLogsRepo } from '../../src/lib/db/repos/usage-logs-repo.mjs'
-import { filterVmsForPanel } from '../../src/lib/admin/resource-owner.mjs'
+import { filterVmsForPanel } from '../../src/lib/admin/resource-owner.mts'
 import {
   DEFAULT_ADMIN_PASSWORD,
   MASTER_ONBOARDING_USER,

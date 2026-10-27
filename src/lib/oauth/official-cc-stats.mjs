@@ -49,6 +49,13 @@ function windowFromText(text, patterns) {
  * Authoritative tier from GET /api/oauth/profile (what the official CLI
  * reads for "Max"/"Pro"). Returns null when the profile does not say.
  */
+export function maxMultiplierFromOauthProfile(profile = {}) {
+  const rateTier = String(profile?.organization?.rate_limit_tier || '').trim().toLowerCase()
+  if (rateTier === 'default_claude_max_5x') return 5
+  if (rateTier === 'default_claude_max_20x') return 20
+  return null
+}
+
 export function tierFromOauthProfile(profile = {}) {
   const account = profile?.account || {}
   const org = profile?.organization || {}

@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite'
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import { pathToFileURL } from 'node:url'
-import { PostgresDatabase, postgresConfig } from '../src/lib/db/adapters/postgres/database.mjs'
+import { PostgresDatabase, postgresConfig } from '../src/lib/db/adapters/postgres/database.mts'
 
 const identifier = (name) => '"' + name.replaceAll('"', '""') + '"'
 const MASK = (1n << 256n) - 1n

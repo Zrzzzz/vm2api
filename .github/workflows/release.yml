@@ -18,7 +18,19 @@ permissions:
   contents: read
 
 jobs:
+  async-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check && npm run test:async-guards
+
   linux-amd64:
+    needs: async-safety
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:

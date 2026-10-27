@@ -3,15 +3,14 @@
  *
  * Jev, local Laya, and ModernBERT share `/v1/systemone`. A score under the
  * configured line blocks (0.5 unless the panel changes it). One score within
- * 0.08 under that line does not. The same state reuses that verdict for the
- * configured window. A dead model fails open unless fail_open is off.
+ * 0.08 under that line does not. Only approved system prompts are cached by jev-request;
+ * user instructions are judged every time. A dead model fails open unless fail_open is off.
  * 401 / 429 / 529 retires that key and tries the next. A network error or
  * other HTTP status skips the rest of that host for this call only.
  * A line may be `https://host[/v1/systemone] <key>`.
  */
 import { ErrorCode, ErrorType, makeError } from '../core/errors.mjs'
 import { refusalUserDocument } from '../core/refusal-similarity.mjs'
-import { normalizeText } from '../core/distill-detect.mjs'
 import { hasAccessPresence } from '../oauth/oauth-credentials.mjs'
 import { prepareInterceptText } from './jev-prepare.mjs'
 import { inferClaudeTier } from '../pool/claude-tier.mjs'
@@ -333,8 +332,6 @@ function askedIds(cfg) {
   return questionIdsOf(cfg)
 }
 
-const verdictCache = new Map()
-
 function providerOf(id) {
   return POLICY_PROVIDERS.find((item) => item.id === id) || POLICY_PROVIDERS[0]
 }
@@ -359,7 +356,6 @@ export function defaultJevConfig() {
     safety_threshold: POLICY_NOUL,
     block_if_below: true,
     fail_open: true,
-    dedup_sec: 60,
     max_state_chars: 16000,
     expand_base64: true,
     strip_reminders: true,
@@ -688,7 +684,6 @@ export function normalizeJevConfig(raw) {
   }
   const apiKeys = normalizeKeys(raw)
   const threshold = Number(raw.safety_threshold)
-  const dedup = Number(raw.dedup_sec)
   const maxState = Number(raw.max_state_chars)
   return {
     enabled: raw.enabled === true,
@@ -714,10 +709,15 @@ export function normalizeJevConfig(raw) {
     question_ids: normalizeQuestions(raw)
       .filter((item) => item.enabled)
       .map((item) => item.id),
+    trusted_system_hashes: Array.isArray(raw.trusted_system_hashes)
+      ? [...new Set(raw.trusted_system_hashes.filter((v) => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v)))].slice(
+          0,
+          512,
+        )
+      : [],
     safety_threshold: Number.isFinite(threshold) && threshold >= 0 && threshold <= 1 ? threshold : POLICY_NOUL,
     block_if_below: raw.block_if_below !== false,
     fail_open: raw.fail_open !== false,
-    dedup_sec: Number.isInteger(dedup) && dedup >= 0 && dedup <= 3600 ? dedup : 60,
     max_state_chars: Number.isInteger(maxState) && maxState >= 256 && maxState <= 64000 ? maxState : 16000,
     expand_base64: raw.expand_base64 !== false,
     strip_reminders: raw.strip_reminders !== false,
@@ -754,10 +754,10 @@ export function publicJevConfig(cfg) {
       enabled: true,
       builtin: true,
     })),
+    trusted_system_hashes: c.trusted_system_hashes,
     safety_threshold: c.safety_threshold,
     block_if_below: c.block_if_below,
     fail_open: c.fail_open,
-    dedup_sec: c.dedup_sec,
     max_state_chars: c.max_state_chars,
     expand_base64: c.expand_base64,
     strip_reminders: c.strip_reminders,
@@ -767,7 +767,6 @@ export function publicJevConfig(cfg) {
       safety_threshold: POLICY_NOUL,
       block_if_below: true,
       fail_open: true,
-      dedup_sec: 60,
       max_state_chars: 16000,
       expand_base64: true,
       strip_reminders: true,
@@ -854,14 +853,18 @@ export function validateJevPatch(body = {}) {
       }
     }
   }
+  if (
+    'trusted_system_hashes' in body &&
+    (!Array.isArray(body.trusted_system_hashes) ||
+      body.trusted_system_hashes.length > 512 ||
+      body.trusted_system_hashes.some((v) => typeof v !== 'string' || !/^[a-f0-9]{64}$/.test(v)))
+  )
+    problems.push('trusted_system_hashes 必须为最多 512 个 SHA-256 指纹')
   if (Object.hasOwn(body, 'safety_threshold')) {
     const n = Number(body.safety_threshold)
     if (!Number.isFinite(n) || n < 0 || n > 1) problems.push('safety_threshold 必须是 0 到 1')
   }
-  if (Object.hasOwn(body, 'dedup_sec')) {
-    const n = Number(body.dedup_sec)
-    if (!Number.isInteger(n) || n < 0 || n > 3600) problems.push('dedup_sec 必须是 0–3600 的整数')
-  }
+
   if (Object.hasOwn(body, 'max_state_chars')) {
     const n = Number(body.max_state_chars)
     if (!Number.isInteger(n) || n < 256 || n > 64000) problems.push('max_state_chars 必须是 256–64000 的整数')
@@ -924,7 +927,7 @@ export function validateJevPatch(body = {}) {
 export async function applyJevPatch(settings, body = {}) {
   const problems = validateJevPatch(body)
   if (problems.length) return { ok: false, problems }
-  const current = normalizeJevConfig((await settings.get(JEV_SETTING, null)))
+  const current = normalizeJevConfig(await settings.get(JEV_SETTING, null))
   const next = normalizeJevConfig({
     ...current,
     ...body,
@@ -991,31 +994,6 @@ export function matchHardPolicy(text, extra = [], rules = null) {
 /** Hard regex sees user-authored turns only. Tool results and official system text are not scanned. */
 export function jevDocument(inbound, body = inbound) {
   return refusalUserDocument(inbound, body, { includeToolResults: false })
-}
-
-/** Jev also sees the client system. Roleplay tasks put the sexual text there and leave the user turn as a character card. */
-export function jevModelDocument(inbound, body = inbound) {
-  const seen = new Set()
-  const parts = []
-  const push = (text) => {
-    const norm = normalizeText(text)
-    if (!norm || seen.has(norm)) return
-    seen.add(norm)
-    parts.push(norm)
-  }
-  for (const src of [inbound, body]) {
-    // Responses carries the client system prompt as `instructions`.
-    for (const field of ['system', 'instructions']) {
-      const system = src?.[field]
-      const blocks = typeof system === 'string' ? [system] : Array.isArray(system) ? system : []
-      for (const block of blocks) {
-        push(typeof block === 'string' ? block : block?.text)
-      }
-    }
-  }
-  const user = jevDocument(inbound, body)
-  if (user) parts.push(user)
-  return parts.join('\n')
 }
 
 /** Explicit model wins. Otherwise Jev uses jev-latest, ModernBERT uses english, Laya lets the router choose. */
@@ -1099,13 +1077,6 @@ export function questionsFor(config) {
   return questions
 }
 
-function dedupKey(url, model, config, state) {
-  const asked = Object.entries(questionsFor(config))
-    .map(([id, question]) => `${id}:${question.instructions}`)
-    .join('\n')
-  return `${url}\0${model}\0${config.safety_threshold}\0${config.block_if_below}\0${asked}\0${state}`
-}
-
 /** Model catalog lives beside systemone: strip /decide and /v1, then add /v1/models. */
 export function policyModelsUrl(baseUrl) {
   let base = String(baseUrl || '')
@@ -1179,16 +1150,6 @@ export async function listPolicyModels(
   return { url, models }
 }
 
-function cachedVerdict(key, now, windowMs) {
-  const row = verdictCache.get(key)
-  if (!row) return null
-  if (now - row.at > windowMs) {
-    verdictCache.delete(key)
-    return null
-  }
-  return row.verdict
-}
-
 function unavailable(config, detail = '') {
   const row = config.fail_open
     ? { action: 'pass', reason: 'unavailable' }
@@ -1235,7 +1196,7 @@ let keyCursor = 0
 /**
  * @returns {Promise<{ action: 'pass', reason?: string } | { action: 'block', category: string, categories: string[] }>}
  */
-export async function classifyJev(text, cfg, fetchImpl = globalThis.fetch, now = Date.now()) {
+export async function classifyJev(text, cfg, fetchImpl = globalThis.fetch) {
   const config = normalizeJevConfig(cfg)
   const document = prepareInterceptText(text, {
     stripReminders: config.strip_reminders,
@@ -1245,12 +1206,6 @@ export async function classifyJev(text, cfg, fetchImpl = globalThis.fetch, now =
   const url = decisionUrl(config.base_url)
   if (!url || typeof fetchImpl !== 'function') return { action: 'pass', reason: 'skip' }
   const model = resolvedPolicyModel(config)
-  const windowMs = config.dedup_sec * 1000
-  const key = dedupKey(url, model, config, document)
-  if (windowMs > 0) {
-    const cached = cachedVerdict(key, now, windowMs)
-    if (cached) return { ...cached, reason: 'replay' }
-  }
   const payload = { state: document, questions: questionsFor(config) }
   if (model) payload.model = model
   const all = jevTargets(config)
@@ -1292,7 +1247,6 @@ export async function classifyJev(text, cfg, fetchImpl = globalThis.fetch, now =
             categories: decision.hits.map((hit) => hit.category),
           }
         : { action: 'pass', reason: 'safe' }
-      if (windowMs > 0) verdictCache.set(key, { verdict, at: now })
       return verdict
     } catch {
       // Host-level. Do not retire keys, and do not walk the rest of this host.

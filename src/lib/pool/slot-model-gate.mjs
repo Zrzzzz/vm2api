@@ -104,6 +104,10 @@ function quotaView(vm, account) {
 
 export function resolveSlotTier(vm, account = null) {
   const quota = quotaView(vm, account)
+  const profile = account?.unified?.account_tier_source === 'profile' ? account.unified : vm?.claude || vm
+  if (profile?.account_tier_source === 'profile' && ['pro', 'max'].includes(profile.account_tier)) {
+    return profile.account_tier
+  }
   // An explicit Pro classification must veto stale Max usage evidence. The
   // latter can survive a credential change or a Fable entitlement rejection.
   if (

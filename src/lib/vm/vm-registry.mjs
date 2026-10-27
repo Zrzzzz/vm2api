@@ -19,7 +19,7 @@ import { isCredentialRefreshFailed, isLeftoverQuotaScheduleOff } from '../pool/a
 import { manualScheduleLevelOf, parseScheduleLevelInput } from '../pool/credential-weight.mjs'
 import { vmQuotaOverrideOf } from '../pool/vm-quota-override.mjs'
 import { activeHoursOf, parseActiveHoursInput } from '../pool/active-hours.mjs'
-import { normalizeOwnerId, vmOriginOf, vmOwnerId, VM_ORIGIN } from '../admin/resource-owner.mjs'
+import { normalizeOwnerId, vmOriginOf, vmOwnerId, VM_ORIGIN } from '../admin/resource-owner.mts'
 import { isCodexVm, normalizeVmKind } from './vm-kind.mjs'
 import { canClaudeResetCredits } from '../oauth/credential-mode.mjs'
 import { validTimezone } from '../core/timezone.mjs'
@@ -100,6 +100,8 @@ export function summarizeVm(vm, projectRoot = null, routing = null) {
     auth_scheme: kind.kind === 'codex' ? null : vm.claude?.auth_scheme || null,
     has_refresh: kind.kind === 'codex' ? !!codex?.has_refresh : hasRefreshPresence(vm.claude),
     refresh_error: kind.kind === 'codex' ? null : vm.claude?.refresh_error || null,
+    account_max_multiplier: vm.claude?.account_max_multiplier ?? null,
+    account_tier_source: vm.claude?.account_tier_source || null,
     account_tier:
       kind.kind === 'codex' ? 'codex' : vm.claude?.account_tier || (hasAccessPresence(vm.claude) ? 'pro' : null),
     has_session_key: false,
@@ -184,17 +186,22 @@ export function getActiveVmId(projectRoot) {
   }
 }
 
-export async function persistAccountTier(projectRoot, vmId, tier, { source = null } = {}) {
+export async function persistAccountTier(projectRoot, vmId, tier, { source = null, maxMultiplier = null } = {}) {
   const key = String(tier || '').toLowerCase()
   if (key !== 'pro' && key !== 'max') return null
   const file = path.join(projectRoot, 'vms', `${vmId}.json`)
   if (!fs.existsSync(file)) return null
   const vm = JSON.parse(fs.readFileSync(file, 'utf8'))
   vm.claude = vm.claude || {}
-  if (vm.claude.account_tier_source === 'profile' && source !== 'profile' && source !== 'usage') return vm
-  if (vm.claude.account_tier === key && (vm.claude.account_tier_source || null) === source) return vm
+  if (vm.claude?.account_tier_source === 'profile' && source !== 'profile') return vm
+  if (
+    vm.claude.account_tier === key &&
+    (vm.claude.account_tier_source || null) === source &&
+    (vm.claude.account_max_multiplier ?? null) === (key === 'max' ? maxMultiplier : null)
+  ) return vm
   vm.claude.account_tier = key
   vm.claude.account_tier_source = source
+  vm.claude.account_max_multiplier = key === 'max' && [5, 20].includes(maxMultiplier) ? maxMultiplier : null
   vm.updated_at = new Date().toISOString()
   await atomicWriteJson(file, vm, { mode: 0o600 })
   return vm

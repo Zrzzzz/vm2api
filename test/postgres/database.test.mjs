@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
-import { PostgresDatabase, postgresConfig } from '../../src/lib/db/adapters/postgres/database.mjs'
+import { PostgresDatabase, postgresConfig } from '../../src/lib/db/adapters/postgres/database.mts'
 import { createDatabase } from './fixtures/sqlite-source.mjs'
 import { migrateSnapshot } from '../../scripts/migrate-sqlite-to-postgres.mjs'
 

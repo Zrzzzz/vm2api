@@ -51,6 +51,7 @@ export function gateVerdict(fields = {}) {
     by: String(fields.by || '').slice(0, 40),
     keyword: String(fields.keyword || '').slice(0, 40),
     rule: String(fields.rule || '').slice(0, 120),
+    ...(fields.audit ? { audit: fields.audit } : {}),
   })
 }
 

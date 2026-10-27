@@ -30,13 +30,17 @@ jobs:
           go-version: '1.25.x'
           cache-dependency-path: worker/go.sum
       - run: npm ci
+      - name: asynchronous database type safety
+        run: npm run check && npm run test:async-guards
+      - name: recoverable test cleanup
+        run: sudo apt-get update -qq && sudo apt-get install -y trash-cli
       - name: panel user and onboarding regression tests
         run: node --test test/unit/panel-users.test.mjs test/unit/onboarding.test.mjs test/e2e/panel-users.e2e.test.mjs
       - name: format-check
         run: npx biome format
       - name: syntax-check Node source and scripts
         run: |
-          find src scripts -name '*.mjs' -print0 | xargs -0 -n1 node --check
+          find src scripts \( -name '*.mjs' -o -name '*.mts' \) -print0 | xargs -0 -n1 node --check
       - name: slot payloads and egress helper used by the unit tests
         run: |
           npm run fetch:payload

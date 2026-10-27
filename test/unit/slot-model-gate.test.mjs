@@ -11,42 +11,42 @@ import {
 } from '../../src/lib/pool/slot-model-gate.mjs'
 import { persistAllowedModels, summarizeVm } from '../../src/lib/vm/vm-registry.mjs'
 
-test('empty allowlist inherits all models', () => {
+test('empty allowlist inherits all models', async () => {
   assert.equal(normalizeAllowedModels(null), null)
   assert.equal(normalizeAllowedModels([]), null)
-  assert.equal(modelMatchesAllowlist('claude-opus-5', null), true)
+  assert.equal(await modelMatchesAllowlist('claude-opus-5', null), true)
 })
 
-test('allowlist matches aliases and dated prefixes', () => {
-  assert.equal(modelMatchesAllowlist('claude-fable-5-20260801', ['claude-fable-5']), true)
-  assert.equal(modelMatchesAllowlist('claude-fable-5', ['fable']), true)
-  assert.equal(modelMatchesAllowlist('claude-opus-5', ['claude-sonnet-5']), false)
+test('allowlist matches aliases and dated prefixes', async () => {
+  assert.equal(await modelMatchesAllowlist('claude-fable-5-20260801', ['claude-fable-5']), true)
+  assert.equal(await modelMatchesAllowlist('claude-fable-5', ['fable']), true)
+  assert.equal(await modelMatchesAllowlist('claude-opus-5', ['claude-sonnet-5']), false)
 })
 
-test('fable requires max even if the allowlist includes it', () => {
-  const pro = slotAllowsModel({
+test('fable requires max even if the allowlist includes it', async () => {
+  const pro = await slotAllowsModel({
     vm: { claude: { account_tier: 'pro' }, policy: { allowed_models: ['claude-fable-5'] } },
     model: 'claude-fable-5',
   })
   assert.equal(pro.ok, false)
   assert.equal(pro.reason, 'fable_requires_max')
-  const unknown = slotAllowsModel({
+  const unknown = await slotAllowsModel({
     vm: { claude: {}, policy: {} },
     model: 'claude-fable-5',
   })
   assert.equal(unknown.ok, false)
   assert.equal(unknown.reason, 'fable_requires_max')
-  const max = slotAllowsModel({
+  const max = await slotAllowsModel({
     vm: { claude: { account_tier: 'max' }, policy: {} },
     model: 'claude-fable-5',
   })
   assert.equal(max.ok, true)
 })
 
-test('explicit Pro tier and recent model denial override stale Max usage', () => {
+test('explicit Pro tier and recent model denial override stale Max usage', async () => {
   const vm = { claude: { account_tier: 'pro' }, policy: {} }
   const account = { unified: { account_tier: 'max', usage_has_fable: true } }
-  assert.deepEqual(slotAllowsModel({ vm, account, model: 'claude-fable-5' }), {
+  assert.deepEqual(await slotAllowsModel({ vm, account, model: 'claude-fable-5' }), {
     ok: false,
     reason: 'fable_requires_max',
   })
@@ -58,54 +58,54 @@ test('explicit Pro tier and recent model denial override stale Max usage', () =>
       model_denied_until: { 'claude-fable-5': Date.now() + 60_000 },
     },
   }
-  assert.deepEqual(slotAllowsModel({ vm: maxVm, account: denied, model: 'claude-fable-5' }), {
+  assert.deepEqual(await slotAllowsModel({ vm: maxVm, account: denied, model: 'claude-fable-5' }), {
     ok: false,
     reason: 'model_not_supported',
   })
-  assert.deepEqual(slotAllowsModel({ vm: maxVm, account: denied, model: 'claude-sonnet-5' }), { ok: true })
+  assert.deepEqual(await slotAllowsModel({ vm: maxVm, account: denied, model: 'claude-sonnet-5' }), { ok: true })
 })
 
-test('legacy Fable 5.1 allowlists accept the corrected id without allowing Fable 5', () => {
-  assert.equal(modelMatchesAllowlist('claude-fable-5-1', ['claude-fable-5.1']), true)
-  assert.equal(modelMatchesAllowlist('claude-fable-5.1', ['claude-fable-5-1']), true)
-  assert.equal(modelMatchesAllowlist('claude-fable-5-1-20260918', ['claude-fable-5.1']), true)
-  assert.equal(modelMatchesAllowlist('claude-fable-5-1', ['claude-fable-5']), false)
-  assert.equal(modelMatchesAllowlist('claude-fable-5', ['claude-fable-5-1']), false)
-  assert.equal(modelMatchesAllowlist('claude-fable-5', ['claude-fable-5.1']), false)
-  assert.deepEqual(parseAllowedModelsPatch(['claude-fable-5.1']), { ok: true, value: ['claude-fable-5-1'] })
+test('legacy Fable 5.1 allowlists accept the corrected id without allowing Fable 5', async () => {
+  assert.equal(await modelMatchesAllowlist('claude-fable-5-1', ['claude-fable-5.1']), true)
+  assert.equal(await modelMatchesAllowlist('claude-fable-5.1', ['claude-fable-5-1']), true)
+  assert.equal(await modelMatchesAllowlist('claude-fable-5-1-20260918', ['claude-fable-5.1']), true)
+  assert.equal(await modelMatchesAllowlist('claude-fable-5-1', ['claude-fable-5']), false)
+  assert.equal(await modelMatchesAllowlist('claude-fable-5', ['claude-fable-5-1']), false)
+  assert.equal(await modelMatchesAllowlist('claude-fable-5', ['claude-fable-5.1']), false)
+  assert.deepEqual(await parseAllowedModelsPatch(['claude-fable-5.1']), { ok: true, value: ['claude-fable-5-1'] })
   const vm = { claude: { account_tier: 'max' }, policy: { allowed_models: ['claude-fable-5.1'] } }
-  assert.deepEqual(slotAllowsModel({ vm, model: 'claude-fable-5-1' }), { ok: true })
-  assert.deepEqual(slotAllowsModel({ vm, model: 'claude-fable-5' }), { ok: false, reason: 'model_not_allowed' })
-  assert.deepEqual(slotAllowsModel({ vm: { ...vm, claude: { account_tier: 'pro' } }, model: 'claude-fable-5-1' }), {
+  assert.deepEqual(await slotAllowsModel({ vm, model: 'claude-fable-5-1' }), { ok: true })
+  assert.deepEqual(await slotAllowsModel({ vm, model: 'claude-fable-5' }), { ok: false, reason: 'model_not_allowed' })
+  assert.deepEqual(await slotAllowsModel({ vm: { ...vm, claude: { account_tier: 'pro' } }, model: 'claude-fable-5-1' }), {
     ok: false,
     reason: 'fable_requires_max',
   })
 })
 
-test('Opus 5.5 does not match an Opus 5 allowlist', () => {
-  assert.equal(modelMatchesAllowlist('claude-opus-5-5', ['claude-opus-5']), false)
-  assert.equal(modelMatchesAllowlist('claude-opus-5', ['claude-opus-5-5']), false)
-  assert.equal(modelMatchesAllowlist('claude-opus-5.5', ['claude-opus-5-5']), true)
-  assert.deepEqual(parseAllowedModelsPatch(['claude-opus-5.5']), { ok: true, value: ['claude-opus-5-5'] })
+test('Opus 5.5 does not match an Opus 5 allowlist', async () => {
+  assert.equal(await modelMatchesAllowlist('claude-opus-5-5', ['claude-opus-5']), false)
+  assert.equal(await modelMatchesAllowlist('claude-opus-5', ['claude-opus-5-5']), false)
+  assert.equal(await modelMatchesAllowlist('claude-opus-5.5', ['claude-opus-5-5']), true)
+  assert.deepEqual(await parseAllowedModelsPatch(['claude-opus-5.5']), { ok: true, value: ['claude-opus-5-5'] })
 })
 
-test('parseAllowedModelsPatch rejects unknown ids', () => {
-  const bad = parseAllowedModelsPatch(['not-a-claude-model'])
+test('parseAllowedModelsPatch rejects unknown ids', async () => {
+  const bad = await parseAllowedModelsPatch(['not-a-claude-model'])
   assert.equal(bad.ok, false)
-  const ok = parseAllowedModelsPatch(['claude-fable-5', 'fable'])
+  const ok = await parseAllowedModelsPatch(['claude-fable-5', 'fable'])
   assert.equal(ok.ok, true)
   assert.ok(ok.value.includes('claude-fable-5'))
 })
 
-test('parseAllowedModelsPatch accepts GPT ids for Codex VMs', () => {
-  const gpt = parseAllowedModelsPatch(['gpt-5.4'], { platform: 'openai' })
+test('parseAllowedModelsPatch accepts GPT ids for Codex VMs', async () => {
+  const gpt = await parseAllowedModelsPatch(['gpt-5.4'], { platform: 'openai' })
   assert.equal(gpt.ok, true)
   assert.deepEqual(gpt.value, ['gpt-5.4'])
-  const mixed = parseAllowedModelsPatch(['gpt-5.4'], {})
+  const mixed = await parseAllowedModelsPatch(['gpt-5.4'], {})
   assert.equal(mixed.ok, false)
 })
 
-test('persistAllowedModels writes and summarizeVm echoes the list', () => {
+test('persistAllowedModels writes and summarizeVm echoes the list', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kin-allowed-models-'))
   const dir = path.join(root, 'vms')
   fs.mkdirSync(dir, { recursive: true })
@@ -130,13 +130,13 @@ test('persistAllowedModels writes and summarizeVm echoes the list', () => {
   fs.rmSync(root, { recursive: true, force: true })
 })
 
-test('Codex slot rejects Claude models even with an empty allowlist', () => {
-  const gpt = slotAllowsModel({
+test('Codex slot rejects Claude models even with an empty allowlist', async () => {
+  const gpt = await slotAllowsModel({
     vm: { platform: 'openai', family: 'codex', policy: {} },
     model: 'gpt-5.4',
   })
   assert.equal(gpt.ok, true)
-  const claude = slotAllowsModel({
+  const claude = await slotAllowsModel({
     vm: { platform: 'openai', family: 'codex', policy: {} },
     model: 'claude-haiku-4-5',
   })
@@ -144,8 +144,8 @@ test('Codex slot rejects Claude models even with an empty allowlist', () => {
   assert.equal(claude.reason, 'codex_model_required')
 })
 
-test('Claude slot rejects GPT models', () => {
-  const hit = slotAllowsModel({
+test('Claude slot rejects GPT models', async () => {
+  const hit = await slotAllowsModel({
     vm: { platform: 'anthropic', family: 'claude', claude: { account_tier: 'max' }, policy: {} },
     model: 'gpt-5.4',
   })

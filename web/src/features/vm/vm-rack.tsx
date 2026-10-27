@@ -15,6 +15,7 @@ import {
   type VmZoneFilter,
 } from '@/features/vm/vm-rack-model'
 import { VmUnit } from '@/features/vm/vm-rack-unit'
+import { ResourceSummary } from './resource-meter'
 
 /** 机架头的构成条按六档细分（吊销与无效分开着色），分区段落才合并。 */
 const GROUP_SWATCH: { key: FleetGroup; label: string; color: string }[] = [
@@ -114,6 +115,9 @@ function RackHeader({
           </div>
         ))}
       </dl>
+      <div className='md:col-span-2 xl:col-span-3'>
+        <ResourceSummary vms={rack.vms} />
+      </div>
     </header>
   )
 }

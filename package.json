@@ -19,7 +19,13 @@
     "fetch:payload": "node scripts/fetch-payload.mjs",
     "test:web": "pnpm -C web test",
     "format": "biome format --write && gofmt -w worker && pnpm -C web format",
-    "format:check": "biome format && node scripts/check-gofmt.mjs && pnpm -C web format:check"
+    "format:check": "biome format && node scripts/check-gofmt.mjs && pnpm -C web format:check",
+    "check:types": "tsc --project tsconfig.async.json",
+    "check:type-regressions": "node scripts/check-type-regressions.mjs",
+    "check:async-lint": "eslint src/lib/admin/resource-owner.mts src/lib/admin/key-scope.mjs src/lib/pool/pool-scheduler.mjs src/lib/pool/failover-runner.mjs src/lib/protocol/handle-protocol.mjs src/lib/protocol/user-count-tokens.mjs src/lib/db/adapters/postgres",
+    "check": "npm run check:strict && npm run check:types && npm run check:async-lint && npm run check:type-regressions",
+    "test:async-guards": "node --test test/types/async-guards.test.mjs",
+    "check:strict": "tsc --project tsconfig.strict.json"
   },
   "dependencies": {
     "croner": "^10.0.1",
@@ -35,6 +41,11 @@
     "@biomejs/biome": "2.5.11",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
-    "typescript": "^5.9.3"
+    "eslint": "^9.39.4",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.0"
+  },
+  "engines": {
+    "node": "^22.18.0 || >=24.0.0"
   }
 }

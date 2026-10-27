@@ -1,15 +1,28 @@
-FROM ghcr.io/dofastted/vm2api:v1.3.207
+ARG RUNTIME_IMAGE=ghcr.1ms.run/dofastted/vm2api:v1.3.207
+FROM docker.1ms.run/library/node:22-bookworm-slim AS async-check
+WORKDIR /check
+COPY package.json package-lock.json .npmrc ./
+RUN npm ci
+COPY src ./src
+COPY scripts ./scripts
+COPY test/types ./test/types
+COPY tsconfig.async.json tsconfig.strict.json eslint.config.mjs typecheck-baseline.json ./
+RUN npm run check && npm run test:async-guards && touch /check/async-check-passed
+
+FROM ${RUNTIME_IMAGE}
 USER root
 RUN apt-get update \
- && apt-get install -y --no-install-recommends curl ca-certificates \
+ && apt-get install -y --no-install-recommends curl ca-certificates trash-cli \
  && curl -fsS https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/keyrings/pgdg.asc \
  && printf '%s\n' 'deb [signed-by=/usr/share/keyrings/pgdg.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' > /etc/apt/sources.list.d/pgdg.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends postgresql-client-17 \
  && apt-get clean
 WORKDIR /opt/vm2api
-COPY package.json package-lock.json ./
+COPY --from=async-check /check/async-check-passed /opt/vm2api/async-check-passed
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci --omit=dev
+RUN trash /opt/vm2api/src/lib /opt/vm2api/scripts
 COPY src ./src
 COPY scripts ./scripts
 COPY web/dist ./web/dist

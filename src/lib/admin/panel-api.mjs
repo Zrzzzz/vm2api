@@ -35,7 +35,7 @@ import { queryClaudeResetCredits, redeemClaudeResetCredit } from '../oauth/claud
 import { canOfficialUsage, credentialModeOfVm, isSetupTokenMode } from '../oauth/credential-mode.mjs'
 import { getUsageCache } from '../oauth/usage-cache.mjs'
 import { makeError, ErrorType, ErrorCode } from '../core/errors.mjs'
-import { filterVmsForPanel } from './resource-owner.mjs'
+import { filterVmsForPanel } from './resource-owner.mts'
 import { computeWeeklySplit, publicWeeklySplit, weeklySplitConfig } from '../pool/weekly-split.mjs'
 import { proxyBlockedReason } from '../vm/proxy-policy.mjs'
 import { socksProxyFamily, normalizeSocksHost } from '../vm/socks-address.mjs'
@@ -1581,6 +1581,8 @@ export function quotaFromAccount(acc, quotaConfig) {
     last_probe_check: u.last_probe_check || null,
     probe_source: u.source || acc?.last_probe?.source || null,
     account_tier: u.account_tier || null,
+    account_tier_source: u.account_tier_source || null,
+    account_max_multiplier: u.account_max_multiplier ?? null,
     usage_has_fable: u.usage_has_fable ?? null,
   }
   const cfg = weeklySplitConfig(quotaConfig || {})
@@ -1766,7 +1768,8 @@ async function enrichVm(v, accountQuota, active, extras = {}) {
     : inferClaudeTier(
         {
           has_token: hasToken,
-          account_tier: v.account_tier || q.account_tier,
+          account_tier: q.account_tier_source === 'profile' ? q.account_tier : v.account_tier || q.account_tier,
+          account_tier_source: q.account_tier_source || v.account_tier_source,
           fable: q.fable,
           utilization_7d_oi: q.utilization_7d_oi,
           reset_7d_oi: q.reset_7d_oi,
@@ -2005,6 +2008,8 @@ async function enrichVm(v, accountQuota, active, extras = {}) {
         }
       : null,
     account_tier: tierKey,
+    account_tier_source: q.account_tier_source || v.account_tier_source || null,
+    account_max_multiplier: q.account_tier_source === 'profile' ? q.account_max_multiplier : v.account_max_multiplier ?? null,
     usage_has_fable: isCodex ? null : q.usage_has_fable,
     availability,
     cred_status: credStatusFromAvailability(availability),

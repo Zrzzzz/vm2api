@@ -61,9 +61,9 @@ const OWNED = [
   'timeout_ms',
   'safety_instruction',
   'safety_threshold',
+  'trusted_system_hashes',
   'block_if_below',
   'fail_open',
-  'dedup_sec',
   'max_state_chars',
 ] as const
 
@@ -124,9 +124,11 @@ export function ModelSettings({
         timeout_ms: Number(draft.timeout_ms),
         safety_instruction: draft.safety_instruction || '',
         safety_threshold: Number(draft.safety_threshold ?? 0.5),
+        trusted_system_hashes: (draft.trusted_system_hashes || [])
+          .map((s) => s.trim())
+          .filter(Boolean),
         block_if_below: draft.block_if_below !== false,
         fail_open: draft.fail_open !== false,
-        dedup_sec: Number(draft.dedup_sec ?? 60),
         max_state_chars: Number(draft.max_state_chars ?? 16000),
         questions: draft.question_bank || [],
       }
@@ -226,7 +228,6 @@ export function ModelSettings({
       safety_threshold: defaults?.safety_threshold ?? 0.5,
       block_if_below: defaults?.block_if_below !== false,
       fail_open: defaults?.fail_open !== false,
-      dedup_sec: defaults?.dedup_sec ?? 60,
       max_state_chars: defaults?.max_state_chars ?? 16000,
     })
   }
@@ -426,7 +427,7 @@ export function ModelSettings({
 
       <Group
         title='打分'
-        hint='高分表示安全。相同正文在去重窗口内不再打模型。阈值越低越不容易误伤。'
+        hint='高分表示安全，阈值越低越宽松。系统提示审核通过后缓存 24 小时，内容或审核配置变化后重审；当前指令每次审核。'
         action={
           <button
             type='button'
@@ -437,7 +438,7 @@ export function ModelSettings({
           </button>
         }
       >
-        <div className='grid gap-3 sm:grid-cols-3'>
+        <div className='grid gap-3 sm:grid-cols-2'>
           <div className='space-y-1.5'>
             <Label htmlFor='jev-threshold'>阈值</Label>
             <Input
@@ -454,21 +455,7 @@ export function ModelSettings({
             />
           </div>
           <div className='space-y-1.5'>
-            <Label htmlFor='jev-dedup'>去重（秒）</Label>
-            <Input
-              id='jev-dedup'
-              type='number'
-              min={0}
-              max={3600}
-              className='tabular-nums'
-              value={draft.dedup_sec ?? 60}
-              onChange={(e) =>
-                setDraft({ ...draft, dedup_sec: Number(e.target.value) })
-              }
-            />
-          </div>
-          <div className='space-y-1.5'>
-            <Label htmlFor='jev-state'>送模上限（字）</Label>
+            <Label htmlFor='jev-state'>每段审核长度（字符）</Label>
             <Input
               id='jev-state'
               type='number'
@@ -494,6 +481,25 @@ export function ModelSettings({
             }
           />
         </div>
+      </Group>
+
+      <Group
+        title='可信系统提示'
+        hint='只跳过完整指纹匹配的系统提示，当前指令仍会审核。每行填写一个审核记录中的 SHA-256 指纹；留空则由模型审核并缓存通过结果。'
+      >
+        <Label htmlFor='jev-trusted-systems'>系统提示指纹</Label>
+        <Textarea
+          id='jev-trusted-systems'
+          className='mt-2 font-mono text-xs'
+          value={(draft.trusted_system_hashes || []).join('\n')}
+          onChange={(e) =>
+            setDraft({
+              ...draft,
+              trusted_system_hashes: e.target.value.split('\n'),
+            })
+          }
+          rows={3}
+        />
       </Group>
 
       <Group
