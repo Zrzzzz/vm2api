@@ -255,3 +255,9 @@ test('database errors do not reuse a prior candidate snapshot', async (t) => {
   held.release()
   assert.equal(pool.inflight.size, 0)
 })
+
+test('missing and disabled account admissions have explicit schedule-state reasons', async () => {
+  const { stateOfReason } = await import('../../src/lib/pool/schedule-state.mjs')
+  assert.equal(stateOfReason('account_missing').state, 'unschedulable')
+  assert.equal(stateOfReason('account_disabled').state, 'unschedulable')
+})
