@@ -31,8 +31,10 @@ export type ProviderChainItem = {
   action: string | null
   /** 该次尝试是否已把响应提交给下游（= 最终服务方）。 */
   downstreamCommitted: boolean
-  /** 排队等槽耗时。 */
+  /** 调度总耗时，包含实际排队；历史记录没有拆分。 */
   waitMs: number | null
+  queueWaitMs: number | null
+  schedulingMs: number | null
   ttftMs: number | null
   latencyMs: number | null
   startedAt: string | null

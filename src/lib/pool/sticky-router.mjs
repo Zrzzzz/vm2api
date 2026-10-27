@@ -429,11 +429,9 @@ export class StickyRouter {
   /** @returns {Promise<{ accountId: string, vmId: string } | null> } */
   async resolve(key) {
     if (!key || !this.config.enabled) return null
-    await this._purge()
     const ent = (await this.repo.get(key))
     if (!ent) return null
     if (Date.now() > ent.expires_at) {
-      await this.repo.remove(key)
       return null
     }
     return {

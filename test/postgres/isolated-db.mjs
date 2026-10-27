@@ -9,5 +9,6 @@ export async function createTestDatabase() {
  await db.initializeBaseline(fs.readFileSync(new URL('../../src/lib/db/postgres-migrations/001_baseline.sql',import.meta.url),'utf8'))
  await db.applyMigration('002',fs.readFileSync(new URL('../../src/lib/db/postgres-migrations/002_upstream_207.sql',import.meta.url),'utf8'))
  await db.applyMigration('003',fs.readFileSync(new URL('../../src/lib/db/postgres-migrations/003_upstream_1419.sql',import.meta.url),'utf8'))
+ await db.applyMigration('004',fs.readFileSync(new URL('../../src/lib/db/postgres-migrations/004_scheduler_timings.sql',import.meta.url),'utf8'))
  return db
 }

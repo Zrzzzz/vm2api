@@ -7,6 +7,7 @@ export async function configuredIpv6Enabled() {
 }
 
 export async function proxyBlockedReason(proxy, ipv6Enabled) {
+  if (socksProxyFamily(proxy) !== 6) return null
   if (ipv6Enabled === undefined) ipv6Enabled = await configuredIpv6Enabled()
   return ipv6Enabled !== true && socksProxyFamily(proxy) === 6 ? 'ipv6_disabled' : null
 }

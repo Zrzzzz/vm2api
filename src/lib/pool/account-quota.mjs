@@ -11,6 +11,7 @@
 
 import { resolveStoreDb } from '../db/database.mjs'
 import { AccountsRepo } from '../db/repos/accounts-repo.mjs'
+import { AccountRuntimeRepo } from '../db/repos/account-runtime-repo.mjs'
 import { computeWeeklySplit, weeklySplitConfig } from './weekly-split.mjs'
 import {
   applyEffectiveWindows,
@@ -62,6 +63,7 @@ export class AccountQuota {
   constructor({ dataDir, db, config, accounts }) {
     this.db = resolveStoreDb({ db, dataDir })
     this.repo = new AccountsRepo(this.db)
+    this.runtimeRepo = new AccountRuntimeRepo(this.db)
     this.config = config?.quota || {
       safety_ratio: 0.85,
       weekly_safety_ratio: 0.8,
@@ -95,6 +97,7 @@ export class AccountQuota {
   rebind(db) {
     this.db = db
     this.repo = new AccountsRepo(db)
+    this.runtimeRepo = new AccountRuntimeRepo(db)
   }
 
   /**
@@ -582,9 +585,14 @@ export class AccountQuota {
     for (const vm of vms || []) this.setVmQuotaOverride(vm?.id, vm?.quota_override || null)
   }
 
-  async canAccept(accountId, { tier = null, requestRisk = null, quotaRequest = null } = {}) {
-    return await this.db.withEntityLock('account', accountId, async () => {
-    const acc = (await this.ensure({ account_id: accountId }))
+  async canAccept(accountId, options = {}) {
+    return this.canAcceptAccount(await this.repo.get(accountId), options)
+  }
+
+  /** One policy evaluator for both candidate snapshots and final admission. */
+  canAcceptAccount(acc, { tier = null, requestRisk = null, quotaRequest = null } = {}) {
+    if (!acc) return { ok: false, reason: 'account_missing' }
+    const accountId = acc.account_id
     const policy = this.policyFor(acc, { tier })
     const ratio = Number(policy.limit_5h ?? policy.safety_ratio ?? this.config.safety_ratio ?? 0.85)
     const weeklyRatio = Number(
@@ -607,8 +615,6 @@ export class AccountQuota {
 
     if (quotaConfig.block_on_5h && headerHardBlocked(acc.unified, '5h')) {
       const h5 = headerWindow(acc.unified, '5h')
-      acc.last_blocked = { at: new Date().toISOString(), window: '5h', status: h5.status, source: 'headers' }
-      await this.repo.save(acc)
       return {
         ok: false,
         reason: 'quota_5h_cli',
@@ -621,8 +627,6 @@ export class AccountQuota {
     }
     if (quotaConfig.block_on_7d && headerHardBlocked(acc.unified, '7d')) {
       const h7 = headerWindow(acc.unified, '7d')
-      acc.last_blocked = { at: new Date().toISOString(), window: '7d', status: h7.status, source: 'headers' }
-      await this.repo.save(acc)
       return {
         ok: false,
         reason: 'quota_7d_cli',
@@ -642,8 +646,6 @@ export class AccountQuota {
     const z7 = quotaConfig.block_on_7d ? gateZone(u7, weeklyRatio, gate) : GATE_OPEN
 
     if (z5 === GATE_GATED) {
-      acc.last_blocked = { at: new Date().toISOString(), window: '5h', utilization: u5, status: w5.status }
-      await this.repo.save(acc)
       return {
         ok: false,
         reason: 'quota_5h_safety',
@@ -660,8 +662,6 @@ export class AccountQuota {
     }
 
     if (z7 === GATE_GATED) {
-      acc.last_blocked = { at: new Date().toISOString(), window: '7d', utilization: u7, status: w7.status }
-      await this.repo.save(acc)
       return {
         ok: false,
         reason: 'quota_7d_safety',
@@ -741,56 +741,82 @@ export class AccountQuota {
     }
 
     return { ok: true, warn_5h: u5 >= warnRatio, warn_7d: u7 >= Math.min(warnRatio, weeklyRatio) }
-      })
   }
   async tryAcquire(accountId, opts = {}) {
-    return await this.db.withEntityLock('account', accountId, async () => {
-    if (!opts.skipGate) {
-      const gate = (await this.canAccept(accountId, opts))
-      if (!gate.ok) return gate
-    }
-    const acc = (await this.ensure({ account_id: accountId }))
-    const inBand = (await this._drainingNow(accountId, { tier: opts.tier }))
-    const inflight = this.inflight.get(accountId) || 0
-    const limit = this.limitFor(acc, this.policyFor(acc, { tier: opts.tier }))
-    if (inflight >= limit) {
-      return { ok: false, reason: 'concurrency_limit', detail: { inflight, max: limit, source: 'quota-reservation' } }
-    }
-    const stack = this.reservationBand.get(accountId) || []
-    stack.push(inBand)
-    this.reservationBand.set(accountId, stack)
-    this.inflight.set(accountId, inflight + 1)
-    this._rpmTouch(accountId)
-    return { ok: true }
+    let acquiredAt = null
+    try {
+      return await this.db.withEntityLock('account', accountId, async () => {
+        // Re-read after obtaining the mutation lock. Candidate snapshots are never
+        // authority for capacity, quota or a newly-applied cooldown at admission.
+        const snapshot = (await this.runtimeRepo.schedulingSnapshot([accountId])).get(accountId)
+        const acc = snapshot?.account
+        if (!acc) return { ok: false, reason: 'account_missing' }
+        if (opts.validate) {
+          const validation = await opts.validate(snapshot)
+          if (!validation.ok) return validation
+        }
+        if (!opts.skipGate) {
+          const gate = this.canAcceptAccount(acc, opts)
+          if (!gate.ok) return gate
+        }
+        const inBand = this.gateZoneForAccount(acc, { tier: opts.tier }) === GATE_DRAINING
+        const inflight = this.inflight.get(accountId) || 0
+        const limit = this.limitFor(acc, this.policyFor(acc, { tier: opts.tier }))
+        if (inflight >= limit) {
+          return { ok: false, reason: 'concurrency_limit', detail: { inflight, max: limit, source: 'quota-reservation' } }
+        }
+        const stack = this.reservationBand.get(accountId) || []
+        stack.push(inBand)
+        this.reservationBand.set(accountId, stack)
+        this.inflight.set(accountId, inflight + 1)
+        acquiredAt = Date.now()
+        this._rpmTouch(accountId, acquiredAt)
+        return { ok: true }
       })
+    } catch (error) {
+      // A failed COMMIT must not leak process-local capacity or an RPM ticket.
+      if (acquiredAt != null) {
+        this.release(accountId)
+        const bucket = this.rpmBuckets.get(accountId) || []
+        const index = bucket.lastIndexOf(acquiredAt)
+        if (index >= 0) bucket.splice(index, 1)
+      }
+      throw error
+    }
   }
 
   /** sub2api 7d_oi: Fable-only window. Does not unschedulable the account. */
   async fableWindowLimited(accountId, now = Date.now()) {
-    return await this.db.withEntityLock('account', accountId, async () => {
-    const oi = (await this.repo.get(accountId))?.unified?.['7d_oi']
+    return this.fableWindowLimitedForAccount(await this.repo.get(accountId), now)
+  }
+
+  fableWindowLimitedForAccount(acc, now = Date.now()) {
+    const oi = acc?.unified?.['7d_oi']
     if (!oi) return false
     const status = String(oi.status || '').toLowerCase()
     if (status !== 'rejected' && status !== 'rate_limited') return false
     const resetMs = parseResetMs(oi.reset)
     if (Number.isFinite(resetMs) && resetMs <= now) return false
     return true
-    })
   }
 
   async fableWindowResetAt(accountId) {
-    return await this.db.withEntityLock('account', accountId, async () => {
-    const reset = (await this.repo.get(accountId))?.unified?.['7d_oi']?.reset
+    return this.fableWindowResetForAccount(await this.repo.get(accountId))
+  }
+
+  fableWindowResetForAccount(acc) {
+    const reset = acc?.unified?.['7d_oi']?.reset
     if (!reset) return null
     const ms = parseResetMs(reset)
     return Number.isFinite(ms) ? ms : null
-      })
   }
 
   /** Experimental 50/50 weekly split. Off unless quota.weekly_split.enabled (or the VM override). */
   async weeklySplitOf(accountId) {
-    return await this.db.withEntityLock('account', accountId, async () => {
-    const acc = (await this.repo.get(accountId))
+    return this.weeklySplitForAccount(await this.repo.get(accountId))
+  }
+
+  weeklySplitForAccount(acc) {
     const cfg = weeklySplitConfig(this.quotaConfigFor(acc))
     const u = acc?.unified || {}
     return computeWeeklySplit({
@@ -801,18 +827,18 @@ export class AccountQuota {
       status_7d_oi: u['7d_oi']?.status,
       reset_7d_oi: u['7d_oi']?.reset,
     })
-      })
   }
 
   async weeklySplitResetAt(accountId, kind = 'regular') {
-    return await this.db.withEntityLock('account', accountId, async () => {
-    const acc = (await this.repo.get(accountId))
+    return this.weeklySplitResetForAccount(await this.repo.get(accountId), kind)
+  }
+
+  weeklySplitResetForAccount(acc, kind = 'regular') {
     const key = kind === 'fable' ? '7d_oi' : '7d'
     const reset = acc?.unified?.[key]?.reset
     if (!reset) return null
     const ms = parseResetMs(reset)
     return Number.isFinite(ms) ? ms : null
-      })
   }
 
   acquire(accountId) {
@@ -852,8 +878,10 @@ export class AccountQuota {
    * the block switches applied. Used by the seat planner to place new devices.
    */
   async gateZoneOf(accountId, { tier = null } = {}) {
-    return await this.db.withEntityLock('account', accountId, async () => {
-    const acc = (await this.repo.get(accountId)) || (await this.ensure({ account_id: accountId }))
+    return this.gateZoneForAccount(await this.repo.get(accountId), { tier })
+  }
+
+  gateZoneForAccount(acc, { tier = null } = {}) {
     const policy = this.policyFor(acc, { tier })
     const quotaConfig = this.quotaConfigFor(acc)
     const gate = quotaGateOf(quotaConfig)
@@ -866,13 +894,10 @@ export class AccountQuota {
     const z5 = quotaConfig.block_on_5h ? gateZone(u5, ratio, gate) : GATE_OPEN
     const z7 = quotaConfig.block_on_7d ? gateZone(u7, weeklyRatio, gate) : GATE_OPEN
     return worstGateZone(z5, z7)
-      })
   }
 
-  async _drainingNow(accountId, { tier = null } = {}) {
-    return await this.db.withEntityLock('account', accountId, async () => {
-    return (await this.gateZoneOf(accountId, { tier })) === GATE_DRAINING
-      })
+  async _drainingNow(accountId, options = {}) {
+    return (await this.gateZoneOf(accountId, options)) === GATE_DRAINING
   }
 
   /** Called only for a draining account: a large cold (or stale-reading large) call is not taken here. */
