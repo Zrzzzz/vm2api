@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- #814：CLI 路径不再误剥 `eager_input_streaming`（仅清 tool `cache_control`；最终组装再 `applyEagerToolStreaming`），保留客户端显式 true/false 与面板开关。
+
 ## 1.4.025 — 2026-10-28
 
 - #812：新增默认开启的 notify.events.vm_down：节点 SSH 失联、watchdog 内核恢复预算耗尽，或运行中的 VM 变为 stopped/dead/error 时，经已启用的 Telegram / 企微 / 邮件通道告警（含设置页开关）；移除 server 独立 watchdog 通知路径，统一由通知监控处理。人工停调、维护、额度冷却及未知运行状态不告警；同一次下线只通知一次，失败通道可重试。
