@@ -1760,7 +1760,9 @@ export class PoolScheduler extends EventEmitter {
       if (circuitHold?.ok && circuitHold.probe) this.unitCircuit.releaseProbe(candidate.accountId)
       throw makeAbortError()
     }
-    this.inflight.set(candidate.accountId, requestInflight + 1)
+    // Admissions are serialized, but releases can run during the awaits above.
+    // Increment the live count so a completed request is not counted again.
+    this.inflight.set(candidate.accountId, (this.inflight.get(candidate.accountId) || 0) + 1)
     this.bumpFamily(candidate.accountId, family, 1)
     this.bumpVmInflight(candidate.vmId, 1)
     let released = false
