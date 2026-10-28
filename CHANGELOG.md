@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- #812：新增默认开启的 notify.events.vm_down：节点 SSH 失联、watchdog 内核恢复预算耗尽，或运行中的 VM 变为 stopped/dead/error 时，经已启用的 Telegram / 企微 / 邮件通道告警（含设置页开关）；移除 server 独立 watchdog 通知路径，统一由通知监控处理。人工停调、维护、额度冷却及未知运行状态不告警；同一次下线只通知一次，失败通道可重试。
+
 ## 1.4.024 — 2026-10-28
 
 - #804：准入钩子期间释放后按实时 inflight 递增，避免占位复活。
